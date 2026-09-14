@@ -10,9 +10,10 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "sourceMap": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     },
     "outDir": "dist",
     "resolveJsonModule": true

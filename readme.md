@@ -8,7 +8,7 @@ Gestionnaire de bibliothèque et lecteur de BD, comics et manga numériques.
 - [Vite](https://vitejs.dev/) pour le main, le preload et le renderer
 - [React 19](https://react.dev/) + [TanStack Router](https://tanstack.com/router) (routes par fichiers, historique mémoire)
 - [Tailwind CSS 4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) (`npx shadcn add <composant>`)
-- TypeScript, ESLint
+- TypeScript 6, ESLint 10 (flat config, `typescript-eslint`, `import-x`, `react-hooks`, `react-refresh`)
 
 ## Structure
 
@@ -26,7 +26,7 @@ src/
 index.html      # page du renderer
 components.json # config shadcn CLI
 forge.config.ts # configuration Electron Forge (makers, plugins, fuses)
-vite.*.config.(m)ts
+vite.*.config.mts
 ```
 
 ## Développement
