@@ -1,0 +1,41 @@
+import { BrowserWindow, app, dialog, ipcMain } from 'electron';
+
+import { SUPPORTED_COMIC_EXTENSIONS } from '../../shared/comic';
+import { ComicService } from '../services/comic-service';
+
+// Channel names are shared with preload.ts: keep them in sync.
+export const COMIC_CHANNELS = {
+  pickFile: 'comic:pick-file',
+  open: 'comic:open',
+  readPage: 'comic:read-page',
+  close: 'comic:close',
+} as const;
+
+export function registerComicIpc(): void {
+  const service = new ComicService();
+
+  ipcMain.handle(COMIC_CHANNELS.pickFile, async (event) => {
+    const options: Electron.OpenDialogOptions = {
+      title: 'Ouvrir une BD',
+      properties: ['openFile'],
+      filters: [{ name: 'Comic Book Archive', extensions: [...SUPPORTED_COMIC_EXTENSIONS] }],
+    };
+    const window = BrowserWindow.fromWebContents(event.sender);
+    const { canceled, filePaths } = window
+      ? await dialog.showOpenDialog(window, options)
+      : await dialog.showOpenDialog(options);
+    return canceled ? null : filePaths[0];
+  });
+
+  ipcMain.handle(COMIC_CHANNELS.open, (_event, filePath: string) => service.open(filePath));
+
+  ipcMain.handle(COMIC_CHANNELS.readPage, (_event, id: string, index: number) =>
+    service.readPage(id, index),
+  );
+
+  ipcMain.handle(COMIC_CHANNELS.close, (_event, id: string) => service.close(id));
+
+  app.on('will-quit', () => {
+    void service.closeAll();
+  });
+}

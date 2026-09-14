@@ -14,8 +14,12 @@ Gestionnaire de bibliothèque et lecteur de BD, comics et manga numériques.
 
 ```
 src/
-  main.ts       # processus principal (fenêtres, cycle de vie, IPC)
+  main.ts       # processus principal (fenêtres, cycle de vie)
+  main/ipc/     # handlers ipcMain (comic.ts : ouverture/lecture d'archives)
+  main/services # ComicService + archives (ComicArchive, CbzArchive)
+  shared/       # types partagés main <-> renderer (ComicInfo, ComicPage)
   preload.ts    # pont sécurisé main <-> renderer (contextBridge)
+  hooks/        # hooks React (useComic : archive ouverte, page courante)
   renderer.tsx  # point d'entrée de l'UI (React + RouterProvider)
   routes/       # routes TanStack Router (__root.tsx = layout, index.tsx = /)
   routeTree.gen.ts # généré par le plugin router, ne pas éditer

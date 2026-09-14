@@ -2,6 +2,8 @@ import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
+import { registerComicIpc } from './main/ipc/comic';
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
@@ -37,7 +39,10 @@ const createWindow = () => {
   }
 };
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  registerComicIpc();
+  createWindow();
+});
 
 // Quit when all windows are closed, except on macOS where apps stay active
 // until the user quits explicitly with Cmd + Q.
