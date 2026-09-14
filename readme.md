@@ -6,6 +6,8 @@ Gestionnaire de bibliothèque et lecteur de BD, comics et manga numériques.
 
 - [Electron](https://www.electronjs.org/) + [Electron Forge](https://www.electronforge.io/) (packaging, makers Squirrel / ZIP / deb / rpm)
 - [Vite](https://vitejs.dev/) pour le main, le preload et le renderer
+- [React 19](https://react.dev/) + [TanStack Router](https://tanstack.com/router) (routes par fichiers, historique mémoire)
+- [Tailwind CSS 4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) (`npx shadcn add <composant>`)
 - TypeScript, ESLint
 
 ## Structure
@@ -14,11 +16,17 @@ Gestionnaire de bibliothèque et lecteur de BD, comics et manga numériques.
 src/
   main.ts       # processus principal (fenêtres, cycle de vie, IPC)
   preload.ts    # pont sécurisé main <-> renderer (contextBridge)
-  renderer.ts   # point d'entrée de l'UI
+  renderer.tsx  # point d'entrée de l'UI (React + RouterProvider)
+  routes/       # routes TanStack Router (__root.tsx = layout, index.tsx = /)
+  routeTree.gen.ts # généré par le plugin router, ne pas éditer
+  components/ui # composants shadcn/ui
+  lib/utils.ts  # helper cn()
+  index.css     # Tailwind + tokens shadcn
   global.d.ts   # typage de window.tankobon
 index.html      # page du renderer
+components.json # config shadcn CLI
 forge.config.ts # configuration Electron Forge (makers, plugins, fuses)
-vite.*.config.ts
+vite.*.config.(m)ts
 ```
 
 ## Développement
