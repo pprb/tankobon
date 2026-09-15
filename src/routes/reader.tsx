@@ -1,12 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { ChevronLeft, ChevronRight, FolderOpen, Loader2, X, ZoomIn } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useComic } from '@/hooks/use-comic';
 import { useImageUpscaler } from '@/hooks/use-image-upscaler';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
+import type { ComicInfo } from '@/shared/comic';
+import type { AppSettings } from '@/shared/settings';
 
 interface Size {
   width: number;
@@ -53,6 +55,88 @@ function ReaderPage() {
   const { path } = Route.useSearch();
   const { comic, page, pageUrl, error, loading, pickAndOpen, openFile, close, next, prev } = useComic();
   const { settings } = useSettings();
+
+  useEffect(() => {
+    if (path) void openFile(path);
+  }, [path, openFile]);
+
+  // Continuous mode doesn't drive `page`/`goTo` (that would also re-trigger useComic's
+  // own single-page fetch for no reason); it persists progress directly instead.
+  const persistProgress = useCallback(
+    (index: number) => {
+      if (!comic) return;
+      void window.tankobon.library.updateProgress(comic.libraryId, index);
+    },
+    [comic],
+  );
+
+  if (!comic) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-6">
+        <h1 className="text-2xl font-semibold tracking-tight">Lecteur</h1>
+        <p className="text-muted-foreground">Ouvre un fichier CBZ ou CBR pour commencer la lecture.</p>
+        <Button onClick={pickAndOpen} disabled={loading}>
+          <FolderOpen />
+          Ouvrir un fichier
+        </Button>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+      </div>
+    );
+  }
+
+  if (settings.readingMode === 'continuous') {
+    return (
+      <ContinuousReader
+        comic={comic}
+        spacing={settings.pageSpacing}
+        pickAndOpen={pickAndOpen}
+        close={close}
+        onActivePage={persistProgress}
+      />
+    );
+  }
+
+  return (
+    <SinglePageReader
+      comic={comic}
+      page={page}
+      pageUrl={pageUrl}
+      error={error}
+      loading={loading}
+      pickAndOpen={pickAndOpen}
+      close={close}
+      next={next}
+      prev={prev}
+      settings={settings}
+    />
+  );
+}
+
+interface SinglePageReaderProps {
+  comic: ComicInfo;
+  page: number;
+  pageUrl: string | null;
+  error: string | null;
+  loading: boolean;
+  pickAndOpen: () => void;
+  close: () => void;
+  next: () => void;
+  prev: () => void;
+  settings: AppSettings;
+}
+
+function SinglePageReader({
+  comic,
+  page,
+  pageUrl,
+  error,
+  loading,
+  pickAndOpen,
+  close,
+  next,
+  prev,
+  settings,
+}: SinglePageReaderProps) {
   const [zoom, setZoom] = useState<Zoom>('fit');
   const [upscaleEnabled, setUpscaleEnabled] = useState(false);
   const [naturalSizeState, setNaturalSizeState] = useState<{ src: string; size: Size } | null>(null);
@@ -64,10 +148,6 @@ function ReaderPage() {
   const advance = rtl ? prev : next;
   const retreat = rtl ? next : prev;
   const zoomFraction = zoom === 'fit' ? null : zoom;
-
-  useEffect(() => {
-    if (path) void openFile(path);
-  }, [path, openFile]);
 
   // Track the page's real pixel size, independent of whichever asset (original or
   // AI-upscaled) ends up on screen, so zoom math always refers to the original.
@@ -93,7 +173,6 @@ function ReaderPage() {
   }, [pageUrl]);
 
   useEffect(() => {
-    // Depends on `comic`: the container only mounts once a comic is open.
     const el = containerRef.current;
     if (!el) return;
     const observer = new ResizeObserver(([entry]) => {
@@ -102,7 +181,7 @@ function ReaderPage() {
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [comic]);
+  }, []);
 
   // Wheel-to-turn-page: while zoomed in, a scroll that can still pan the image is left
   // alone; only once the pan hits the edge (or in "fit" mode, where there's no pan at
@@ -110,7 +189,7 @@ function ReaderPage() {
   // wheel events) to exactly one page turn.
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || !comic) return;
+    if (!el) return;
     const inverted = settings.scrollDirection === 'inverted';
     let cooldownUntil = 0;
 
@@ -137,10 +216,9 @@ function ReaderPage() {
 
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [comic, zoomFraction, settings.scrollDirection, advance, retreat]);
+  }, [zoomFraction, settings.scrollDirection, advance, retreat]);
 
   useEffect(() => {
-    if (!comic) return;
     const onKeyDown = (event: KeyboardEvent) => {
       switch (event.key) {
         case 'ArrowRight':
@@ -158,7 +236,7 @@ function ReaderPage() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [comic, advance, retreat]);
+  }, [advance, retreat]);
 
   const displaySize =
     naturalSize &&
@@ -175,20 +253,6 @@ function ReaderPage() {
     isUpscaling,
     error: upscaleError,
   } = useImageUpscaler(pageUrl, upscaleEnabled && needsUpscale);
-
-  if (!comic) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 p-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Lecteur</h1>
-        <p className="text-muted-foreground">Ouvre un fichier CBZ pour commencer la lecture.</p>
-        <Button onClick={pickAndOpen} disabled={loading}>
-          <FolderOpen />
-          Ouvrir un fichier
-        </Button>
-        {error && <p className="text-sm text-destructive">{error}</p>}
-      </div>
-    );
-  }
 
   const isFirst = page === 0;
   const isLast = page === comic.pageCount - 1;
@@ -300,6 +364,131 @@ function ReaderPage() {
           <ChevronRight className="mx-4 size-8 self-center" />
         </button>
       </div>
+    </div>
+  );
+}
+
+interface ContinuousReaderProps {
+  comic: ComicInfo;
+  spacing: number;
+  pickAndOpen: () => void;
+  close: () => void;
+  onActivePage: (index: number) => void;
+}
+
+function ContinuousReader({ comic, spacing, pickAndOpen, close, onActivePage }: ContinuousReaderProps) {
+  const [visiblePage, setVisiblePage] = useState(0);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleActive = useCallback(
+    (index: number) => {
+      setVisiblePage(index);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => onActivePage(index), 400);
+    },
+    [onActivePage],
+  );
+
+  useEffect(
+    () => () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    },
+    [],
+  );
+
+  return (
+    <div className="flex h-full flex-col bg-black text-white">
+      <header className="flex items-center gap-2 border-b border-white/10 px-3 py-2 text-sm">
+        <span className="truncate font-medium" title={comic.path}>
+          {comic.title}
+        </span>
+        <span className="ml-auto tabular-nums text-white/60">
+          {visiblePage + 1} / {comic.pageCount}
+        </span>
+        <Button variant="ghost" size="icon-sm" onClick={pickAndOpen} title="Ouvrir un autre fichier">
+          <FolderOpen />
+        </Button>
+        <Button variant="ghost" size="icon-sm" onClick={close} title="Fermer">
+          <X />
+        </Button>
+      </header>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto flex flex-col items-center" style={{ rowGap: spacing }}>
+          {Array.from({ length: comic.pageCount }, (_, index) => (
+            <ContinuousPage key={index} comicId={comic.id} index={index} onActive={handleActive} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface ContinuousPageProps {
+  comicId: string;
+  index: number;
+  onActive: (index: number) => void;
+}
+
+function ContinuousPage({ comicId, index, onActive }: ContinuousPageProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const [url, setUrl] = useState<string | null>(null);
+
+  // Two observers: one preloads well before the page is visible, the other (tighter
+  // threshold) tracks which page actually counts as "current" for resuming later.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const loadObserver = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setShouldLoad(true);
+      },
+      { rootMargin: '800px 0px' },
+    );
+    const activeObserver = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) onActive(index);
+      },
+      { threshold: 0.5 },
+    );
+    loadObserver.observe(el);
+    activeObserver.observe(el);
+    return () => {
+      loadObserver.disconnect();
+      activeObserver.disconnect();
+    };
+  }, [index, onActive]);
+
+  useEffect(() => {
+    if (!shouldLoad) return;
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    window.tankobon.comic
+      .readPage(comicId, index)
+      .then(({ data, mimeType }) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(new Blob([data], { type: mimeType }));
+        setUrl(objectUrl);
+      })
+      .catch(() => {
+        /* leaves the placeholder in place */
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [shouldLoad, comicId, index]);
+
+  return (
+    <div ref={ref} className="w-full max-w-full">
+      {url ? (
+        <img src={url} alt={`Page ${index + 1}`} draggable={false} className="block w-full" />
+      ) : (
+        <div className="flex h-[60vh] w-full items-center justify-center text-white/30">
+          <Loader2 className="size-6 animate-spin" />
+        </div>
+      )}
     </div>
   );
 }

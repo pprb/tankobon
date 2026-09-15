@@ -42,6 +42,15 @@ fait d'abord défiler l'image et ne tourne la page qu'une fois arrivé en haut
 ou en bas. Le sens (bas = page suivante ou précédente) se choisit dans
 Paramètres.
 
+## Mode de lecture continu
+
+En plus du mode page par page, Paramètres propose un mode "Défilement
+continu" : les pages s'enchaînent verticalement, chargées à la volée à
+l'approche (elles ne sont pas toutes chargées en mémoire d'un coup).
+L'espacement entre les pages se règle en pixels (0 minimum, pages
+collées). La page en cours (pour le compteur et la reprise de lecture)
+est celle la plus visible à l'écran pendant le défilement.
+
 ## Panneau latéral réductible
 
 Le bouton en haut du panneau latéral le réduit à une colonne d'icônes, pour

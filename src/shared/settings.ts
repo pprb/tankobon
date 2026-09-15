@@ -7,10 +7,16 @@ export interface AppSettings {
   sidebarCollapsed: boolean;
   /** Mouse/trackpad wheel direction in the reader: scrolling down advances or retreats a page. */
   scrollDirection: 'standard' | 'inverted';
+  /** `single`: one page at a time. `continuous`: pages flow one after another in a vertical scroll. */
+  readingMode: 'single' | 'continuous';
+  /** Gap in pixels between pages in continuous mode (0 = pages touch). */
+  pageSpacing: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   readingDirection: 'ltr',
   sidebarCollapsed: false,
   scrollDirection: 'standard',
+  readingMode: 'single',
+  pageSpacing: 16,
 };
