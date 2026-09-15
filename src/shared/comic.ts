@@ -26,4 +26,4 @@ export interface ComicPage {
   mimeType: string;
 }
 
-export const SUPPORTED_COMIC_EXTENSIONS = ['cbz'] as const;
+export const SUPPORTED_COMIC_EXTENSIONS = ['cbz', 'cbr'] as const;

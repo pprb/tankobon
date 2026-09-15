@@ -1,6 +1,7 @@
 # Tankōbon
 
 Gestionnaire de bibliothèque et lecteur de BD, comics et manga numériques.
+Formats d'archive pris en charge : CBZ et CBR.
 
 ## Stack
 
@@ -10,6 +11,7 @@ Gestionnaire de bibliothèque et lecteur de BD, comics et manga numériques.
 - [Tailwind CSS 4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) (`npx shadcn add <composant>`)
 - TypeScript 6, ESLint 10 (flat config, `typescript-eslint`, `import-x`, `react-hooks`, `react-refresh`)
 - [`node:sqlite`](https://nodejs.org/api/sqlite.html) pour le stockage local (bibliothèque, paramètres, progression de lecture)
+- [node-unrar-js](https://github.com/YuJianrong/node-unrar.js) (unrar compilé en WebAssembly) pour la lecture des CBR
 - [Vitest](https://vitest.dev/) pour les tests unitaires
 - [UpscalerJS](https://github.com/thekevinscott/UpscalerJS) (TensorFlow.js, modèle ESRGAN local) pour l'amélioration d'image à la volée
 
@@ -40,7 +42,7 @@ src/
   main.ts       # processus principal (fenêtres, cycle de vie, ouverture de la DB)
   main/db/      # base SQLite locale (node:sqlite) : schéma, repositories, export JSON
   main/ipc/     # handlers ipcMain (comic, library, settings, data:export)
-  main/services # ComicService + archives (ComicArchive, CbzArchive)
+  main/services # ComicService + archives (ComicArchive, CbzArchive, CbrArchive)
   shared/       # types partagés main <-> renderer (ComicInfo, LibraryEntry, AppSettings)
   preload.ts    # pont sécurisé main <-> renderer (contextBridge)
   hooks/        # hooks React (useComic, useSettings)

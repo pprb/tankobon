@@ -25,7 +25,7 @@ CI (`.github/workflows/ci.yml`) runs `lint`, `typecheck`, and `test` as three in
 
 ## Architecture
 
-Tankōbon is an Electron app (Vite + Electron Forge) for managing and reading digital comics (CBZ today). It follows the standard Electron three-process split, with a strict boundary enforced by `contextIsolation: true` / `nodeIntegration: false` (see `src/main.ts`):
+Tankōbon is an Electron app (Vite + Electron Forge) for managing and reading digital comics (CBZ, CBR). It follows the standard Electron three-process split, with a strict boundary enforced by `contextIsolation: true` / `nodeIntegration: false` (see `src/main.ts`):
 
 - **Main process** (`src/main.ts`, `src/main/`) — owns windows, the SQLite database, and all filesystem/archive access.
 - **Preload** (`src/preload.ts`) — the *only* bridge between renderer and main. It exposes a single `window.tankobon` object via `contextBridge`, mirroring IPC channels defined in `src/main/ipc/*.ts`. Channel name constants (e.g. `COMIC_CHANNELS`, `LIBRARY_CHANNELS`) live in the main-process IPC files but preload can't import them (different process/build target), so channel strings are duplicated there — keep both sides in sync manually when adding channels.
@@ -45,7 +45,9 @@ Persistence uses Node's built-in `node:sqlite` (`DatabaseSync`) — no native mo
 
 ### Comic archives (`src/main/services/`)
 
-`ComicArchive` (`comic-archive.ts`) is the format-agnostic interface (`pages`, `readPage()`, `close()`); `CbzArchive` is the only implementation today (via `node-stream-zip`). `ComicService` maps file extensions to openers and keeps opened archives alive in memory between IPC calls, addressed by an opaque `randomUUID()` — this id is distinct from the persistent `libraryId` used by the database.
+`ComicArchive` (`comic-archive.ts`) is the format-agnostic interface (`pages`, `readPage()`, `close()`); `CbzArchive` (`node-stream-zip`) and `CbrArchive` (`node-unrar-js`) implement it. `ComicService` maps file extensions to openers and keeps opened archives alive in memory between IPC calls, addressed by an opaque `randomUUID()` — this id is distinct from the persistent `libraryId` used by the database.
+
+**Build gotcha**: `node-unrar-js`'s Emscripten glue locates its `.wasm` file relative to its own `__dirname`, which breaks once Vite bundles it into `main.js` (the bundle's `__dirname` isn't `node_modules/node-unrar-js/...` anymore). `vite.main.config.mts` copies `unrar.wasm` next to the bundled `main.js` via `vite-plugin-static-copy`, and `cbr-archive.ts` reads it itself (`readFile(join(__dirname, 'unrar.wasm'))`) and passes it as `wasmBinary`, bypassing the library's own path lookup entirely — same category of gotcha as the `node:sqlite` one above.
 
 ### Routing (`src/routes/`)
 
