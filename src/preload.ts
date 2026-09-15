@@ -4,8 +4,10 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 import type { ComicInfo, ComicPage } from './shared/comic';
+import type { LibraryEntry } from './shared/library';
+import type { AppSettings } from './shared/settings';
 
-// Mirror of COMIC_CHANNELS in main/ipc/comic.ts (preload cannot import main code).
+// Mirror of the CHANNELS constants in main/ipc/*.ts (preload cannot import main code).
 const api = {
   versions: {
     electron: process.versions.electron,
@@ -19,6 +21,21 @@ const api = {
     readPage: (id: string, index: number): Promise<ComicPage> =>
       ipcRenderer.invoke('comic:read-page', id, index),
     close: (id: string): Promise<void> => ipcRenderer.invoke('comic:close', id),
+  },
+  library: {
+    list: (): Promise<LibraryEntry[]> => ipcRenderer.invoke('library:list'),
+    remove: (id: string): Promise<void> => ipcRenderer.invoke('library:remove', id),
+    updateProgress: (id: string, currentPage: number): Promise<void> =>
+      ipcRenderer.invoke('library:update-progress', id, currentPage),
+  },
+  settings: {
+    getAll: (): Promise<AppSettings> => ipcRenderer.invoke('settings:get-all'),
+    set: <K extends keyof AppSettings>(key: K, value: AppSettings[K]): Promise<void> =>
+      ipcRenderer.invoke('settings:set', key, value),
+  },
+  data: {
+    /** Opens a native save dialog and writes a JSON export there; resolves to the chosen path, or null if cancelled. */
+    export: (): Promise<string | null> => ipcRenderer.invoke('data:export'),
   },
 };
 

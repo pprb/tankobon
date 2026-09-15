@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
-import type { ComicInfo, ComicPage } from '../../shared/comic';
+import type { ArchiveInfo, ComicPage } from '../../shared/comic';
 import { CbzArchive } from './cbz-archive';
 import type { ComicArchive } from './comic-archive';
 
@@ -13,7 +13,7 @@ const openers: Record<string, (filePath: string) => Promise<ComicArchive>> = {
 export class ComicService {
   private readonly archives = new Map<string, ComicArchive>();
 
-  async open(filePath: string): Promise<ComicInfo> {
+  async open(filePath: string): Promise<ArchiveInfo> {
     const ext = path.extname(filePath).toLowerCase();
     const opener = openers[ext];
     if (!opener) {

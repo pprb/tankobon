@@ -9,17 +9,28 @@ Gestionnaire de bibliothèque et lecteur de BD, comics et manga numériques.
 - [React 19](https://react.dev/) + [TanStack Router](https://tanstack.com/router) (routes par fichiers, historique mémoire)
 - [Tailwind CSS 4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) (`npx shadcn add <composant>`)
 - TypeScript 6, ESLint 10 (flat config, `typescript-eslint`, `import-x`, `react-hooks`, `react-refresh`)
+- [`node:sqlite`](https://nodejs.org/api/sqlite.html) pour le stockage local (bibliothèque, paramètres, progression de lecture)
+
+## Données locales
+
+Tankōbon stocke tout dans un fichier SQLite (`tankobon.db`, dans le dossier
+`userData` d'Electron — jamais dans le cloud, ni dans le `localStorage`/IndexedDB
+de Chromium) : la bibliothèque de BD (chemin, titre, page courante) et les
+paramètres de l'application. Cela permet de reprendre la lecture à la bonne
+page à la réouverture d'une BD. Les données peuvent être exportées au format
+JSON depuis la page Paramètres (bouton "Exporter").
 
 ## Structure
 
 ```
 src/
-  main.ts       # processus principal (fenêtres, cycle de vie)
-  main/ipc/     # handlers ipcMain (comic.ts : ouverture/lecture d'archives)
+  main.ts       # processus principal (fenêtres, cycle de vie, ouverture de la DB)
+  main/db/      # base SQLite locale (node:sqlite) : schéma, repositories, export JSON
+  main/ipc/     # handlers ipcMain (comic, library, settings, data:export)
   main/services # ComicService + archives (ComicArchive, CbzArchive)
-  shared/       # types partagés main <-> renderer (ComicInfo, ComicPage)
+  shared/       # types partagés main <-> renderer (ComicInfo, LibraryEntry, AppSettings)
   preload.ts    # pont sécurisé main <-> renderer (contextBridge)
-  hooks/        # hooks React (useComic : archive ouverte, page courante)
+  hooks/        # hooks React (useComic, useSettings)
   renderer.tsx  # point d'entrée de l'UI (React + RouterProvider)
   routes/       # routes TanStack Router (__root.tsx = layout, index.tsx = /)
   routeTree.gen.ts # généré par le plugin router, ne pas éditer

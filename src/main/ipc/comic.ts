@@ -1,6 +1,7 @@
 import { BrowserWindow, app, dialog, ipcMain } from 'electron';
 
 import { SUPPORTED_COMIC_EXTENSIONS } from '../../shared/comic';
+import type { LibraryRepository } from '../db/library-repository';
 import { ComicService } from '../services/comic-service';
 
 // Channel names are shared with preload.ts: keep them in sync.
@@ -11,7 +12,7 @@ export const COMIC_CHANNELS = {
   close: 'comic:close',
 } as const;
 
-export function registerComicIpc(): void {
+export function registerComicIpc(libraryRepo: LibraryRepository): void {
   const service = new ComicService();
 
   ipcMain.handle(COMIC_CHANNELS.pickFile, async (event) => {
@@ -27,7 +28,11 @@ export function registerComicIpc(): void {
     return canceled ? null : filePaths[0];
   });
 
-  ipcMain.handle(COMIC_CHANNELS.open, (_event, filePath: string) => service.open(filePath));
+  ipcMain.handle(COMIC_CHANNELS.open, async (_event, filePath: string) => {
+    const comic = await service.open(filePath);
+    const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount);
+    return { ...comic, libraryId: entry.id, resumePage: entry.currentPage };
+  });
 
   ipcMain.handle(COMIC_CHANNELS.readPage, (_event, id: string, index: number) =>
     service.readPage(id, index),

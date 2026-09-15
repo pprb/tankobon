@@ -4,13 +4,32 @@ import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useComic } from '@/hooks/use-comic';
+import { useSettings } from '@/hooks/use-settings';
+
+interface ReaderSearch {
+  /** Absolute path of a comic to open automatically, e.g. from the library page. */
+  path?: string;
+}
 
 export const Route = createFileRoute('/reader')({
+  validateSearch: (search: Record<string, unknown>): ReaderSearch => ({
+    path: typeof search.path === 'string' ? search.path : undefined,
+  }),
   component: ReaderPage,
 });
 
 function ReaderPage() {
-  const { comic, page, pageUrl, error, loading, pickAndOpen, close, next, prev } = useComic();
+  const { path } = Route.useSearch();
+  const { comic, page, pageUrl, error, loading, pickAndOpen, openFile, close, next, prev } = useComic();
+  const { settings } = useSettings();
+  const rtl = settings.readingDirection === 'rtl';
+  // In right-to-left (manga) reading order, the physical left/right controls swap.
+  const advance = rtl ? prev : next;
+  const retreat = rtl ? next : prev;
+
+  useEffect(() => {
+    if (path) void openFile(path);
+  }, [path, openFile]);
 
   useEffect(() => {
     if (!comic) return;
@@ -20,18 +39,18 @@ function ReaderPage() {
         case 'PageDown':
         case ' ':
           event.preventDefault();
-          next();
+          advance();
           break;
         case 'ArrowLeft':
         case 'PageUp':
           event.preventDefault();
-          prev();
+          retreat();
           break;
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [comic, next, prev]);
+  }, [comic, advance, retreat]);
 
   if (!comic) {
     return (
@@ -49,6 +68,8 @@ function ReaderPage() {
 
   const isFirst = page === 0;
   const isLast = page === comic.pageCount - 1;
+  const isPrevDisabled = rtl ? isLast : isFirst;
+  const isNextDisabled = rtl ? isFirst : isLast;
 
   return (
     <div className="flex h-full flex-col bg-black text-white">
@@ -81,8 +102,8 @@ function ReaderPage() {
 
         <button
           type="button"
-          onClick={prev}
-          disabled={isFirst}
+          onClick={retreat}
+          disabled={isPrevDisabled}
           aria-label="Page précédente"
           className="absolute inset-y-0 left-0 w-1/4 cursor-w-resize opacity-0 transition hover:opacity-100 disabled:hidden"
         >
@@ -90,8 +111,8 @@ function ReaderPage() {
         </button>
         <button
           type="button"
-          onClick={next}
-          disabled={isLast}
+          onClick={advance}
+          disabled={isNextDisabled}
           aria-label="Page suivante"
           className="absolute inset-y-0 right-0 flex w-1/4 cursor-e-resize justify-end opacity-0 transition hover:opacity-100 disabled:hidden"
         >
