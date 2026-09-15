@@ -1,6 +1,8 @@
 import { Link, Outlet, createRootRoute } from '@tanstack/react-router';
-import { BookOpen, Library, Settings } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, Library, Settings } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { useSettings } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
 
 export const Route = createRootRoute({
@@ -14,23 +16,43 @@ const nav = [
 ] as const;
 
 function RootLayout() {
+  const { settings, update } = useSettings();
+  const collapsed = settings.sidebarCollapsed;
+
   return (
     <div className="flex h-full">
-      <aside className="flex w-56 shrink-0 flex-col gap-1 border-r bg-sidebar p-3 text-sidebar-foreground">
-        <div className="px-2 py-3 text-lg font-semibold tracking-tight">Tankōbon</div>
+      <aside
+        className={cn(
+          'flex shrink-0 flex-col gap-1 border-r bg-sidebar p-3 text-sidebar-foreground transition-[width] duration-150',
+          collapsed ? 'w-14 items-center' : 'w-56',
+        )}
+      >
+        <div className={cn('flex items-center py-3', collapsed ? 'justify-center' : 'justify-between px-2')}>
+          {!collapsed && <span className="text-lg font-semibold tracking-tight">Tankōbon</span>}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => update('sidebarCollapsed', !collapsed)}
+            title={collapsed ? 'Développer le panneau latéral' : 'Réduire le panneau latéral'}
+          >
+            {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+          </Button>
+        </div>
         {nav.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
             to={to}
             className={cn(
-              'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground',
+              'flex items-center gap-2 rounded-md py-1.5 text-sm text-muted-foreground',
               'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+              collapsed ? 'justify-center px-2' : 'px-2',
             )}
             activeProps={{ className: 'bg-sidebar-accent text-sidebar-accent-foreground' }}
             activeOptions={{ exact: to === '/' }}
+            title={collapsed ? label : undefined}
           >
             <Icon className="size-4" />
-            {label}
+            {!collapsed && label}
           </Link>
         ))}
       </aside>

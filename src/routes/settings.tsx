@@ -38,6 +38,21 @@ function SettingsPage() {
       </section>
 
       <section className="flex flex-col gap-2">
+        <label htmlFor="scroll-direction" className="text-sm font-medium">
+          Sens du défilement (molette souris / trackpad)
+        </label>
+        <select
+          id="scroll-direction"
+          className="w-fit rounded-md border bg-background px-3 py-1.5 text-sm"
+          value={settings.scrollDirection}
+          onChange={(event) => update('scrollDirection', event.target.value as 'standard' | 'inverted')}
+        >
+          <option value="standard">Standard (vers le bas = page suivante)</option>
+          <option value="inverted">Inversé (vers le bas = page précédente)</option>
+        </select>
+      </section>
+
+      <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium">Données</h2>
         <div>
           <Button variant="outline" onClick={exportData}>

@@ -63,6 +63,7 @@ function ReaderPage() {
   // In right-to-left (manga) reading order, the physical left/right controls swap.
   const advance = rtl ? prev : next;
   const retreat = rtl ? next : prev;
+  const zoomFraction = zoom === 'fit' ? null : zoom;
 
   useEffect(() => {
     if (path) void openFile(path);
@@ -103,6 +104,41 @@ function ReaderPage() {
     return () => observer.disconnect();
   }, [comic]);
 
+  // Wheel-to-turn-page: while zoomed in, a scroll that can still pan the image is left
+  // alone; only once the pan hits the edge (or in "fit" mode, where there's no pan at
+  // all) does the wheel turn the page. A short cooldown keeps one trackpad swipe (many
+  // wheel events) to exactly one page turn.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !comic) return;
+    const inverted = settings.scrollDirection === 'inverted';
+    let cooldownUntil = 0;
+
+    const onWheel = (event: WheelEvent) => {
+      if (event.deltaY === 0) return;
+
+      if (zoomFraction !== null) {
+        const atTop = el.scrollTop <= 0;
+        const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+        if ((event.deltaY < 0 && !atTop) || (event.deltaY > 0 && !atBottom)) {
+          return;
+        }
+      }
+
+      event.preventDefault();
+      const now = Date.now();
+      if (now < cooldownUntil) return;
+      cooldownUntil = now + 450;
+
+      const goForward = inverted ? event.deltaY < 0 : event.deltaY > 0;
+      if (goForward) advance();
+      else retreat();
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [comic, zoomFraction, settings.scrollDirection, advance, retreat]);
+
   useEffect(() => {
     if (!comic) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -123,8 +159,6 @@ function ReaderPage() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [comic, advance, retreat]);
-
-  const zoomFraction = zoom === 'fit' ? null : zoom;
 
   const displaySize =
     naturalSize &&

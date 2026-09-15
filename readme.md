@@ -35,6 +35,19 @@ depuis les fichiers de l'app (`vite.renderer.config.mts`), jamais depuis un
 CDN, pour rester utilisable hors ligne. Le code du modèle n'est chargé
 (`import()` dynamique) que si la fonctionnalité est effectivement utilisée.
 
+La molette souris/trackpad tourne aussi les pages : en mode "ajuster à la
+fenêtre" chaque cran tourne une page (avec un court anti-rebond pour qu'un
+seul geste de trackpad ne saute pas plusieurs pages) ; en zoom, la molette
+fait d'abord défiler l'image et ne tourne la page qu'une fois arrivé en haut
+ou en bas. Le sens (bas = page suivante ou précédente) se choisit dans
+Paramètres.
+
+## Panneau latéral réductible
+
+Le bouton en haut du panneau latéral le réduit à une colonne d'icônes, pour
+gagner de la place à l'écran pendant la lecture. L'état (réduit ou non) est
+mémorisé comme les autres paramètres.
+
 ## Structure
 
 ```

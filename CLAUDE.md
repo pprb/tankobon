@@ -56,3 +56,11 @@ File-based routes via TanStack Router; `src/routeTree.gen.ts` is auto-generated 
 ### Reading direction / RTL
 
 `AppSettings.readingDirection` (`ltr`/`rtl`) flips which physical side of the reader (keyboard arrows and click zones) advances vs. retreats, matching manga (RTL) vs. BD/comics (LTR) conventions — see the `advance`/`retreat` split in `src/routes/reader.tsx`. The underlying `next()`/`prev()` from `useComic` always mean "page index +1/-1" regardless of direction; only the UI-to-action mapping swaps.
+
+### Wheel-to-turn-page
+
+The reader's wheel handler (`src/routes/reader.tsx`) only turns the page once there's nothing left to scroll in that direction: in "fit" zoom it always turns the page (no scrollable content); when zoomed in, it checks the container's `scrollTop`/`scrollHeight` first and lets the native scroll pan the image, only turning the page once panning is already at that edge. `AppSettings.scrollDirection` (`standard`/`inverted`) picks whether scrolling down calls `advance()` or `retreat()`. A time-based cooldown (~450ms) collapses one trackpad swipe's many `wheel` events into a single page turn. Note for testing: a JS-dispatched `WheelEvent` fires listeners but does not actually scroll the element (no native default action) — verifying real scroll behavior needs CDP's `Input.dispatchMouseEvent` with `type: 'mouseWheel'`, not `element.dispatchEvent(new WheelEvent(...))`.
+
+### Sidebar
+
+`AppSettings.sidebarCollapsed` toggles the root layout's sidebar (`src/routes/__root.tsx`) between full width (labels) and an icon-only rail, to reclaim screen space while reading; toggled from a button in the sidebar itself, persisted like any other setting.
