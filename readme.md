@@ -51,6 +51,14 @@ L'espacement entre les pages se règle en pixels (0 minimum, pages
 collées). La page en cours (pour le compteur et la reprise de lecture)
 est celle la plus visible à l'écran pendant le défilement.
 
+## Avancement et temps de lecture restant
+
+L'en-tête du lecteur (page par page comme défilement continu) affiche le
+pourcentage lu du livre, et une estimation du temps restant basée sur la
+vitesse de lecture observée depuis l'ouverture du livre dans cette session
+(nombre de pages tournées / temps écoulé) — l'estimation n'apparaît
+qu'une fois qu'il y a assez de données pour être fiable.
+
 ## Panneau latéral réductible
 
 Le bouton en haut du panneau latéral le réduit à une colonne d'icônes, pour

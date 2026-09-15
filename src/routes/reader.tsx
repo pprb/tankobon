@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useComic } from '@/hooks/use-comic';
 import { useImageUpscaler } from '@/hooks/use-image-upscaler';
+import { formatRemainingTime, useReadingPace } from '@/hooks/use-reading-pace';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
 import type { ComicInfo } from '@/shared/comic';
@@ -50,6 +51,22 @@ const ZOOM_OPTIONS: { value: Zoom; label: string }[] = [
   { value: 1.5, label: '150 %' },
   { value: 2, label: '200 %' },
 ];
+
+/** Progress % and estimated remaining reading time, shared by both reader modes. */
+function ReadingProgress({ percent, remainingMinutes }: { percent: number; remainingMinutes: number | null }) {
+  return (
+    <span
+      className="tabular-nums text-white/60"
+      title={
+        remainingMinutes !== null
+          ? `Temps de lecture restant estimé : ${formatRemainingTime(remainingMinutes)}`
+          : 'Avancement dans le livre'
+      }
+    >
+      {Math.round(percent)} %{remainingMinutes !== null && <> · ~{formatRemainingTime(remainingMinutes)}</>}
+    </span>
+  );
+}
 
 function ReaderPage() {
   const { path } = Route.useSearch();
@@ -254,6 +271,8 @@ function SinglePageReader({
     error: upscaleError,
   } = useImageUpscaler(pageUrl, upscaleEnabled && needsUpscale);
 
+  const { percent, remainingMinutes } = useReadingPace(comic.id, comic.pageCount, page);
+
   const isFirst = page === 0;
   const isLast = page === comic.pageCount - 1;
   const isPrevDisabled = rtl ? isLast : isFirst;
@@ -270,6 +289,7 @@ function SinglePageReader({
         <span className="ml-auto tabular-nums text-white/60">
           {page + 1} / {comic.pageCount}
         </span>
+        <ReadingProgress percent={percent} remainingMinutes={remainingMinutes} />
         <label className="flex items-center gap-1.5 text-white/60">
           <ZoomIn className="size-4" />
           <span className="sr-only">Zoom</span>
@@ -396,6 +416,8 @@ function ContinuousReader({ comic, spacing, pickAndOpen, close, onActivePage }: 
     [],
   );
 
+  const { percent, remainingMinutes } = useReadingPace(comic.id, comic.pageCount, visiblePage);
+
   return (
     <div className="flex h-full flex-col bg-black text-white">
       <header className="flex items-center gap-2 border-b border-white/10 px-3 py-2 text-sm">
@@ -405,6 +427,7 @@ function ContinuousReader({ comic, spacing, pickAndOpen, close, onActivePage }: 
         <span className="ml-auto tabular-nums text-white/60">
           {visiblePage + 1} / {comic.pageCount}
         </span>
+        <ReadingProgress percent={percent} remainingMinutes={remainingMinutes} />
         <Button variant="ghost" size="icon-sm" onClick={pickAndOpen} title="Ouvrir un autre fichier">
           <FolderOpen />
         </Button>

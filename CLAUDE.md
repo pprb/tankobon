@@ -67,6 +67,10 @@ File-based routes via TanStack Router; `src/routeTree.gen.ts` is auto-generated 
 
 The reader's wheel handler (`src/routes/reader.tsx`, `SinglePageReader`) only turns the page once there's nothing left to scroll in that direction: in "fit" zoom it always turns the page (no scrollable content); when zoomed in, it checks the container's `scrollTop`/`scrollHeight` first and lets the native scroll pan the image, only turning the page once panning is already at that edge. `AppSettings.scrollDirection` (`standard`/`inverted`) picks whether scrolling down calls `advance()` or `retreat()`. A time-based cooldown (~450ms) collapses one trackpad swipe's many `wheel` events into a single page turn. Note for testing: a JS-dispatched `WheelEvent` fires listeners but does not actually scroll the element (no native default action) — verifying real scroll behavior needs CDP's `Input.dispatchMouseEvent` with `type: 'mouseWheel'`, not `element.dispatchEvent(new WheelEvent(...))`.
 
+### Reading progress / pace estimate
+
+`useReadingPace` (`src/hooks/use-reading-pace.ts`) computes the header's "X % · ~Y min" display, shared by `SinglePageReader` and `ContinuousReader` via the `ReadingProgress` component. It tracks pace *for the current session only* (no persisted historical average): given a `sessionKey` (the opened archive's `comic.id`) plus the current page and page count, it resets its internal start time/page whenever `sessionKey` changes — by calling `setState` conditionally during render (React's documented "adjust state while rendering" pattern) rather than in a `useEffect`, so the very first render after opening a book already reflects the new session instead of one render behind. The remaining-time estimate stays `null` (hidden) until enough pages/time have accumulated to be meaningful (see `MIN_ELAPSED_MINUTES`).
+
 ### Sidebar
 
 `AppSettings.sidebarCollapsed` toggles the root layout's sidebar (`src/routes/__root.tsx`) between full width (labels) and an icon-only rail, to reclaim screen space while reading; toggled from a button in the sidebar itself, persisted like any other setting.
