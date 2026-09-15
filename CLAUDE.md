@@ -23,6 +23,10 @@ node_modules/.bin/vitest run -t "clamps the current page"
 
 CI (`.github/workflows/ci.yml`) runs `lint`, `typecheck`, and `test` as three independent parallel jobs on every push and pull request.
 
+### Dependency vulnerabilities (`npm audit`)
+
+`package.json`'s `overrides` (`tar`, `tmp`) force transitive dependencies of `@electron-forge/*`'s build tooling (`@electron/rebuild`, `@inquirer/prompts`, etc.) up to their patched versions — these fixed everything `npm audit` found except one: `extract-zip` (pulled in by `@electron/packager`, used to unpack Electron's own prebuilt binaries during packaging), which has no patched release at all as of this writing (checked the GHSA advisories directly). `npm audit fix --force` "fixes" this by downgrading `@electron-forge/cli` to 6.4.2 — a real regression, not a fix (7.11.2 is already latest; no available electron-forge release, stable or alpha, resolves it). All of this is dev-only build tooling, never shipped in the packaged app.
+
 ## Architecture
 
 Tankōbon is an Electron app (Vite + Electron Forge) for managing and reading digital comics (CBZ, CBR). It follows the standard Electron three-process split, with a strict boundary enforced by `contextIsolation: true` / `nodeIntegration: false` (see `src/main.ts`):
