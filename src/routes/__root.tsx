@@ -2,6 +2,7 @@ import { Link, Outlet, createRootRoute } from '@tanstack/react-router';
 import { BookOpen, ChevronLeft, ChevronRight, Library, Settings } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { useFullscreen } from '@/hooks/use-fullscreen';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
 
@@ -18,6 +19,9 @@ const nav = [
 function RootLayout() {
   const { settings, update } = useSettings();
   const collapsed = settings.sidebarCollapsed;
+  // Fullscreen reading (toggled from the reader) hides the sidebar entirely; the
+  // collapsed/expanded preference is untouched and comes back on exit.
+  const { fullscreen } = useFullscreen();
 
   return (
     <div className="flex h-full">
@@ -25,6 +29,7 @@ function RootLayout() {
         className={cn(
           'flex shrink-0 flex-col gap-1 border-r bg-sidebar p-3 text-sidebar-foreground transition-[width] duration-150',
           collapsed ? 'w-14 items-center' : 'w-56',
+          fullscreen && 'hidden',
         )}
       >
         <div className={cn('flex items-center py-3', collapsed ? 'justify-center' : 'justify-between px-2')}>

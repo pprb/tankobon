@@ -1,9 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { ChevronLeft, ChevronRight, FolderOpen, Loader2, X, ZoomIn } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, FolderOpen, Loader2, Maximize, Minimize, X, ZoomIn } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useComic } from '@/hooks/use-comic';
+import { useFullscreen } from '@/hooks/use-fullscreen';
 import { useImageUpscaler } from '@/hooks/use-image-upscaler';
 import { formatRemainingTime, useReadingPace } from '@/hooks/use-reading-pace';
 import { useSettings } from '@/hooks/use-settings';
@@ -68,10 +69,67 @@ function ReadingProgress({ percent, remainingMinutes }: { percent: number; remai
   );
 }
 
+/** Fullscreen toggle button, shared by both reader modes. */
+function FullscreenButton({ fullscreen, toggle }: { fullscreen: boolean; toggle: () => void }) {
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      onClick={toggle}
+      title={fullscreen ? 'Quitter le plein écran (Échap ou F)' : 'Plein écran (F)'}
+    >
+      {fullscreen ? <Minimize /> : <Maximize />}
+    </Button>
+  );
+}
+
+/**
+ * The reader's top bar. In fullscreen it detaches from the layout and floats over the
+ * page, invisible until the mouse reaches the top edge, so the page gets the whole screen.
+ */
+function ReaderHeader({ fullscreen, children }: { fullscreen: boolean; children: ReactNode }) {
+  return (
+    <header
+      className={cn(
+        'flex items-center gap-2 border-b border-white/10 px-3 py-2 text-sm',
+        fullscreen && 'absolute inset-x-0 top-0 z-10 bg-black/80 opacity-0 transition-opacity hover:opacity-100',
+      )}
+    >
+      {children}
+    </header>
+  );
+}
+
+/** Toggles fullscreen on `F`/`F11` while a comic is open; leaves fullscreen once it's closed. */
+function useReaderFullscreen(comicOpen: boolean) {
+  const { fullscreen, toggle, exit } = useFullscreen();
+
+  useEffect(() => {
+    if (!comicOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'f' || event.key === 'F' || event.key === 'F11') {
+        event.preventDefault();
+        toggle();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [comicOpen, toggle]);
+
+  // Closing the comic or leaving the reader route shouldn't strand the window in fullscreen.
+  useEffect(() => {
+    if (!comicOpen) exit();
+    return exit;
+  }, [comicOpen, exit]);
+
+  return { fullscreen, toggle };
+}
+
 function ReaderPage() {
   const { path } = Route.useSearch();
   const { comic, page, pageUrl, error, loading, pickAndOpen, openFile, close, next, prev } = useComic();
   const { settings } = useSettings();
+  const { fullscreen, toggle: toggleFullscreen } = useReaderFullscreen(comic !== null);
 
   useEffect(() => {
     if (path) void openFile(path);
@@ -109,6 +167,8 @@ function ReaderPage() {
         pickAndOpen={pickAndOpen}
         close={close}
         onActivePage={persistProgress}
+        fullscreen={fullscreen}
+        toggleFullscreen={toggleFullscreen}
       />
     );
   }
@@ -125,6 +185,8 @@ function ReaderPage() {
       next={next}
       prev={prev}
       settings={settings}
+      fullscreen={fullscreen}
+      toggleFullscreen={toggleFullscreen}
     />
   );
 }
@@ -140,6 +202,8 @@ interface SinglePageReaderProps {
   next: () => void;
   prev: () => void;
   settings: AppSettings;
+  fullscreen: boolean;
+  toggleFullscreen: () => void;
 }
 
 function SinglePageReader({
@@ -153,6 +217,8 @@ function SinglePageReader({
   next,
   prev,
   settings,
+  fullscreen,
+  toggleFullscreen,
 }: SinglePageReaderProps) {
   const [zoom, setZoom] = useState<Zoom>('fit');
   const [upscaleEnabled, setUpscaleEnabled] = useState(false);
@@ -281,8 +347,8 @@ function SinglePageReader({
   const displayUrl = upscaledUrl ?? pageUrl;
 
   return (
-    <div className="flex h-full flex-col bg-black text-white">
-      <header className="flex items-center gap-2 border-b border-white/10 px-3 py-2 text-sm">
+    <div className="relative flex h-full flex-col bg-black text-white">
+      <ReaderHeader fullscreen={fullscreen}>
         <span className="truncate font-medium" title={comic.path}>
           {comic.title}
         </span>
@@ -335,10 +401,11 @@ function SinglePageReader({
         <Button variant="ghost" size="icon-sm" onClick={pickAndOpen} title="Ouvrir un autre fichier">
           <FolderOpen />
         </Button>
+        <FullscreenButton fullscreen={fullscreen} toggle={toggleFullscreen} />
         <Button variant="ghost" size="icon-sm" onClick={close} title="Fermer">
           <X />
         </Button>
-      </header>
+      </ReaderHeader>
 
       <div
         ref={containerRef}
@@ -394,9 +461,19 @@ interface ContinuousReaderProps {
   pickAndOpen: () => void;
   close: () => void;
   onActivePage: (index: number) => void;
+  fullscreen: boolean;
+  toggleFullscreen: () => void;
 }
 
-function ContinuousReader({ comic, spacing, pickAndOpen, close, onActivePage }: ContinuousReaderProps) {
+function ContinuousReader({
+  comic,
+  spacing,
+  pickAndOpen,
+  close,
+  onActivePage,
+  fullscreen,
+  toggleFullscreen,
+}: ContinuousReaderProps) {
   const [visiblePage, setVisiblePage] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -419,8 +496,8 @@ function ContinuousReader({ comic, spacing, pickAndOpen, close, onActivePage }: 
   const { percent, remainingMinutes } = useReadingPace(comic.id, comic.pageCount, visiblePage);
 
   return (
-    <div className="flex h-full flex-col bg-black text-white">
-      <header className="flex items-center gap-2 border-b border-white/10 px-3 py-2 text-sm">
+    <div className="relative flex h-full flex-col bg-black text-white">
+      <ReaderHeader fullscreen={fullscreen}>
         <span className="truncate font-medium" title={comic.path}>
           {comic.title}
         </span>
@@ -431,10 +508,11 @@ function ContinuousReader({ comic, spacing, pickAndOpen, close, onActivePage }: 
         <Button variant="ghost" size="icon-sm" onClick={pickAndOpen} title="Ouvrir un autre fichier">
           <FolderOpen />
         </Button>
+        <FullscreenButton fullscreen={fullscreen} toggle={toggleFullscreen} />
         <Button variant="ghost" size="icon-sm" onClick={close} title="Fermer">
           <X />
         </Button>
-      </header>
+      </ReaderHeader>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex flex-col items-center" style={{ rowGap: spacing }}>

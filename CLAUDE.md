@@ -79,3 +79,7 @@ The reader's wheel handler (`src/routes/reader.tsx`, `SinglePageReader`) only tu
 ### Sidebar
 
 `AppSettings.sidebarCollapsed` toggles the root layout's sidebar (`src/routes/__root.tsx`) between full width (labels) and an icon-only rail, to reclaim screen space while reading; toggled from a button in the sidebar itself, persisted like any other setting.
+
+### Fullscreen reading
+
+`useFullscreen` (`src/hooks/use-fullscreen.ts`) wraps the HTML Fullscreen API on `document.documentElement` — in Electron that puts the `BrowserWindow` itself in fullscreen, and Chromium handles Escape natively, so no IPC/main-process code is involved. The reader (`useReaderFullscreen` in `src/routes/reader.tsx`) toggles it with the header button or `F`/`F11`, and exits it when the comic is closed or the route unmounts. While fullscreen, the root layout hides the sidebar (`sidebarCollapsed` is left untouched) and `ReaderHeader` becomes an overlay that only appears when the mouse reaches the top edge. It's transient UI state, not an `AppSettings` entry.
