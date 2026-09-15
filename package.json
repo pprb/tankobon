@@ -57,10 +57,13 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.70.0",
     "vite": "^8.3.0",
+    "vite-plugin-static-copy": "^4.1.1",
     "vitest": "^5.0.0"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.170.36",
+    "@tensorflow/tfjs": "~4.11.0",
+    "@upscalerjs/default-model": "^1.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cn": "^0.3.0",
@@ -70,6 +73,7 @@
     "radix-ui": "^1.6.7",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "tailwind-merge": "^3.7.0"
+    "tailwind-merge": "^3.7.0",
+    "upscaler": "^1.0.0"
   }
 }

@@ -11,6 +11,7 @@ Gestionnaire de bibliothèque et lecteur de BD, comics et manga numériques.
 - TypeScript 6, ESLint 10 (flat config, `typescript-eslint`, `import-x`, `react-hooks`, `react-refresh`)
 - [`node:sqlite`](https://nodejs.org/api/sqlite.html) pour le stockage local (bibliothèque, paramètres, progression de lecture)
 - [Vitest](https://vitest.dev/) pour les tests unitaires
+- [UpscalerJS](https://github.com/thekevinscott/UpscalerJS) (TensorFlow.js, modèle ESRGAN local) pour l'amélioration d'image à la volée
 
 ## Données locales
 
@@ -20,6 +21,17 @@ de Chromium) : la bibliothèque de BD (chemin, titre, page courante) et les
 paramètres de l'application. Cela permet de reprendre la lecture à la bonne
 page à la réouverture d'une BD. Les données peuvent être exportées au format
 JSON depuis la page Paramètres (bouton "Exporter").
+
+## Zoom et amélioration d'image (IA)
+
+Le lecteur propose un zoom (ajuster à la fenêtre, taille réelle, 50 à 200 %).
+Quand l'affichage dépasse la résolution native de la page, une case
+"Améliorer (IA)" permet d'agrandir l'image via un modèle de super-résolution
+(ESRGAN, [UpscalerJS](https://github.com/thekevinscott/UpscalerJS) sur
+TensorFlow.js) exécuté localement dans le renderer — le modèle est servi
+depuis les fichiers de l'app (`vite.renderer.config.mts`), jamais depuis un
+CDN, pour rester utilisable hors ligne. Le code du modèle n'est chargé
+(`import()` dynamique) que si la fonctionnalité est effectivement utilisée.
 
 ## Structure
 

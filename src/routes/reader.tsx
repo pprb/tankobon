@@ -1,11 +1,26 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { ChevronLeft, ChevronRight, FolderOpen, X, ZoomIn } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ChevronLeft, ChevronRight, FolderOpen, Loader2, X, ZoomIn } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useComic } from '@/hooks/use-comic';
+import { useImageUpscaler } from '@/hooks/use-image-upscaler';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
+
+interface Size {
+  width: number;
+  height: number;
+}
+
+/** The size at which `natural` renders under `object-fit: contain` inside `container`. */
+function fitSize(container: Size, natural: Size): Size {
+  const containerRatio = container.width / container.height;
+  const naturalRatio = natural.width / natural.height;
+  return containerRatio > naturalRatio
+    ? { width: container.height * naturalRatio, height: container.height }
+    : { width: container.width, height: container.width / naturalRatio };
+}
 
 interface ReaderSearch {
   /** Absolute path of a comic to open automatically, e.g. from the library page. */
@@ -39,6 +54,11 @@ function ReaderPage() {
   const { comic, page, pageUrl, error, loading, pickAndOpen, openFile, close, next, prev } = useComic();
   const { settings } = useSettings();
   const [zoom, setZoom] = useState<Zoom>('fit');
+  const [upscaleEnabled, setUpscaleEnabled] = useState(false);
+  const [naturalSizeState, setNaturalSizeState] = useState<{ src: string; size: Size } | null>(null);
+  const naturalSize = naturalSizeState?.src === pageUrl ? naturalSizeState.size : null;
+  const [containerSize, setContainerSize] = useState<Size | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const rtl = settings.readingDirection === 'rtl';
   // In right-to-left (manga) reading order, the physical left/right controls swap.
   const advance = rtl ? prev : next;
@@ -47,6 +67,41 @@ function ReaderPage() {
   useEffect(() => {
     if (path) void openFile(path);
   }, [path, openFile]);
+
+  // Track the page's real pixel size, independent of whichever asset (original or
+  // AI-upscaled) ends up on screen, so zoom math always refers to the original.
+  // Keyed by src rather than reset-then-set, so a stale size never renders past a page change.
+  useEffect(() => {
+    if (!pageUrl) return;
+    let cancelled = false;
+    const probe = new Image();
+    probe.src = pageUrl;
+    probe
+      .decode()
+      .then(() => {
+        if (!cancelled) {
+          setNaturalSizeState({ src: pageUrl, size: { width: probe.naturalWidth, height: probe.naturalHeight } });
+        }
+      })
+      .catch(() => {
+        /* ignored: falls back to no upscaling if the size can't be read */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pageUrl]);
+
+  useEffect(() => {
+    // Depends on `comic`: the container only mounts once a comic is open.
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setContainerSize({ width, height });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [comic]);
 
   useEffect(() => {
     if (!comic) return;
@@ -69,6 +124,24 @@ function ReaderPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [comic, advance, retreat]);
 
+  const zoomFraction = zoom === 'fit' ? null : zoom;
+
+  const displaySize =
+    naturalSize &&
+    (zoomFraction === null
+      ? containerSize && fitSize(containerSize, naturalSize)
+      : { width: naturalSize.width * zoomFraction, height: naturalSize.height * zoomFraction });
+
+  // The exact condition the zoom/upscale option targets: the page is being stretched
+  // past its native resolution, so AI upscaling can genuinely add detail.
+  const needsUpscale = !!(displaySize && naturalSize && displaySize.width > naturalSize.width + 0.5);
+
+  const {
+    upscaledUrl,
+    isUpscaling,
+    error: upscaleError,
+  } = useImageUpscaler(pageUrl, upscaleEnabled && needsUpscale);
+
   if (!comic) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-6">
@@ -87,7 +160,8 @@ function ReaderPage() {
   const isLast = page === comic.pageCount - 1;
   const isPrevDisabled = rtl ? isLast : isFirst;
   const isNextDisabled = rtl ? isFirst : isLast;
-  const isFit = zoom === 'fit';
+  const isFit = zoomFraction === null;
+  const displayUrl = upscaledUrl ?? pageUrl;
 
   return (
     <div className="flex h-full flex-col bg-black text-white">
@@ -113,6 +187,33 @@ function ReaderPage() {
             ))}
           </select>
         </label>
+        <label
+          className={cn(
+            'flex items-center gap-1.5',
+            upscaleError ? 'text-destructive' : needsUpscale ? 'text-white/60' : 'text-white/30',
+          )}
+          title={
+            upscaleError ??
+            "Améliore la netteté de l'image agrandie grâce à un modèle d'IA local (aucune donnée envoyée en ligne)"
+          }
+        >
+          <input
+            type="checkbox"
+            checked={upscaleEnabled}
+            disabled={!needsUpscale}
+            onChange={(event) => setUpscaleEnabled(event.target.checked)}
+          />
+          {isUpscaling ? (
+            <span className="flex items-center gap-1">
+              <Loader2 className="size-3.5 animate-spin" />
+              Amélioration…
+            </span>
+          ) : upscaleError ? (
+            'Amélioration indisponible'
+          ) : (
+            'Améliorer (IA)'
+          )}
+        </label>
         <Button variant="ghost" size="icon-sm" onClick={pickAndOpen} title="Ouvrir un autre fichier">
           <FolderOpen />
         </Button>
@@ -122,6 +223,7 @@ function ReaderPage() {
       </header>
 
       <div
+        ref={containerRef}
         className={cn(
           'relative flex min-h-0 flex-1',
           isFit ? 'items-center justify-center' : 'items-start justify-start overflow-auto',
@@ -129,11 +231,17 @@ function ReaderPage() {
       >
         {pageUrl && (
           <img
-            src={pageUrl}
+            src={displayUrl ?? undefined}
             alt={`Page ${page + 1}`}
             draggable={false}
             className={isFit ? 'h-full w-full object-contain' : undefined}
-            style={isFit ? undefined : { transform: `scale(${zoom})`, transformOrigin: 'top left' }}
+            style={
+              zoomFraction === null
+                ? undefined
+                : naturalSize
+                  ? { width: naturalSize.width * zoomFraction, height: naturalSize.height * zoomFraction }
+                  : { transform: `scale(${zoomFraction})`, transformOrigin: 'top left' }
+            }
           />
         )}
         {loading && !pageUrl && <p className="text-white/60">Chargement…</p>}
