@@ -11,6 +11,8 @@ export interface AppSettings {
   readingMode: 'single' | 'continuous';
   /** Gap in pixels between pages in continuous mode (0 = pages touch). */
   pageSpacing: number;
+  /** CSS color behind the pages in the reader (any `<input type="color">` value, i.e. `#rrggbb`). */
+  readerBackground: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -19,4 +21,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
   scrollDirection: 'standard',
   readingMode: 'single',
   pageSpacing: 16,
+  readerBackground: '#000000',
 };
+
+/** Presets offered in the settings page; the color picker accepts anything else. */
+export const READER_BACKGROUND_PRESETS: { value: string; label: string }[] = [
+  { value: '#000000', label: 'Noir' },
+  { value: '#262626', label: 'Gris foncé' },
+  { value: '#808080', label: 'Gris' },
+  { value: '#f4ecd8', label: 'Sépia' },
+  { value: '#ffffff', label: 'Blanc' },
+];

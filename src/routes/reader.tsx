@@ -91,7 +91,7 @@ function ReaderHeader({ fullscreen, children }: { fullscreen: boolean; children:
   return (
     <header
       className={cn(
-        'flex items-center gap-2 border-b border-white/10 px-3 py-2 text-sm',
+        'flex items-center gap-2 border-b border-white/10 bg-black px-3 py-2 text-sm text-white',
         fullscreen && 'absolute inset-x-0 top-0 z-10 bg-black/80 opacity-0 transition-opacity hover:opacity-100',
       )}
     >
@@ -169,6 +169,7 @@ function ReaderPage() {
         onActivePage={persistProgress}
         fullscreen={fullscreen}
         toggleFullscreen={toggleFullscreen}
+        background={settings.readerBackground}
       />
     );
   }
@@ -347,7 +348,7 @@ function SinglePageReader({
   const displayUrl = upscaledUrl ?? pageUrl;
 
   return (
-    <div className="relative flex h-full flex-col bg-black text-white">
+    <div className="relative flex h-full flex-col" style={{ backgroundColor: settings.readerBackground }}>
       <ReaderHeader fullscreen={fullscreen}>
         <span className="truncate font-medium" title={comic.path}>
           {comic.title}
@@ -429,7 +430,7 @@ function SinglePageReader({
             }
           />
         )}
-        {loading && !pageUrl && <p className="text-white/60">Chargement…</p>}
+        {loading && !pageUrl && <p className="text-neutral-500">Chargement…</p>}
         {error && <p className="absolute bottom-4 text-sm text-destructive">{error}</p>}
 
         <button
@@ -437,7 +438,7 @@ function SinglePageReader({
           onClick={retreat}
           disabled={isPrevDisabled}
           aria-label="Page précédente"
-          className="absolute inset-y-0 left-0 w-1/4 cursor-w-resize opacity-0 transition hover:opacity-100 disabled:hidden"
+          className="absolute inset-y-0 left-0 w-1/4 cursor-w-resize text-neutral-500 opacity-0 transition hover:opacity-100 disabled:hidden"
         >
           <ChevronLeft className="mx-4 size-8" />
         </button>
@@ -446,7 +447,7 @@ function SinglePageReader({
           onClick={advance}
           disabled={isNextDisabled}
           aria-label="Page suivante"
-          className="absolute inset-y-0 right-0 flex w-1/4 cursor-e-resize justify-end opacity-0 transition hover:opacity-100 disabled:hidden"
+          className="absolute inset-y-0 right-0 flex w-1/4 cursor-e-resize justify-end text-neutral-500 opacity-0 transition hover:opacity-100 disabled:hidden"
         >
           <ChevronRight className="mx-4 size-8 self-center" />
         </button>
@@ -463,6 +464,7 @@ interface ContinuousReaderProps {
   onActivePage: (index: number) => void;
   fullscreen: boolean;
   toggleFullscreen: () => void;
+  background: string;
 }
 
 function ContinuousReader({
@@ -473,6 +475,7 @@ function ContinuousReader({
   onActivePage,
   fullscreen,
   toggleFullscreen,
+  background,
 }: ContinuousReaderProps) {
   const [visiblePage, setVisiblePage] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -496,7 +499,7 @@ function ContinuousReader({
   const { percent, remainingMinutes } = useReadingPace(comic.id, comic.pageCount, visiblePage);
 
   return (
-    <div className="relative flex h-full flex-col bg-black text-white">
+    <div className="relative flex h-full flex-col" style={{ backgroundColor: background }}>
       <ReaderHeader fullscreen={fullscreen}>
         <span className="truncate font-medium" title={comic.path}>
           {comic.title}
@@ -586,7 +589,7 @@ function ContinuousPage({ comicId, index, onActive }: ContinuousPageProps) {
       {url ? (
         <img src={url} alt={`Page ${index + 1}`} draggable={false} className="block w-full" />
       ) : (
-        <div className="flex h-[60vh] w-full items-center justify-center text-white/30">
+        <div className="flex h-[60vh] w-full items-center justify-center text-neutral-500">
           <Loader2 className="size-6 animate-spin" />
         </div>
       )}

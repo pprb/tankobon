@@ -76,6 +76,10 @@ The reader's wheel handler (`src/routes/reader.tsx`, `SinglePageReader`) only tu
 
 `useReadingPace` (`src/hooks/use-reading-pace.ts`) computes the header's "X % · ~Y min" display, shared by `SinglePageReader` and `ContinuousReader` via the `ReadingProgress` component. It tracks pace *for the current session only* (no persisted historical average): given a `sessionKey` (the opened archive's `comic.id`) plus the current page and page count, it resets its internal start time/page whenever `sessionKey` changes — by calling `setState` conditionally during render (React's documented "adjust state while rendering" pattern) rather than in a `useEffect`, so the very first render after opening a book already reflects the new session instead of one render behind. The remaining-time estimate stays `null` (hidden) until enough pages/time have accumulated to be meaningful (see `MIN_ELAPSED_MINUTES`).
 
+### Reader background color
+
+`AppSettings.readerBackground` is a `#rrggbb` string (default `#000000`) applied as an inline `backgroundColor` on the page area of both reader modes; the settings page offers presets (`READER_BACKGROUND_PRESETS` in `src/shared/settings.ts`) plus a native `<input type="color">`. The reader header keeps its own fixed dark chrome (`bg-black text-white`) regardless, and the page-area placeholders/arrows use a mid grey (`text-neutral-500`) so they stay readable on both light and dark backgrounds.
+
 ### Sidebar
 
 `AppSettings.sidebarCollapsed` toggles the root layout's sidebar (`src/routes/__root.tsx`) between full width (labels) and an icon-only rail, to reclaim screen space while reading; toggled from a button in the sidebar itself, persisted like any other setting.
