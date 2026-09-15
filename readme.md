@@ -10,6 +10,7 @@ Gestionnaire de bibliothèque et lecteur de BD, comics et manga numériques.
 - [Tailwind CSS 4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) (`npx shadcn add <composant>`)
 - TypeScript 6, ESLint 10 (flat config, `typescript-eslint`, `import-x`, `react-hooks`, `react-refresh`)
 - [`node:sqlite`](https://nodejs.org/api/sqlite.html) pour le stockage local (bibliothèque, paramètres, progression de lecture)
+- [Vitest](https://vitest.dev/) pour les tests unitaires
 
 ## Données locales
 
@@ -51,7 +52,11 @@ npm install
 npm start          # lance l'app en mode dev (HMR sur le renderer)
 npm run lint
 npm run typecheck
+npm test           # tests unitaires (Vitest)
 ```
+
+Ces trois vérifications tournent en parallèle dans la CI (`.github/workflows/ci.yml`)
+à chaque push et pull request.
 
 ## Distribution
 
