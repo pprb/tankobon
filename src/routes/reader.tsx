@@ -1,10 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { ChevronLeft, ChevronRight, FolderOpen, X } from 'lucide-react';
-import { useEffect } from 'react';
+import { ChevronLeft, ChevronRight, FolderOpen, X, ZoomIn } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useComic } from '@/hooks/use-comic';
 import { useSettings } from '@/hooks/use-settings';
+import { cn } from '@/lib/utils';
 
 interface ReaderSearch {
   /** Absolute path of a comic to open automatically, e.g. from the library page. */
@@ -18,10 +19,26 @@ export const Route = createFileRoute('/reader')({
   component: ReaderPage,
 });
 
+/** `'fit'` scales the page to the available area; a number is a fraction of its actual pixel size. */
+type Zoom = 'fit' | number;
+
+const ZOOM_OPTIONS: { value: Zoom; label: string }[] = [
+  { value: 'fit', label: 'Ajuster à la fenêtre' },
+  { value: 0.5, label: '50 %' },
+  { value: 0.75, label: '75 %' },
+  { value: 0.9, label: '90 %' },
+  { value: 1, label: 'Taille réelle (100 %)' },
+  { value: 1.1, label: '110 %' },
+  { value: 1.25, label: '125 %' },
+  { value: 1.5, label: '150 %' },
+  { value: 2, label: '200 %' },
+];
+
 function ReaderPage() {
   const { path } = Route.useSearch();
   const { comic, page, pageUrl, error, loading, pickAndOpen, openFile, close, next, prev } = useComic();
   const { settings } = useSettings();
+  const [zoom, setZoom] = useState<Zoom>('fit');
   const rtl = settings.readingDirection === 'rtl';
   // In right-to-left (manga) reading order, the physical left/right controls swap.
   const advance = rtl ? prev : next;
@@ -70,6 +87,7 @@ function ReaderPage() {
   const isLast = page === comic.pageCount - 1;
   const isPrevDisabled = rtl ? isLast : isFirst;
   const isNextDisabled = rtl ? isFirst : isLast;
+  const isFit = zoom === 'fit';
 
   return (
     <div className="flex h-full flex-col bg-black text-white">
@@ -80,6 +98,21 @@ function ReaderPage() {
         <span className="ml-auto tabular-nums text-white/60">
           {page + 1} / {comic.pageCount}
         </span>
+        <label className="flex items-center gap-1.5 text-white/60">
+          <ZoomIn className="size-4" />
+          <span className="sr-only">Zoom</span>
+          <select
+            value={String(zoom)}
+            onChange={(event) => setZoom(event.target.value === 'fit' ? 'fit' : Number(event.target.value))}
+            className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white"
+          >
+            {ZOOM_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value} className="text-foreground">
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <Button variant="ghost" size="icon-sm" onClick={pickAndOpen} title="Ouvrir un autre fichier">
           <FolderOpen />
         </Button>
@@ -88,13 +121,19 @@ function ReaderPage() {
         </Button>
       </header>
 
-      <div className="relative flex min-h-0 flex-1 items-center justify-center">
+      <div
+        className={cn(
+          'relative flex min-h-0 flex-1',
+          isFit ? 'items-center justify-center' : 'items-start justify-start overflow-auto',
+        )}
+      >
         {pageUrl && (
           <img
             src={pageUrl}
             alt={`Page ${page + 1}`}
-            className="max-h-full max-w-full object-contain"
             draggable={false}
+            className={isFit ? 'h-full w-full object-contain' : undefined}
+            style={isFit ? undefined : { transform: `scale(${zoom})`, transformOrigin: 'top left' }}
           />
         )}
         {loading && !pageUrl && <p className="text-white/60">Chargement…</p>}
