@@ -11,6 +11,10 @@ interface LibraryRow {
   current_page: number;
   added_at: string;
   last_opened_at: string;
+  file_count: number;
+  file_size: number;
+  rating: number;
+  tags: string;
 }
 
 function fromRow(row: LibraryRow): LibraryEntry {
@@ -22,6 +26,10 @@ function fromRow(row: LibraryRow): LibraryEntry {
     currentPage: row.current_page,
     addedAt: row.added_at,
     lastOpenedAt: row.last_opened_at,
+    fileCount: row.file_count,
+    fileSize: row.file_size,
+    rating: row.rating,
+    tags: JSON.parse(row.tags) as string[],
   };
 }
 
@@ -36,8 +44,11 @@ export class LibraryRepository {
     return rows.map(fromRow);
   }
 
-  /** Registers a comic as just opened: creates it on first open, else refreshes its metadata. */
-  touch(filePath: string, title: string, pageCount: number): LibraryEntry {
+  /**
+   * Registers a comic as just opened: creates it on first open, else refreshes its metadata.
+   * Never touches `rating`/`tags`, which are only ever set by the user.
+   */
+  touch(filePath: string, title: string, pageCount: number, fileCount: number, fileSize: number): LibraryEntry {
     const now = new Date().toISOString();
     const existing = this.db.prepare('SELECT * FROM library WHERE path = ?').get(filePath) as
       | LibraryRow
@@ -47,10 +58,20 @@ export class LibraryRepository {
       const currentPage = Math.min(existing.current_page, pageCount - 1);
       this.db
         .prepare(
-          'UPDATE library SET title = ?, page_count = ?, current_page = ?, last_opened_at = ? WHERE id = ?',
+          `UPDATE library
+           SET title = ?, page_count = ?, current_page = ?, file_count = ?, file_size = ?, last_opened_at = ?
+           WHERE id = ?`,
         )
-        .run(title, pageCount, currentPage, now, existing.id);
-      return fromRow({ ...existing, title, page_count: pageCount, current_page: currentPage, last_opened_at: now });
+        .run(title, pageCount, currentPage, fileCount, fileSize, now, existing.id);
+      return fromRow({
+        ...existing,
+        title,
+        page_count: pageCount,
+        current_page: currentPage,
+        file_count: fileCount,
+        file_size: fileSize,
+        last_opened_at: now,
+      });
     }
 
     const row: LibraryRow = {
@@ -61,18 +82,43 @@ export class LibraryRepository {
       current_page: 0,
       added_at: now,
       last_opened_at: now,
+      file_count: fileCount,
+      file_size: fileSize,
+      rating: 0,
+      tags: '[]',
     };
     this.db
       .prepare(
-        `INSERT INTO library (id, path, title, page_count, current_page, added_at, last_opened_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO library
+           (id, path, title, page_count, current_page, added_at, last_opened_at, file_count, file_size, rating, tags)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(row.id, row.path, row.title, row.page_count, row.current_page, row.added_at, row.last_opened_at);
+      .run(
+        row.id,
+        row.path,
+        row.title,
+        row.page_count,
+        row.current_page,
+        row.added_at,
+        row.last_opened_at,
+        row.file_count,
+        row.file_size,
+        row.rating,
+        row.tags,
+      );
     return fromRow(row);
   }
 
   updateProgress(id: string, currentPage: number): void {
     this.db.prepare('UPDATE library SET current_page = ? WHERE id = ?').run(currentPage, id);
+  }
+
+  updateRating(id: string, rating: number): void {
+    this.db.prepare('UPDATE library SET rating = ? WHERE id = ?').run(rating, id);
+  }
+
+  updateTags(id: string, tags: string[]): void {
+    this.db.prepare('UPDATE library SET tags = ? WHERE id = ?').run(JSON.stringify(tags), id);
   }
 
   remove(id: string): void {

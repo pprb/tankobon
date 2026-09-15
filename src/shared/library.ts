@@ -12,4 +12,12 @@ export interface LibraryEntry {
   /** ISO timestamps. */
   addedAt: string;
   lastOpenedAt: string;
+  /** Total entries in the archive (not just image pages). */
+  fileCount: number;
+  /** Size in bytes of the archive file on disk. */
+  fileSize: number;
+  /** User rating, 0 (unrated) to 5. */
+  rating: number;
+  /** Free-form user labels, e.g. "Lu", "À lire". */
+  tags: string[];
 }

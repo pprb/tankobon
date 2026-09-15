@@ -27,6 +27,9 @@ const api = {
     remove: (id: string): Promise<void> => ipcRenderer.invoke('library:remove', id),
     updateProgress: (id: string, currentPage: number): Promise<void> =>
       ipcRenderer.invoke('library:update-progress', id, currentPage),
+    updateRating: (id: string, rating: number): Promise<void> =>
+      ipcRenderer.invoke('library:update-rating', id, rating),
+    updateTags: (id: string, tags: string[]): Promise<void> => ipcRenderer.invoke('library:update-tags', id, tags),
   },
   settings: {
     getAll: (): Promise<AppSettings> => ipcRenderer.invoke('settings:get-all'),

@@ -19,10 +19,23 @@ Formats d'archive pris en charge : CBZ et CBR.
 
 Tankōbon stocke tout dans un fichier SQLite (`tankobon.db`, dans le dossier
 `userData` d'Electron — jamais dans le cloud, ni dans le `localStorage`/IndexedDB
-de Chromium) : la bibliothèque de BD (chemin, titre, page courante) et les
-paramètres de l'application. Cela permet de reprendre la lecture à la bonne
-page à la réouverture d'une BD. Les données peuvent être exportées au format
-JSON depuis la page Paramètres (bouton "Exporter").
+de Chromium) : la bibliothèque de BD (chemin, titre, page courante, nombre de
+fichiers, taille, note, étiquettes) et les paramètres de l'application. Cela
+permet de reprendre la lecture à la bonne page à la réouverture d'une BD. Les
+données peuvent être exportées au format JSON depuis la page Paramètres
+(bouton "Exporter").
+
+## Métadonnées de bibliothèque
+
+Pour chaque BD, la page Bibliothèque affiche le nombre de fichiers dans
+l'archive et sa taille sur disque (calculés à l'ouverture, stockés en base).
+Chaque livre peut aussi être noté (0 à 5 étoiles, cliquer sur l'étoile déjà
+sélectionnée l'enlève) et étiqueté : deux étiquettes rapides ("Lu", "À lire")
+plus des étiquettes libres ajoutées via le champ texte. Note et étiquettes
+sont définies par l'utilisateur et ne sont jamais réinitialisées à la
+réouverture d'un livre (seuls titre, pagination, nombre de fichiers et
+taille sont rafraîchis). L'extraction automatique de métadonnées (langue,
+auteurs, année) n'est pas encore implémentée.
 
 ## Zoom et amélioration d'image (IA)
 

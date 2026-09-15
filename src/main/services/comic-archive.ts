@@ -8,6 +8,8 @@ export interface ComicArchive {
   readonly path: string;
   /** Image entry names, sorted in reading order. */
   readonly pages: readonly string[];
+  /** Total entries in the archive (not just image pages). */
+  readonly fileCount: number;
   readPage(index: number): Promise<ComicPage>;
   close(): Promise<void>;
 }

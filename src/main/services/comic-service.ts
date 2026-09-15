@@ -29,6 +29,7 @@ export class ComicService {
       path: filePath,
       title: path.basename(filePath, path.extname(filePath)),
       pageCount: archive.pages.length,
+      fileCount: archive.fileCount,
     };
   }
 

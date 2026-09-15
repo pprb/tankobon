@@ -1,4 +1,5 @@
 import { BrowserWindow, app, dialog, ipcMain } from 'electron';
+import { stat } from 'node:fs/promises';
 
 import { SUPPORTED_COMIC_EXTENSIONS } from '../../shared/comic';
 import type { LibraryRepository } from '../db/library-repository';
@@ -30,7 +31,8 @@ export function registerComicIpc(libraryRepo: LibraryRepository): void {
 
   ipcMain.handle(COMIC_CHANNELS.open, async (_event, filePath: string) => {
     const comic = await service.open(filePath);
-    const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount);
+    const { size } = await stat(comic.path);
+    const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
     return { ...comic, libraryId: entry.id, resumePage: entry.currentPage };
   });
 

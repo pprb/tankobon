@@ -17,6 +17,7 @@ export class CbrArchive implements ComicArchive {
   private constructor(
     readonly path: string,
     readonly pages: readonly string[],
+    readonly fileCount: number,
     private readonly extractor: Extractor<Uint8Array>,
   ) {}
 
@@ -27,15 +28,12 @@ export class CbrArchive implements ComicArchive {
       wasmBinary: wasm,
     });
     const { fileHeaders } = extractor.getFileList();
-    const pages = sortPages(
-      [...fileHeaders]
-        .filter((header) => !header.flags.directory && isPageEntry(header.name))
-        .map((header) => header.name),
-    );
+    const files = [...fileHeaders].filter((header) => !header.flags.directory);
+    const pages = sortPages(files.filter((header) => isPageEntry(header.name)).map((header) => header.name));
     if (pages.length === 0) {
       throw new Error(`Aucune image trouvée dans ${filePath}`);
     }
-    return new CbrArchive(filePath, pages, extractor);
+    return new CbrArchive(filePath, pages, files.length, extractor);
   }
 
   async readPage(index: number): Promise<ComicPage> {

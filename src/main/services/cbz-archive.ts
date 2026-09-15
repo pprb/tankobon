@@ -7,6 +7,7 @@ export class CbzArchive implements ComicArchive {
   private constructor(
     readonly path: string,
     readonly pages: readonly string[],
+    readonly fileCount: number,
     private readonly zip: StreamZip.StreamZipAsync,
   ) {}
 
@@ -14,15 +15,12 @@ export class CbzArchive implements ComicArchive {
     const zip = new StreamZip.async({ file: filePath });
     try {
       const entries = await zip.entries();
-      const pages = sortPages(
-        Object.values(entries)
-          .filter((entry) => !entry.isDirectory && isPageEntry(entry.name))
-          .map((entry) => entry.name),
-      );
+      const files = Object.values(entries).filter((entry) => !entry.isDirectory);
+      const pages = sortPages(files.filter((entry) => isPageEntry(entry.name)).map((entry) => entry.name));
       if (pages.length === 0) {
         throw new Error(`Aucune image trouvée dans ${filePath}`);
       }
-      return new CbzArchive(filePath, pages, zip);
+      return new CbzArchive(filePath, pages, files.length, zip);
     } catch (error) {
       await zip.close();
       throw error;

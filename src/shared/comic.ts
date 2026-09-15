@@ -10,6 +10,8 @@ export interface ArchiveInfo {
   title: string;
   /** Page count (image entries only, sorted in reading order). */
   pageCount: number;
+  /** Total entries in the archive (not just image pages). */
+  fileCount: number;
 }
 
 export interface ComicInfo extends ArchiveInfo {

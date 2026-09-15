@@ -34,4 +34,17 @@ function migrate(db: DatabaseSync): void {
       value TEXT NOT NULL
     );
   `);
+
+  // Columns added after the initial release: existing databases need them backfilled.
+  addColumnIfMissing(db, 'library', 'file_count', 'INTEGER NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'library', 'file_size', 'INTEGER NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'library', 'rating', 'INTEGER NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'library', 'tags', "TEXT NOT NULL DEFAULT '[]'");
+}
+
+function addColumnIfMissing(db: DatabaseSync, table: string, column: string, definition: string): void {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!columns.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
 }
