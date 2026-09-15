@@ -268,7 +268,7 @@ function ReaderPage() {
             src={displayUrl ?? undefined}
             alt={`Page ${page + 1}`}
             draggable={false}
-            className={isFit ? 'h-full w-full object-contain' : undefined}
+            className={isFit ? 'h-full w-full object-contain' : 'max-w-none'}
             style={
               zoomFraction === null
                 ? undefined
