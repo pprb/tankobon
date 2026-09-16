@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LibraryRepository } from './library-repository';
 
@@ -28,6 +28,10 @@ describe('LibraryRepository', () => {
 
   beforeEach(() => {
     repo = createRepository();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('creates a new entry on first touch', () => {
@@ -97,5 +101,19 @@ describe('LibraryRepository', () => {
     const entry = repo.touch('/comics/one.cbz', 'One', 20, 22, 1000);
     repo.remove(entry.id);
     expect(repo.list()).toHaveLength(0);
+  });
+
+  // `touch` stamps `last_opened_at` from the clock, so two touches in the same millisecond
+  // would order arbitrarily: fake time keeps the two opens genuinely apart.
+  it('reports the most recently opened path, or null when the library is empty', () => {
+    expect(repo.lastOpenedPath()).toBeNull();
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T10:00:00Z'));
+    repo.touch('/other/two.cbz', 'Two', 10, 10, 1000);
+    vi.setSystemTime(new Date('2026-01-01T11:00:00Z'));
+    repo.touch('/comics/one.cbz', 'One', 20, 22, 123456);
+
+    expect(repo.lastOpenedPath()).toBe('/comics/one.cbz');
   });
 });

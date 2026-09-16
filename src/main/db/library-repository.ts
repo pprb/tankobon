@@ -109,6 +109,17 @@ export class LibraryRepository {
     return fromRow(row);
   }
 
+  /**
+   * Path of the most recently opened comic, if any. Used to reopen the file dialog in the
+   * directory the user last picked a book from, rather than the OS default.
+   */
+  lastOpenedPath(): string | null {
+    const row = this.db
+      .prepare('SELECT path FROM library ORDER BY last_opened_at DESC LIMIT 1')
+      .get() as { path: string } | undefined;
+    return row?.path ?? null;
+  }
+
   updateProgress(id: string, currentPage: number): void {
     this.db.prepare('UPDATE library SET current_page = ? WHERE id = ?').run(currentPage, id);
   }

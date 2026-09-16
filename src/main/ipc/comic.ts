@@ -1,5 +1,6 @@
 import { BrowserWindow, app, dialog, ipcMain } from 'electron';
 import { stat } from 'node:fs/promises';
+import { dirname } from 'node:path';
 
 import { SUPPORTED_COMIC_EXTENSIONS } from '../../shared/comic';
 import type { LibraryRepository } from '../db/library-repository';
@@ -13,6 +14,25 @@ export const COMIC_CHANNELS = {
   close: 'comic:close',
 } as const;
 
+/**
+ * Directory of the last comic opened, so the file dialog picks up where the user left off.
+ * Returns undefined (i.e. the OS default location) when there's no history yet or when that
+ * directory is gone — an external drive unplugged, a folder moved — since Electron's behaviour
+ * with a stale `defaultPath` is platform-dependent.
+ */
+async function lastOpenedDirectory(libraryRepo: LibraryRepository): Promise<string | undefined> {
+  const lastPath = libraryRepo.lastOpenedPath();
+  if (!lastPath) {
+    return undefined;
+  }
+  const directory = dirname(lastPath);
+  try {
+    return (await stat(directory)).isDirectory() ? directory : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function registerComicIpc(libraryRepo: LibraryRepository): void {
   const service = new ComicService();
 
@@ -21,6 +41,7 @@ export function registerComicIpc(libraryRepo: LibraryRepository): void {
       title: 'Ouvrir une BD',
       properties: ['openFile'],
       filters: [{ name: 'Comics et PDF', extensions: [...SUPPORTED_COMIC_EXTENSIONS] }],
+      defaultPath: await lastOpenedDirectory(libraryRepo),
     };
     const window = BrowserWindow.fromWebContents(event.sender);
     const { canceled, filePaths } = window
