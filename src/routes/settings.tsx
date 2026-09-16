@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Download } from 'lucide-react';
+import { Download, Upload } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -12,12 +12,29 @@ export const Route = createFileRoute('/settings')({
 });
 
 function SettingsPage() {
-  const { settings, update } = useSettings();
-  const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const { settings, update, reload } = useSettings();
+  const [dataStatus, setDataStatus] = useState<{ message: string; error?: boolean } | null>(null);
 
   const exportData = async () => {
     const filePath = await window.tankobon.data.export();
-    setExportStatus(filePath ? `Données exportées vers ${filePath}` : null);
+    setDataStatus(filePath ? { message: `Données exportées vers ${filePath}` } : null);
+  };
+
+  const importData = async () => {
+    const result = await window.tankobon.data.import();
+    if (result.status === 'cancelled') {
+      setDataStatus(null);
+      return;
+    }
+    if (result.status === 'error') {
+      setDataStatus({ message: result.message, error: true });
+      return;
+    }
+    // The import wrote settings straight to the database; pull them back into the form.
+    await reload();
+    setDataStatus({
+      message: `${result.added} BD ajoutée(s), ${result.updated} mise(s) à jour et paramètres restaurés depuis ${result.filePath}`,
+    });
   };
 
   return (
@@ -121,13 +138,26 @@ function SettingsPage() {
 
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium">Données</h2>
-        <div>
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={exportData}>
             <Download />
             Exporter la bibliothèque et les paramètres (JSON)
           </Button>
+          <Button variant="outline" onClick={importData}>
+            <Upload />
+            Importer un export (JSON)
+          </Button>
         </div>
-        {exportStatus && <p className="text-sm text-muted-foreground">{exportStatus}</p>}
+        <p className="text-sm text-muted-foreground">
+          L'import fusionne : les BD absentes sont ajoutées, celles déjà présentes (même chemin de
+          fichier) reprennent la progression, la note et les étiquettes du fichier importé, et les
+          paramètres sont remplacés.
+        </p>
+        {dataStatus && (
+          <p className={cn('text-sm', dataStatus.error ? 'text-destructive' : 'text-muted-foreground')}>
+            {dataStatus.message}
+          </p>
+        )}
       </section>
     </div>
   );

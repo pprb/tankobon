@@ -4,6 +4,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 import type { ComicInfo, ComicPage } from './shared/comic';
+import type { ImportResult } from './shared/data';
 import type { LibraryEntry } from './shared/library';
 import type { AppSettings } from './shared/settings';
 
@@ -39,6 +40,8 @@ const api = {
   data: {
     /** Opens a native save dialog and writes a JSON export there; resolves to the chosen path, or null if cancelled. */
     export: (): Promise<string | null> => ipcRenderer.invoke('data:export'),
+    /** Opens a native file picker and merges the chosen JSON export into the local database. */
+    import: (): Promise<ImportResult> => ipcRenderer.invoke('data:import'),
   },
 };
 

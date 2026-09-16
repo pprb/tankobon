@@ -6,6 +6,9 @@ import { DEFAULT_SETTINGS, type AppSettings } from '@/shared/settings';
 export function useSettings() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
 
+  /** Re-reads the database — needed after an import replaces the stored settings behind our back. */
+  const reload = useCallback(() => window.tankobon.settings.getAll().then(setSettings), []);
+
   useEffect(() => {
     let cancelled = false;
     void window.tankobon.settings.getAll().then((loaded) => {
@@ -21,5 +24,5 @@ export function useSettings() {
     void window.tankobon.settings.set(key, value);
   }, []);
 
-  return { settings, update };
+  return { settings, update, reload };
 }

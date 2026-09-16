@@ -110,6 +110,67 @@ export class LibraryRepository {
   }
 
   /**
+   * Writes a whole entry, matching an existing one by its file path (paths are unique, ids are
+   * not stable across machines) — used by the JSON import to restore a snapshot on top of the
+   * current library. Unlike `touch`, this does overwrite `rating`/`tags`: they're part of what
+   * the user is restoring.
+   */
+  upsert(entry: LibraryEntry): 'created' | 'updated' {
+    const existing = this.db.prepare('SELECT id FROM library WHERE path = ?').get(entry.path) as
+      | { id: string }
+      | undefined;
+
+    if (existing) {
+      this.db
+        .prepare(
+          `UPDATE library
+           SET title = ?, page_count = ?, current_page = ?, added_at = ?, last_opened_at = ?,
+               file_count = ?, file_size = ?, rating = ?, tags = ?
+           WHERE id = ?`,
+        )
+        .run(
+          entry.title,
+          entry.pageCount,
+          entry.currentPage,
+          entry.addedAt,
+          entry.lastOpenedAt,
+          entry.fileCount,
+          entry.fileSize,
+          entry.rating,
+          JSON.stringify(entry.tags),
+          existing.id,
+        );
+      return 'updated';
+    }
+
+    this.db
+      .prepare(
+        `INSERT INTO library
+           (id, path, title, page_count, current_page, added_at, last_opened_at, file_count, file_size, rating, tags)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        // A fresh id when the snapshot's one is already taken by a different file.
+        this.idIsTaken(entry.id) ? randomUUID() : entry.id,
+        entry.path,
+        entry.title,
+        entry.pageCount,
+        entry.currentPage,
+        entry.addedAt,
+        entry.lastOpenedAt,
+        entry.fileCount,
+        entry.fileSize,
+        entry.rating,
+        JSON.stringify(entry.tags),
+      );
+    return 'created';
+  }
+
+  private idIsTaken(id: string): boolean {
+    return this.db.prepare('SELECT 1 FROM library WHERE id = ?').get(id) !== undefined;
+  }
+
+  /**
    * Path of the most recently opened comic, if any. Used to reopen the file dialog in the
    * directory the user last picked a book from, rather than the OS default.
    */
