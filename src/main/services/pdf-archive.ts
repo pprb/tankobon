@@ -38,8 +38,14 @@ const RENDER_SCALE = 200 / 72;
 // `require` (a plain CJS global here, not `createRequire(import.meta.url)`): Vite bundles this
 // module into main.js as CommonJS, where Rollup rewrites `import.meta.url` to `{}.url`
 // (`undefined`) — the same reason cbr-archive.ts reads its wasm file via `__dirname`, not a URL.
+//
+// pdf.js validates these two options with `val.endsWith('/')` and rejects anything else, so the
+// trailing separator has to be a forward slash even on Windows (where `path.sep` is `\`). It
+// then just hands the concatenated string to `fs.readFile`, which accepts forward slashes on
+// Windows too — so normalizing the whole path to `/` is safe.
 function pdfjsAssetDir(name: string): string {
-  return path.join(path.dirname(require.resolve('pdfjs-dist/package.json')), name) + path.sep;
+  const dir = path.join(path.dirname(require.resolve('pdfjs-dist/package.json')), name);
+  return dir.replaceAll(path.sep, '/') + '/';
 }
 
 export class PdfArchive implements ComicArchive {
