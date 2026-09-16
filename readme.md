@@ -1,7 +1,7 @@
 # Tankōbon
 
 Gestionnaire de bibliothèque et lecteur de BD, comics et manga numériques.
-Formats d'archive pris en charge : CBZ et CBR.
+Formats pris en charge : CBZ, CBR et PDF.
 
 ## Stack
 
@@ -12,6 +12,7 @@ Formats d'archive pris en charge : CBZ et CBR.
 - TypeScript 6, ESLint 10 (flat config, `typescript-eslint`, `import-x`, `react-hooks`, `react-refresh`)
 - [`node:sqlite`](https://nodejs.org/api/sqlite.html) pour le stockage local (bibliothèque, paramètres, progression de lecture)
 - [node-unrar-js](https://github.com/YuJianrong/node-unrar.js) (unrar compilé en WebAssembly) pour la lecture des CBR
+- [pdfjs-dist](https://github.com/mozilla/pdf.js) + [@napi-rs/canvas](https://github.com/Brooooooklyn/canvas) (rendu Canvas natif, sans compilation) pour la lecture des PDF
 - [Vitest](https://vitest.dev/) pour les tests unitaires
 - [UpscalerJS](https://github.com/thekevinscott/UpscalerJS) (TensorFlow.js, modèle ESRGAN local) pour l'amélioration d'image à la volée
 
@@ -36,6 +37,18 @@ sont définies par l'utilisateur et ne sont jamais réinitialisées à la
 réouverture d'un livre (seuls titre, pagination, nombre de fichiers et
 taille sont rafraîchis). L'extraction automatique de métadonnées (langue,
 auteurs, année) n'est pas encore implémentée.
+
+## Support PDF
+
+En plus des archives CBZ/CBR, Tankōbon lit directement les fichiers PDF :
+chaque page est rasterisée à la volée (~200 DPI, un bon compromis qualité/
+mémoire) via [pdfjs-dist](https://github.com/mozilla/pdf.js) et
+[@napi-rs/canvas](https://github.com/Brooooooklyn/canvas) — une implémentation
+native (binaire précompilé, pas de compilation locale) de l'API Canvas pour
+Node.js, le même mécanisme que pdf.js utilise lui-même hors navigateur. Le
+reste du lecteur (zoom, mode continu, progression, étiquettes/note...) ne
+fait pas de distinction entre une page rasterisée depuis un PDF et une page
+d'image classique.
 
 ## Zoom et amélioration d'image (IA)
 
@@ -85,7 +98,7 @@ src/
   main.ts       # processus principal (fenêtres, cycle de vie, ouverture de la DB)
   main/db/      # base SQLite locale (node:sqlite) : schéma, repositories, export JSON
   main/ipc/     # handlers ipcMain (comic, library, settings, data:export)
-  main/services # ComicService + archives (ComicArchive, CbzArchive, CbrArchive)
+  main/services # ComicService + archives (ComicArchive, CbzArchive, CbrArchive, PdfArchive)
   shared/       # types partagés main <-> renderer (ComicInfo, LibraryEntry, AppSettings)
   preload.ts    # pont sécurisé main <-> renderer (contextBridge)
   hooks/        # hooks React (useComic, useSettings)

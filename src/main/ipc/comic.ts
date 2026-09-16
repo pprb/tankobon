@@ -20,7 +20,7 @@ export function registerComicIpc(libraryRepo: LibraryRepository): void {
     const options: Electron.OpenDialogOptions = {
       title: 'Ouvrir une BD',
       properties: ['openFile'],
-      filters: [{ name: 'Comic Book Archive', extensions: [...SUPPORTED_COMIC_EXTENSIONS] }],
+      filters: [{ name: 'Comics et PDF', extensions: [...SUPPORTED_COMIC_EXTENSIONS] }],
     };
     const window = BrowserWindow.fromWebContents(event.sender);
     const { canceled, filePaths } = window

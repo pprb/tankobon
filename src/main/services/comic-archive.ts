@@ -1,5 +1,5 @@
-// Comic archive abstraction. Each format (CBZ, CBR today; PDF later) implements
-// `ComicArchive`; the rest of the app only deals with page indexes.
+// Comic archive abstraction. Each format (CBZ, CBR, PDF) implements `ComicArchive`;
+// the rest of the app only deals with page indexes.
 import path from 'node:path';
 
 import type { ComicPage } from '../../shared/comic';

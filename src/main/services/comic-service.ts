@@ -6,10 +6,12 @@ import type { ArchiveInfo, ComicPage } from '../../shared/comic';
 import { CbrArchive } from './cbr-archive';
 import { CbzArchive } from './cbz-archive';
 import type { ComicArchive } from './comic-archive';
+import { PdfArchive } from './pdf-archive';
 
 const openers: Record<string, (filePath: string) => Promise<ComicArchive>> = {
   '.cbz': CbzArchive.open,
   '.cbr': CbrArchive.open,
+  '.pdf': PdfArchive.open,
 };
 
 export class ComicService {

@@ -15,9 +15,19 @@ export default defineConfig({
   ],
   build: {
     rollupOptions: {
-      // `node:sqlite` isn't in Node's `builtinModules` list yet (still experimental),
-      // so the forge Vite plugin doesn't externalize it on its own.
-      external: ['node:sqlite'],
+      external: [
+        // `node:sqlite` isn't in Node's `builtinModules` list yet (still experimental),
+        // so the forge Vite plugin doesn't externalize it on its own.
+        'node:sqlite',
+        // Left as real npm packages rather than bundled: `@napi-rs/canvas` is a native
+        // N-API addon (Rollup can't inline a `.node` binary), and `pdfjs-dist`'s `legacy`
+        // build is itself a foreign webpack bundle that Rollup can't safely re-bundle.
+        // Both are resolved from node_modules at runtime instead (see pdf-archive.ts),
+        // which also means pdfjs-dist's `standard_fonts`/`cmaps` data directories ship
+        // for free without needing a separate copy step.
+        '@napi-rs/canvas',
+        'pdfjs-dist/legacy/build/pdf.mjs',
+      ],
     },
   },
 });
