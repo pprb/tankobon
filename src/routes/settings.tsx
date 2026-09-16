@@ -1,10 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Download, Upload } from 'lucide-react';
-import { useState } from 'react';
+import { Database, Download, Upload } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
+import type { DatabaseLocation } from '@/shared/data';
 import { READER_BACKGROUND_PRESETS } from '@/shared/settings';
 
 export const Route = createFileRoute('/settings')({
@@ -14,6 +15,40 @@ export const Route = createFileRoute('/settings')({
 function SettingsPage() {
   const { settings, update, reload } = useSettings();
   const [dataStatus, setDataStatus] = useState<{ message: string; error?: boolean } | null>(null);
+  const [dbLocation, setDbLocation] = useState<DatabaseLocation | null>(null);
+  // A location change only takes effect on the next start, so the app has to offer a restart.
+  const [restartNeeded, setRestartNeeded] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void window.tankobon.database.getLocation().then((location) => {
+      if (!cancelled) setDbLocation(location);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const chooseDatabaseLocation = async () => {
+    const result = await window.tankobon.database.chooseLocation();
+    if (result.status === 'cancelled') {
+      return;
+    }
+    if (result.status === 'error') {
+      setDbError(result.message);
+      return;
+    }
+    setDbError(null);
+    setDbLocation(result.location);
+    setRestartNeeded(true);
+  };
+
+  const resetDatabaseLocation = async () => {
+    setDbError(null);
+    setDbLocation(await window.tankobon.database.resetLocation());
+    setRestartNeeded(true);
+  };
 
   const exportData = async () => {
     const filePath = await window.tankobon.data.export();
@@ -157,6 +192,41 @@ function SettingsPage() {
           <p className={cn('text-sm', dataStatus.error ? 'text-destructive' : 'text-muted-foreground')}>
             {dataStatus.message}
           </p>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-medium">Emplacement de la base de données</h2>
+        <p className="font-mono text-sm break-all text-muted-foreground">
+          {dbLocation ? dbLocation.filePath : '…'}
+          {dbLocation?.isDefault && ' (emplacement par défaut)'}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={chooseDatabaseLocation}>
+            <Database />
+            Changer de dossier…
+          </Button>
+          {dbLocation && !dbLocation.isDefault && (
+            <Button variant="outline" onClick={resetDatabaseLocation}>
+              Revenir à l'emplacement par défaut
+            </Button>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Le fichier existant n'est pas déplacé : si le nouveau dossier contient déjà une base
+          Tankōbon, elle est utilisée telle quelle, sinon une base vide y est créée. Exporte tes
+          données avant de changer si tu veux les emmener.
+        </p>
+        {dbError && <p className="text-sm text-destructive">{dbError}</p>}
+        {restartNeeded && (
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm text-muted-foreground">
+              Le changement prendra effet au prochain démarrage.
+            </p>
+            <Button size="sm" onClick={() => void window.tankobon.database.relaunch()}>
+              Redémarrer maintenant
+            </Button>
+          </div>
         )}
       </section>
     </div>

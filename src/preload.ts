@@ -4,7 +4,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 import type { ComicInfo, ComicPage } from './shared/comic';
-import type { ImportResult } from './shared/data';
+import type { DatabaseLocation, DatabaseLocationResult, ImportResult } from './shared/data';
 import type { LibraryEntry } from './shared/library';
 import type { AppSettings } from './shared/settings';
 
@@ -42,6 +42,15 @@ const api = {
     export: (): Promise<string | null> => ipcRenderer.invoke('data:export'),
     /** Opens a native file picker and merges the chosen JSON export into the local database. */
     import: (): Promise<ImportResult> => ipcRenderer.invoke('data:import'),
+  },
+  database: {
+    /** Where the database file currently lives. */
+    getLocation: (): Promise<DatabaseLocation> => ipcRenderer.invoke('database:get-location'),
+    /** Opens a native directory picker; the new location only takes effect on the next start. */
+    chooseLocation: (): Promise<DatabaseLocationResult> => ipcRenderer.invoke('database:choose-location'),
+    resetLocation: (): Promise<DatabaseLocation> => ipcRenderer.invoke('database:reset-location'),
+    /** Restarts the app, e.g. to open the database from its new location. */
+    relaunch: (): Promise<void> => ipcRenderer.invoke('database:relaunch'),
   },
 };
 

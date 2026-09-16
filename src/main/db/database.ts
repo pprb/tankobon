@@ -1,18 +1,23 @@
-// Local, file-based storage: a single SQLite database in the user data
-// directory (never in the cloud, never in Chromium's storage). Uses Node's
-// built-in `node:sqlite` module, so no native module needs to be compiled or
-// shipped alongside Electron.
+// Local, file-based storage: a single SQLite database, by default in the user
+// data directory (never in the cloud, never in Chromium's storage) — see
+// db-location.ts for how the user can point it elsewhere. Uses Node's built-in
+// `node:sqlite` module, so no native module needs to be compiled or shipped
+// alongside Electron.
 import { DatabaseSync } from 'node:sqlite';
 import { app } from 'electron';
 import { mkdirSync } from 'node:fs';
-import path from 'node:path';
 
-const DB_FILE_NAME = 'tankobon.db';
+import type { DatabaseLocation } from '../../shared/data';
+import { resolveDatabaseLocation } from './db-location';
+
+export function databaseLocation(): DatabaseLocation {
+  return resolveDatabaseLocation(app.getPath('userData'));
+}
 
 export function openDatabase(): DatabaseSync {
-  const dir = app.getPath('userData');
-  mkdirSync(dir, { recursive: true });
-  const db = new DatabaseSync(path.join(dir, DB_FILE_NAME));
+  const { directory, filePath } = databaseLocation();
+  mkdirSync(directory, { recursive: true });
+  const db = new DatabaseSync(filePath);
   migrate(db);
   return db;
 }

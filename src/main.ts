@@ -6,6 +6,7 @@ import { openDatabase } from './main/db/database';
 import { LibraryRepository } from './main/db/library-repository';
 import { SettingsRepository } from './main/db/settings-repository';
 import { registerComicIpc } from './main/ipc/comic';
+import { registerDatabaseIpc } from './main/ipc/database';
 import { registerDataIpc } from './main/ipc/data';
 import { registerLibraryIpc } from './main/ipc/library';
 import { registerSettingsIpc } from './main/ipc/settings';
@@ -54,6 +55,7 @@ app.whenReady().then(() => {
   registerSettingsIpc(settingsRepo);
   registerDataIpc(libraryRepo, settingsRepo);
   registerComicIpc(libraryRepo);
+  registerDatabaseIpc();
 
   app.on('will-quit', () => db.close());
 
