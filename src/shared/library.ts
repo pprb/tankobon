@@ -21,3 +21,29 @@ export interface LibraryEntry {
   /** Free-form user labels, e.g. "Lu", "À lire". */
   tags: string[];
 }
+
+/** Progress of a folder scan, pushed from the main process while it runs. */
+export interface ScanProgress {
+  /** `scanning`: walking the tree, `total` not known yet. `importing`: opening each file found. */
+  phase: 'scanning' | 'importing' | 'done';
+  processed: number;
+  total: number;
+  /** Absolute path currently being handled, for the progress label. */
+  currentFile: string;
+}
+
+/** Outcome of `library.addFolder()`. */
+export type ScanResult =
+  | { status: 'cancelled' }
+  | {
+      status: 'ok';
+      directory: string;
+      /** Comics added to the library. */
+      added: number;
+      /** Comics already in the library, left untouched. */
+      skipped: number;
+      /** Files that couldn't be opened (corrupt, unsupported variant…). */
+      failed: number;
+      /** Supported files found in the tree, i.e. `added + skipped + failed`. */
+      total: number;
+    };

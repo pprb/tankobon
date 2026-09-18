@@ -5,7 +5,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 import type { ComicInfo, ComicPage } from './shared/comic';
 import type { DatabaseLocation, DatabaseLocationResult, ImportResult } from './shared/data';
-import type { LibraryEntry } from './shared/library';
+import type { LibraryEntry, ScanProgress, ScanResult } from './shared/library';
 import type { AppSettings } from './shared/settings';
 
 // Mirror of the CHANNELS constants in main/ipc/*.ts (preload cannot import main code).
@@ -25,6 +25,16 @@ const api = {
   },
   library: {
     list: (): Promise<LibraryEntry[]> => ipcRenderer.invoke('library:list'),
+    /** Opens a native directory picker, then adds every comic found under it, recursively. */
+    addFolder: (): Promise<ScanResult> => ipcRenderer.invoke('library:add-folder'),
+    /** Subscribes to `addFolder`'s progress; returns the unsubscribe function. */
+    onScanProgress: (listener: (progress: ScanProgress) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: ScanProgress) => listener(progress);
+      ipcRenderer.on('library:scan-progress', handler);
+      return () => {
+        ipcRenderer.removeListener('library:scan-progress', handler);
+      };
+    },
     remove: (id: string): Promise<void> => ipcRenderer.invoke('library:remove', id),
     updateProgress: (id: string, currentPage: number): Promise<void> =>
       ipcRenderer.invoke('library:update-progress', id, currentPage),

@@ -12,6 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ReaderRouteImport } from './routes/reader'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
+import { Route as SettingsDataRouteImport } from './routes/settings/data'
+import { Route as SettingsReadingRouteImport } from './routes/settings/reading'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +32,87 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
+  id: '/appearance',
+  path: '/appearance',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsDataRoute = SettingsDataRouteImport.update({
+  id: '/data',
+  path: '/data',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsReadingRoute = SettingsReadingRouteImport.update({
+  id: '/reading',
+  path: '/reading',
+  getParentRoute: () => SettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/reader': typeof ReaderRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/data': typeof SettingsDataRoute
+  '/settings/reading': typeof SettingsReadingRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/reader': typeof ReaderRoute
-  '/settings': typeof SettingsRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/data': typeof SettingsDataRoute
+  '/settings/reading': typeof SettingsReadingRoute
+  '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/reader': typeof ReaderRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/data': typeof SettingsDataRoute
+  '/settings/reading': typeof SettingsReadingRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/reader' | '/settings'
+  fullPaths:
+    | '/'
+    | '/reader'
+    | '/settings'
+    | '/settings/appearance'
+    | '/settings/data'
+    | '/settings/reading'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/reader' | '/settings'
-  id: '__root__' | '/' | '/reader' | '/settings'
+  to:
+    | '/'
+    | '/reader'
+    | '/settings/appearance'
+    | '/settings/data'
+    | '/settings/reading'
+    | '/settings'
+  id:
+    | '__root__'
+    | '/'
+    | '/reader'
+    | '/settings'
+    | '/settings/appearance'
+    | '/settings/data'
+    | '/settings/reading'
+    | '/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ReaderRoute: typeof ReaderRoute
-  SettingsRoute: typeof SettingsRoute
+  SettingsRoute: typeof SettingsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -82,13 +138,59 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/': {
+      id: '/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/appearance': {
+      id: '/settings/appearance'
+      path: '/appearance'
+      fullPath: '/settings/appearance'
+      preLoaderRoute: typeof SettingsAppearanceRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/data': {
+      id: '/settings/data'
+      path: '/data'
+      fullPath: '/settings/data'
+      preLoaderRoute: typeof SettingsDataRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/reading': {
+      id: '/settings/reading'
+      path: '/reading'
+      fullPath: '/settings/reading'
+      preLoaderRoute: typeof SettingsReadingRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
+
+interface SettingsRouteChildren {
+  SettingsAppearanceRoute: typeof SettingsAppearanceRoute
+  SettingsDataRoute: typeof SettingsDataRoute
+  SettingsReadingRoute: typeof SettingsReadingRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsAppearanceRoute: SettingsAppearanceRoute,
+  SettingsDataRoute: SettingsDataRoute,
+  SettingsReadingRoute: SettingsReadingRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ReaderRoute: ReaderRoute,
-  SettingsRoute: SettingsRoute,
+  SettingsRoute: SettingsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

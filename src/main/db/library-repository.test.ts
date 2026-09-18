@@ -97,6 +97,27 @@ describe('LibraryRepository', () => {
     expect(repo.list()[0].tags).toEqual(['Lu']);
   });
 
+  it('registers a scanned comic without marking it as opened', () => {
+    expect(repo.hasPath('/comics/one.cbz')).toBe(false);
+    expect(repo.register('/comics/one.cbz', 'One', 20, 22, 1000)).toBe('created');
+
+    const [entry] = repo.list();
+    expect(entry).toMatchObject({ path: '/comics/one.cbz', title: 'One', pageCount: 20, currentPage: 0 });
+    expect(entry.lastOpenedAt).toBe(entry.addedAt);
+    expect(repo.hasPath('/comics/one.cbz')).toBe(true);
+  });
+
+  it('leaves an already known comic alone when registering it again', () => {
+    const entry = repo.touch('/comics/one.cbz', 'One', 20, 22, 1000);
+    repo.updateProgress(entry.id, 7);
+    repo.updateTags(entry.id, ['Lu']);
+
+    expect(repo.register('/comics/one.cbz', 'Autre titre', 99, 99, 9999)).toBe('existing');
+
+    expect(repo.list()).toHaveLength(1);
+    expect(repo.list()[0]).toMatchObject({ title: 'One', pageCount: 20, currentPage: 7, tags: ['Lu'] });
+  });
+
   it('removes an entry', () => {
     const entry = repo.touch('/comics/one.cbz', 'One', 20, 22, 1000);
     repo.remove(entry.id);

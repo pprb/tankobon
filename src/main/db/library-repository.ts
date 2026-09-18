@@ -109,6 +109,38 @@ export class LibraryRepository {
     return fromRow(row);
   }
 
+  /** Whether a file is already in the library, so a folder scan can skip it without opening it. */
+  hasPath(filePath: string): boolean {
+    return this.db.prepare('SELECT 1 FROM library WHERE path = ?').get(filePath) !== undefined;
+  }
+
+  /**
+   * Adds a comic discovered by a folder scan. Unlike `touch`, an entry that already exists is left
+   * completely alone — a scan is not a read, so it must not bump `last_opened_at` or refresh
+   * metadata behind the user's back. New rows get `last_opened_at = added_at`, which is what puts
+   * a freshly scanned batch at the top of the library list.
+   */
+  register(
+    filePath: string,
+    title: string,
+    pageCount: number,
+    fileCount: number,
+    fileSize: number,
+  ): 'created' | 'existing' {
+    if (this.hasPath(filePath)) {
+      return 'existing';
+    }
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT INTO library
+           (id, path, title, page_count, current_page, added_at, last_opened_at, file_count, file_size, rating, tags)
+         VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, 0, '[]')`,
+      )
+      .run(randomUUID(), filePath, title, pageCount, now, now, fileCount, fileSize);
+    return 'created';
+  }
+
   /**
    * Writes a whole entry, matching an existing one by its file path (paths are unique, ids are
    * not stable across machines) — used by the JSON import to restore a snapshot on top of the
