@@ -9,6 +9,7 @@ import { useImageUpscaler } from '@/hooks/use-image-upscaler';
 import { formatRemainingTime, useReadingPace } from '@/hooks/use-reading-pace';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
+import { createWheelPager } from '@/lib/wheel-pager';
 import type { ComicInfo } from '@/shared/comic';
 import type { AppSettings } from '@/shared/settings';
 
@@ -270,16 +271,22 @@ function SinglePageReader({
 
   // Wheel-to-turn-page: while zoomed in, a scroll that can still pan the image is left
   // alone; only once the pan hits the edge (or in "fit" mode, where there's no pan at
-  // all) does the wheel turn the page. A short cooldown keeps one trackpad swipe (many
-  // wheel events) to exactly one page turn.
+  // all) does the wheel turn the page. `createWheelPager` keeps one trackpad swipe (many
+  // wheel events, plus the OS's inertia tail) to exactly one page turn. It lives in state,
+  // not inside the effect: `advance`/`retreat` change identity on every render, so the
+  // effect re-runs after each page turn and a fresh pager would forget the gesture in
+  // progress — letting its inertia turn the page again.
+  const [pager] = useState(createWheelPager);
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const inverted = settings.scrollDirection === 'inverted';
-    let cooldownUntil = 0;
 
     const onWheel = (event: WheelEvent) => {
       if (event.deltaY === 0) return;
+      // Fed even for events that only pan, so a swipe that pans up to the edge doesn't
+      // then turn the page with its own inertia: that takes a new gesture.
+      const step = pager(event.deltaY, event.timeStamp);
 
       if (zoomFraction !== null) {
         const atTop = el.scrollTop <= 0;
@@ -290,18 +297,16 @@ function SinglePageReader({
       }
 
       event.preventDefault();
-      const now = Date.now();
-      if (now < cooldownUntil) return;
-      cooldownUntil = now + 450;
+      if (step === 0) return;
 
-      const goForward = inverted ? event.deltaY < 0 : event.deltaY > 0;
+      const goForward = inverted ? step < 0 : step > 0;
       if (goForward) advance();
       else retreat();
     };
 
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [zoomFraction, settings.scrollDirection, advance, retreat]);
+  }, [zoomFraction, settings.scrollDirection, advance, retreat, pager]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
