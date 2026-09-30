@@ -1,3 +1,7 @@
+/**
+ * Window fullscreen (HTML Fullscreen API).
+ * @module
+ */
 import { useCallback, useEffect, useState } from 'react';
 
 /**
@@ -26,5 +30,11 @@ export function useFullscreen() {
     }
   }, []);
 
-  return { fullscreen, toggle, exit };
+  return {
+    fullscreen,
+    /** Enters fullscreen, or leaves it when already there. */
+    toggle,
+    /** Leaves fullscreen; does nothing when not in fullscreen. */
+    exit,
+  };
 }

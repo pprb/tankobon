@@ -1,0 +1,49 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "Tankōbon",
+  "entryPoints": [
+    "src/shared/*.ts",
+    "src/preload.ts",
+    "src/main/db/*.ts",
+    "src/main/services/*.ts",
+    "src/lib/*.ts",
+    "src/hooks/*.ts"
+  ],
+  "exclude": [
+    "**/*.test.ts"
+  ],
+  "entryPointStrategy": "resolve",
+  "tsconfig": "tsconfig.json",
+  "plugin": [
+    "typedoc-plugin-markdown",
+    "typedoc-vitepress-theme"
+  ],
+  "out": "docs/reference/api",
+  "docsRoot": "docs",
+  "readme": "none",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "rewrittenLink": true,
+    "notDocumented": true,
+    "unusedMergeModuleWith": true
+  },
+  "requiredToBeDocumented": [
+    "Module",
+    "Namespace",
+    "Enum",
+    "Variable",
+    "Function",
+    "Class",
+    "Interface",
+    "TypeAlias"
+  ],
+  "treatValidationWarningsAsErrors": true,
+  "treatWarningsAsErrors": true,
+  "intentionallyNotExported": [
+    "api",
+    "ImageUpscalerResult"
+  ]
+}

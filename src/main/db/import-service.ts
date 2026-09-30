@@ -1,3 +1,7 @@
+/**
+ * JSON import: validates a user-picked export file and merges it into the local database.
+ * @module
+ */
 import { randomUUID } from 'node:crypto';
 
 import type { LibraryEntry } from '../../shared/library';

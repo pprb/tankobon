@@ -1,3 +1,7 @@
+/**
+ * Single-page reader state.
+ * @module
+ */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { ComicInfo } from '@/shared/comic';
@@ -110,11 +114,17 @@ export function useComic() {
 
   return {
     ...state,
+    /** Shows the native file picker, then opens the chosen file (nothing happens if cancelled). */
     pickAndOpen,
+    /** Opens a comic at its saved page; on failure, sets `error` and keeps the previous comic. */
     openFile,
+    /** Closes the current comic and resets the state. */
     close,
+    /** Goes to a page (0-based), clamped to the comic's range. */
     goTo,
+    /** Page index + 1, regardless of the reading direction. */
     next: () => goTo(state.page + 1),
+    /** Page index - 1, regardless of the reading direction. */
     prev: () => goTo(state.page - 1),
   };
 }

@@ -1,4 +1,7 @@
-// Types shared between the main process and the renderer (via preload).
+/**
+ * Library types shared between the main process and the renderer (via preload).
+ * @module
+ */
 
 /** A comic registered in the local library database. */
 export interface LibraryEntry {

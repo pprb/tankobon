@@ -1,3 +1,7 @@
+/**
+ * CBR (RAR) support.
+ * @module
+ */
 import { createExtractorFromData, type Extractor } from 'node-unrar-js';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -13,6 +17,10 @@ async function getWasmBinary(): Promise<ArrayBuffer> {
   return wasmBinary;
 }
 
+/**
+ * A `.cbr` (RAR) comic, read with node-unrar-js (unrar compiled to WebAssembly). The whole file is
+ * loaded in memory when opened.
+ */
 export class CbrArchive implements ComicArchive {
   private constructor(
     readonly path: string,
@@ -21,6 +29,7 @@ export class CbrArchive implements ComicArchive {
     private readonly extractor: Extractor<Uint8Array>,
   ) {}
 
+  /** Reads and indexes the archive; throws when it holds no image. */
   static async open(filePath: string): Promise<CbrArchive> {
     const [fileBytes, wasm] = await Promise.all([readFile(filePath), getWasmBinary()]);
     const extractor = await createExtractorFromData({
@@ -36,6 +45,7 @@ export class CbrArchive implements ComicArchive {
     return new CbrArchive(filePath, pages, files.length, extractor);
   }
 
+  /** Extracts page `index` (0-based); throws a `RangeError` when out of range. */
   async readPage(index: number): Promise<ComicPage> {
     const entryName = this.pages[index];
     if (entryName === undefined) {
@@ -50,6 +60,7 @@ export class CbrArchive implements ComicArchive {
     return { data: new Uint8Array(file.extraction), mimeType: imageMimeType(entryName)! };
   }
 
+  /** Nothing to release: the archive lives in memory. */
   close(): Promise<void> {
     // In-memory extractor: nothing to release (no open file handle to the archive itself).
     return Promise.resolve();

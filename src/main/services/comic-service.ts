@@ -1,4 +1,7 @@
-// Keeps opened archives alive between IPC calls, addressed by an opaque id.
+/**
+ * Keeps opened archives alive between IPC calls, addressed by an opaque id.
+ * @module
+ */
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
@@ -28,9 +31,14 @@ export async function openArchive(filePath: string): Promise<ComicArchive> {
   return opener(filePath);
 }
 
+/**
+ * Registry of the archives currently open in the reader. Each gets a `randomUUID()` handle, distinct
+ * from the persistent library id stored in the database.
+ */
 export class ComicService {
   private readonly archives = new Map<string, ComicArchive>();
 
+  /** Opens a file (format picked by extension) and keeps it open until `close`. */
   async open(filePath: string): Promise<ArchiveInfo> {
     const archive = await openArchive(filePath);
     const id = randomUUID();
@@ -44,10 +52,12 @@ export class ComicService {
     };
   }
 
+  /** Reads a page of an open archive; throws for an unknown id. */
   readPage(id: string, index: number): Promise<ComicPage> {
     return this.get(id).readPage(index);
   }
 
+  /** Closes and forgets an archive; does nothing for an unknown id. */
   async close(id: string): Promise<void> {
     const archive = this.archives.get(id);
     if (archive) {
@@ -56,6 +66,7 @@ export class ComicService {
     }
   }
 
+  /** Closes every open archive (on app quit). */
   async closeAll(): Promise<void> {
     await Promise.all([...this.archives.keys()].map((id) => this.close(id)));
   }

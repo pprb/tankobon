@@ -1,8 +1,13 @@
+/**
+ * JSON export of the local database (library + settings).
+ * @module
+ */
 import type { LibraryEntry } from '../../shared/library';
 import type { AppSettings } from '../../shared/settings';
 import type { LibraryRepository } from './library-repository';
 import type { SettingsRepository } from './settings-repository';
 
+/** Format of a JSON export file — also what `parseExport` accepts back. */
 export interface ExportedData {
   version: 1;
   exportedAt: string;

@@ -1,7 +1,10 @@
-// Where the SQLite file lives. This can't be an `AppSettings` entry like everything else: the
-// settings are stored *in* the database, so the location has to be resolvable before the database
-// is open. It lives in its own tiny JSON pointer file, which always stays in `userData` — only
-// the database it points at moves.
+/**
+ * Where the SQLite file lives. This can't be an `AppSettings` entry like everything else: the
+ * settings are stored *in* the database, so the location has to be resolvable before the database
+ * is open. It lives in its own tiny JSON pointer file, which always stays in `userData` — only
+ * the database it points at moves.
+ * @module
+ */
 import { accessSync, constants, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -45,6 +48,7 @@ export function writeLocationPointer(userDataDir: string, directory: string | nu
   writeFileSync(pointerPath(userDataDir), JSON.stringify({ directory }, null, 2), 'utf-8');
 }
 
+/** The database location the pointer file designates, or `userData` itself when there is none. */
 export function resolveDatabaseLocation(userDataDir: string): DatabaseLocation {
   const configured = readLocationPointer(userDataDir);
   const directory = configured ?? userDataDir;

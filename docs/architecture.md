@@ -1,0 +1,150 @@
+# Architecture
+
+Tankōbon is an Electron app (Vite + Electron Forge) for managing and reading digital comics (CBZ, CBR, PDF). This page is hand-written: it explains *why* the code is shaped the way it is. The *what* (signatures, types, IPC channels, database schema) is generated from the code, under [Reference](./reference/api/index.md). Structural decisions are recorded as [ADRs](./decisions/index.md).
+
+## Processes and boundaries
+
+The app follows the standard Electron three-process split, with a strict boundary: `src/main.ts` creates the window with `contextIsolation: true`, `nodeIntegration: false` and `sandbox: true` (see [ADR 0001](./decisions/0001-electron-process-isolation.md)).
+
+| Layer | Files | Role |
+|---|---|---|
+| Main process | `src/main.ts`, `src/main/` | Owns the window, the SQLite database and all filesystem/archive access. |
+| Preload | `src/preload.ts` | The *only* bridge between renderer and main. Exposes a single `window.tankobon` object via `contextBridge`. |
+| Renderer | `src/renderer.tsx`, `src/routes/`, `src/hooks/`, `src/components/`, `src/lib/` | React 19 UI; talks to main exclusively through `window.tankobon`. |
+| Shared types | `src/shared/` | Types used on both sides of the IPC boundary (`ComicInfo`, `LibraryEntry`, `AppSettings`…). |
+
+`src/main.ts` opens the database once, builds the two repositories, registers the IPC handlers of `src/main/ipc/*.ts`, then creates the window.
+
+### IPC channels
+
+Channel-name constants (e.g. `COMIC_CHANNELS`, `LIBRARY_CHANNELS`) live in the main-process IPC files, but the preload can't import them (different process and build target), so the strings are duplicated in `src/preload.ts`. Both sides must be kept in sync by hand; `npm run docs:gen` fails if they diverge, and generates the [IPC reference](./reference/ipc.md).
+
+Everything is `invoke`/`handle` (request/response), except `library:scan-progress`, the one main → renderer push channel (see [Folder scanning](#folder-scanning)).
+
+Errors that the user should see come back as a `{ status: 'error', message }` member of a result union (`ImportResult`, `DatabaseLocationResult`) rather than as a thrown error: an `ipcMain.handle` rejection reaches the renderer wrapped in "Error invoking remote method …".
+
+`ArchiveInfo` is what `ComicService` knows about an opened archive before it's matched to a library entry; the `comic:open` handler (`src/main/ipc/comic.ts`) merges it with the library entry to produce the `ComicInfo` sent to the renderer.
+
+## Local database (`src/main/db/`)
+
+Persistence uses Node's built-in `node:sqlite` (`DatabaseSync`): no native module to compile, and nothing stored in the cloud or in Chromium's `localStorage`/IndexedDB ([ADR 0002](./decisions/0002-local-storage-node-sqlite.md)). The generated [schema reference](./reference/schema.md) lists the tables and columns.
+
+- **Repositories take a `DatabaseSync` in their constructor** instead of opening it themselves, which makes them testable with `new DatabaseSync(':memory:')` without touching Electron (`app.getPath`).
+- **Migrations**: `migrate()` in `database.ts` uses `CREATE TABLE IF NOT EXISTS` for tables; columns added after the initial release (`file_count`, `file_size`, `rating`, `tags`) go through `addColumnIfMissing()`, which checks `PRAGMA table_info` before an `ALTER TABLE … ADD COLUMN`. Existing installed databases pick them up without a destructive migration. A new column must follow the same pattern.
+- **Test schemas are copies**: the repository tests (`*.test.ts` in `src/main/db/`) create their own `library`/`settings` tables rather than calling `migrate()` (which isn't exported, and lives in a module that imports `electron`). A schema change has to be mirrored there by hand.
+
+### Library (`library-repository.ts`)
+
+One row per comic ever opened or scanned. Three writers, with deliberately different rules:
+
+| Method | Used by | Existing entry | `rating`/`tags` |
+|---|---|---|---|
+| `touch()` | `comic:open` | Refreshes title, page count, file count/size, bumps `last_opened_at`, clamps `current_page` if the page count shrank | Never touched |
+| `register()` | folder scan | Left completely alone (a scan is not a read) | Never touched |
+| `upsert()` | JSON import | Overwritten with the snapshot's values | Overwritten (restoring a backup is what the user asked for) |
+
+`updateRating()`/`updateTags()`/`updateProgress()` are the dedicated writers for user-set fields.
+
+- `fileCount` is the archive's total entry count (all files, not just image pages); `fileSize` is the file's size on disk, computed with `fs.stat` in the IPC layer, not in `ComicArchive`.
+- `tags` is a JSON-encoded `string[]` column: no normalized tags table, a personal library doesn't need one.
+- `lastOpenedPath()` feeds the open dialog's `defaultPath` (`src/main/ipc/comic.ts`), falling back to the OS default when there is no history or that directory no longer exists.
+
+### Settings (`settings-repository.ts`)
+
+A generic key/value store (JSON-encoded values) for `AppSettings`, merged with `DEFAULT_SETTINGS` on read, so a new setting key needs no migration.
+
+### Database location (`db-location.ts`)
+
+The location can't be an `AppSettings` entry, since the settings are stored *in* the database. It is a tiny `db-location.json` pointer file that always stays in `userData` ([ADR 0003](./decisions/0003-database-location-pointer-file.md)).
+
+- A missing or malformed pointer silently falls back to `userData` rather than throwing, so a hand-edited (or sync-mangled) file can't stop the app from starting.
+- The functions are pure (they take the `userData` path, never call `app.getPath`), which makes them testable; `database.ts` is the only bridge to Electron.
+- Changing the location only rewrites the pointer: the existing file is *not* moved, because pointing at a directory that already holds a `tankobon.db` (a synced folder, another machine) must keep that database. The open database stays open until the next start (`database:relaunch`).
+
+### Export / import (`export-service.ts`, `import-service.ts`)
+
+- `buildExport()` snapshots library + settings as `{ version: 1, exportedAt, library, settings }`, written by `data:export` through a save dialog.
+- `parseExport()` validates a user-picked file: anything that isn't a `version: 1` export is rejected; broken library entries are dropped; only known settings keys whose value type matches the default are kept. An export is a file the user can edit, so nothing in it is trusted.
+- `applyImport()` merges it: entries match on **path**, not id (ids aren't stable across machines); the snapshot wins for the entries it contains; entries only present locally are untouched; settings are replaced wholesale.
+
+## Comic archives (`src/main/services/`)
+
+`ComicArchive` (`comic-archive.ts`) is the format-agnostic interface (`pages`, `fileCount`, `readPage()`, `close()`), implemented by `CbzArchive` (`node-stream-zip`), `CbrArchive` (`node-unrar-js`) and `PdfArchive` (`pdfjs-dist`).
+
+- `fileCount` counts every non-directory entry; `pages` is filtered and naturally sorted down to image entries (hidden files and `__MACOSX/` resource forks excluded). They commonly differ (a `ComicInfo.xml` sidecar counts in `fileCount`); for PDFs they are always equal.
+- `openArchive()` (`comic-service.ts`) picks the implementation from the file extension.
+- `ComicService` keeps opened archives alive between IPC calls, addressed by an opaque `randomUUID()`, distinct from the persistent library id.
+
+### CBZ: closing while reading
+
+`CbzArchive.close()` waits for in-flight `readPage()` calls to settle before closing the zip, and `readPage()` refuses to start once closing has begun. `node-stream-zip` closes its file descriptor immediately, and a read caught mid-way fails with `EBADF` on an internal stream whose error never reaches the `entryData()` promise: it becomes an *uncaught exception in the main process*. This happens routinely from the renderer (switching books while a page loads, leaving continuous mode while preloads run); see `cbz-archive.test.ts`.
+
+### CBR: the wasm file
+
+`node-unrar-js`'s Emscripten glue locates its `.wasm` relative to its own `__dirname`, which breaks once Vite bundles it into `main.js`. `vite.main.config.mts` copies `unrar.wasm` next to the bundle (`vite-plugin-static-copy`), and `cbr-archive.ts` reads it itself and passes it as `wasmBinary`. A CBR is read fully into memory when opened.
+
+### PDF rendering
+
+See [ADR 0004](./decisions/0004-pdf-rendering-pdfjs-napi-canvas.md). `PdfArchive` rasterizes each page on demand at a fixed `RENDER_SCALE` of 200/72 (~200 DPI) through `pdfjs-dist`'s `legacy` build, returning PNG bytes.
+
+- pdf.js references `DOMMatrix`/`Path2D`/`ImageData`/`Image` as bare globals; `pdf-archive.ts` installs `@napi-rs/canvas`'s implementations on `globalThis` once.
+- `page.render()` is given the `canvas` object itself, not just a `canvasContext`.
+- `pdfjs-dist`'s package directory is found with the plain CommonJS `require.resolve('pdfjs-dist/package.json')`, **not** `createRequire(import.meta.url)`: the main bundle is CommonJS, where Rollup rewrites `import.meta.url` to `undefined`, which would crash at module load time (the app would not start at all).
+
+## Build gotchas
+
+These are the non-obvious constraints of the main-process bundle. Breaking one usually doesn't fail the build, only the packaged app.
+
+| Constraint | Where | What breaks otherwise |
+|---|---|---|
+| `node:sqlite` listed in `build.rollupOptions.external` | `vite.main.config.mts` | It isn't in Node's `builtinModules` yet, so Vite bundles an empty stub: `DatabaseSync` is silently `undefined` at runtime. |
+| `unrar.wasm` copied next to `main.js` | `vite.main.config.mts`, `cbr-archive.ts` | CBR files can't be opened. |
+| `pdfjs-dist` and `@napi-rs/canvas` external | `vite.main.config.mts` | `@napi-rs/canvas` is a native `.node` binary Rollup can't inline; pdf.js's `legacy` build is a foreign webpack bundle Rollup can't safely re-bundle. Being real packages also ships pdf.js's `standard_fonts`/`cmaps` for free. |
+| `hooks.packageAfterCopy` copies `pdfjs-dist`, `@napi-rs/canvas` and the installed `@napi-rs/canvas-<platform>-<arch>` | `forge.config.ts` | The Forge Vite plugin only packages its build output plus `package.json`, never `node_modules`: PDFs fail in the packaged app. Only the platform package matching the machine that ran `npm install` exists, so a package must be built on its target platform. |
+| `AutoUnpackNativesPlugin` | `forge.config.ts` | The native binary would stay inside the asar archive, which can't be `dlopen`ed. |
+
+## Renderer
+
+### Routing (`src/routes/`)
+
+File-based routes via TanStack Router, with an in-memory history (`createMemoryHistory` in `src/renderer.tsx`). `src/routeTree.gen.ts` is generated by `@tanstack/router-plugin` on `npm start`/build: never edit it by hand. It is committed, because `npm run typecheck` (and CI) need it without running Vite. `validateSearch` on a route needs no manual wiring in it. The reader route (`/reader`) accepts an optional `path` search param, used by the library page to open a specific file.
+
+### Settings sections
+
+`src/routes/settings.tsx` is a layout route (title + `<Outlet/>`); `settings/reading.tsx`, `settings/appearance.tsx` and `settings/data.tsx` are the sections; `settings/index.tsx` only `redirect`s to the first one. The section list is `SETTINGS_SECTIONS` (`src/lib/settings-nav.ts`), shared with the sidebar so the two can't drift. Adding a section means a file in `src/routes/settings/` plus a line in `SETTINGS_SECTIONS`.
+
+In the sidebar (`src/routes/__root.tsx`), `SettingsNav` unfolds those sections: clicking "Paramètres" while folded unfolds *and* navigates; while unfolded it only folds (it `preventDefault()`s the `Link`). The unfolded state is transient component state. `AppSettings.sidebarCollapsed` (a persisted setting) switches the whole sidebar to an icon-only rail, which hides the sub-entries.
+
+### Library search & filters (`src/lib/library-filter.ts`)
+
+The whole library comes from a single `library:list` call and is filtered client-side; a personal collection is small, so there is no SQL-side filtering. The logic is pure (unit-tested under Vitest's `node` environment, no DOM):
+
+- search matches the title *and* the file path (so a series folder name finds its albums), normalized with `NFD` + diacritic stripping ("pokemon" matches "Pokémon");
+- read/unread is a **tag** filter: `Lu`/`À lire` are the library page's `QUICK_TAGS`. `availableTags()` keeps them pinned in front even before anything carries them; selecting several tags requires *all* of them;
+- the rating filter is a *minimum* (3 stars keeps 3–5).
+
+### Folder scanning
+
+`library:add-folder` opens a directory picker, then `scanIntoLibrary()` (`src/main/services/library-scanner.ts`) walks it recursively for supported files. Unreadable directories are skipped; symlinks are never followed (`Dirent.isDirectory()` is false for them, which also rules out cycles). Learning a page count means opening each file, which is the slow part: progress is pushed file by file over `library:scan-progress`. The renderer subscribes via `library.onScanProgress()` for the whole life of the library page, not around each call, because progress starts as soon as the directory is picked. A file that won't open only counts as `failed`.
+
+Scanned files go through `register()`, never `touch()` (see the table above), and `hasPath()` lets the scanner skip known files without opening them. New rows get `last_opened_at = added_at`, which puts a fresh batch at the top of the list.
+
+### Reader (`src/routes/reader.tsx`)
+
+`AppSettings.readingMode` picks `SinglePageReader` or `ContinuousReader`. They are separate components, each owning its hooks, so switching modes mounts/unmounts cleanly instead of sharing refs and effects.
+
+**Reading direction.** `AppSettings.readingDirection` (`ltr`/`rtl`) swaps the two actions bound to the physical controls: `advance` is `next` in LTR and `prev` in RTL, `retreat` the opposite. `useComic`'s `next()`/`prev()` always mean page index ±1. In single-page mode `advance` is bound to `→`, `PageDown`, `Space` and the right click zone; `retreat` to `←`, `PageUp` and the left zone.
+
+**Single page.** Zoom (fit, 50–200 %), optional AI upscaling (below), and wheel-to-turn-page. The wheel only turns the page when there is nothing left to scroll in that direction: always in "fit" zoom, and only at the top/bottom edge when zoomed in. `AppSettings.scrollDirection` (`standard`/`inverted`) decides whether scrolling down calls `advance()` or `retreat()`. `createWheelPager()` (`src/lib/wheel-pager.ts`, pure and unit-tested) collapses one trackpad swipe's many `wheel` events, including macOS's inertia tail, into one page turn: a gesture ends after ~200 ms without events, or when a delta jumps well above the previous one (inertia only decays). The pager is held in `useState`, because the wheel effect re-runs after every page turn (`next`/`prev` change identity each render) and a fresh pager would forget the gesture in progress. Panning events are fed to it too, so a swipe that pans to the edge doesn't turn the page with its leftover inertia.
+
+> Testing note: a JS-dispatched `WheelEvent` fires listeners but does not scroll the element. Verifying real scroll behavior needs CDP's `Input.dispatchMouseEvent` with `type: 'mouseWheel'`.
+
+**AI upscaling.** `useImageUpscaler` (`src/hooks/use-image-upscaler.ts`) runs the page through an ESRGAN model (UpscalerJS on TensorFlow.js) in the renderer, when the page is displayed beyond its native resolution and the user enabled it. The model and TensorFlow.js are loaded with a dynamic `import()` on first use only; the weights are served from the app's own files (`vite.renderer.config.mts` copies them), never from a CDN, so it works offline.
+
+**Continuous scroll.** `ContinuousReader` renders one `ContinuousPage` per page, each with two `IntersectionObserver`s: one with a large `rootMargin` that lazily fetches the page, one with `threshold: 0.5` that reports the active page for the header and for saving progress (debounced ~400 ms, calling `library.updateProgress` directly, not `useComic`'s `goTo`, which would also start a single-page fetch). Zoom, upscaling and RTL don't apply; the gap is `AppSettings.pageSpacing` px. On open, `useResumeScroll` scrolls to `comic.resumePage` in a layout effect (before the observers' first callbacks, so page 0 is never reported over the saved progress), then keeps it pinned with a `ResizeObserver` while preloaded pages above change height, until the user's first wheel/pointer/touch/key input. `ContinuousReader` is keyed by `comic.id`, so opening another book remounts it.
+
+**Progress and pace.** `useReadingPace` (`src/hooks/use-reading-pace.ts`) computes the header's "X % · ~Y min" for both modes (`ReadingProgress` component). The pace is for the current session only (nothing persisted): when `sessionKey` (the archive's `comic.id`) changes, it resets by calling `setState` during render (React's "adjust state while rendering" pattern), so the first render of a new book is already right. The estimate stays hidden until `MIN_ELAPSED_MINUTES` has elapsed and at least one page was turned.
+
+**Background.** `AppSettings.readerBackground` (`#rrggbb`, default black) is an inline `backgroundColor` on the page area of both modes; presets are `READER_BACKGROUND_PRESETS`. The header keeps a fixed dark chrome, and page-area placeholders use a mid grey so they stay readable on any background.
+
+**Fullscreen.** `useFullscreen` (`src/hooks/use-fullscreen.ts`) wraps the HTML Fullscreen API on `document.documentElement`: in Electron that makes the window itself fullscreen, and Chromium handles Escape, so no IPC is involved. The reader (`useReaderFullscreen`) toggles it with the header button or `F`/`F11` and exits it when the comic is closed or the route unmounts. While fullscreen, the root layout hides the sidebar (without touching `sidebarCollapsed`) and `ReaderHeader` becomes an overlay shown when the mouse reaches the top edge.

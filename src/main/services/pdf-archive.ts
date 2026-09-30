@@ -1,3 +1,7 @@
+/**
+ * PDF support: pages are rasterized on demand with pdf.js and @napi-rs/canvas.
+ * @module
+ */
 import { createCanvas, DOMMatrix, Image, ImageData, Path2D } from '@napi-rs/canvas';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -48,6 +52,7 @@ function pdfjsAssetDir(name: string): string {
   return dir.replaceAll(path.sep, '/') + '/';
 }
 
+/** A PDF, each page rendered to PNG at `200 DPI when read. `fileCount` always equals the page count. */
 export class PdfArchive implements ComicArchive {
   readonly fileCount: number;
 
@@ -60,6 +65,7 @@ export class PdfArchive implements ComicArchive {
     this.fileCount = pages.length;
   }
 
+  /** Loads and parses the document; throws when it has no page. */
   static async open(filePath: string): Promise<PdfArchive> {
     const pdfjs = await getPdfjs();
     const data = new Uint8Array(await readFile(filePath));
@@ -78,6 +84,7 @@ export class PdfArchive implements ComicArchive {
     return new PdfArchive(filePath, pages, doc, loadingTask);
   }
 
+  /** Renders page `index` (0-based) to PNG; throws a `RangeError` when out of range. */
   async readPage(index: number): Promise<ComicPage> {
     if (index < 0 || index >= this.pages.length) {
       throw new RangeError(`Page ${index} hors limites (0-${this.pages.length - 1})`);
@@ -95,6 +102,7 @@ export class PdfArchive implements ComicArchive {
     }
   }
 
+  /** Destroys the pdf.js document. */
   async close(): Promise<void> {
     await this.loadingTask.destroy();
   }

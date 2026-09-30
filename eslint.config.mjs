@@ -7,7 +7,7 @@ import refresh from 'eslint-plugin-react-refresh';
 import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
 
 export default config(
-  { ignores: ['.vite/', 'out/', 'dist/', 'src/routeTree.gen.ts'] },
+  { ignores: ['.vite/', 'out/', 'dist/', 'src/routeTree.gen.ts', 'docs/.vitepress/cache/', 'docs/.vitepress/dist/', 'docs/reference/'] },
   js.configs.recommended,
   ...tsConfigs.recommended,
   importX.recommended,

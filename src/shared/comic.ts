@@ -1,4 +1,7 @@
-// Types shared between the main process and the renderer (via preload).
+/**
+ * Comic types shared between the main process and the renderer (via preload).
+ * @module
+ */
 
 /** What `ComicService` knows about an opened archive, before it is matched to a library entry. */
 export interface ArchiveInfo {
@@ -14,6 +17,7 @@ export interface ArchiveInfo {
   fileCount: number;
 }
 
+/** What `comic:open` resolves to: the opened archive merged with its library entry. */
 export interface ComicInfo extends ArchiveInfo {
   /** Id of the matching entry in the library database. */
   libraryId: string;
@@ -21,6 +25,7 @@ export interface ComicInfo extends ArchiveInfo {
   resumePage: number;
 }
 
+/** One page, as returned by `comic:read-page`. */
 export interface ComicPage {
   /** Raw image bytes. */
   data: Uint8Array<ArrayBuffer>;
@@ -28,4 +33,5 @@ export interface ComicPage {
   mimeType: string;
 }
 
+/** Extensions (without the dot) the app can open: used by the file dialog filter and the folder scanner. */
 export const SUPPORTED_COMIC_EXTENSIONS = ['cbz', 'cbr', 'pdf'] as const;

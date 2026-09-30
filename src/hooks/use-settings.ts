@@ -1,3 +1,7 @@
+/**
+ * App settings as React state.
+ * @module
+ */
 import { useCallback, useEffect, useState } from 'react';
 
 import { DEFAULT_SETTINGS, type AppSettings } from '@/shared/settings';
@@ -24,5 +28,10 @@ export function useSettings() {
     void window.tankobon.settings.set(key, value);
   }, []);
 
-  return { settings, update, reload };
+  return {
+    settings,
+    /** Updates one setting in the UI immediately and persists it in the background. */
+    update,
+    reload,
+  };
 }

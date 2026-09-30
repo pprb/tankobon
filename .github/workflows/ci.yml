@@ -45,3 +45,20 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+
+  docs:
+    # Fails on undocumented exports, broken links, cited files/scripts/tests that don't exist,
+    # and IPC channels that differ between preload and main (see docs/development.md).
+    name: Docs
+    runs-on: ubuntu-latest
+    env:
+      # The docs never run Electron; its type definitions ship without the binary.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run docs:build

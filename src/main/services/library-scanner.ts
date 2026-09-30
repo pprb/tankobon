@@ -1,4 +1,7 @@
-// Walks a directory tree for comics and registers everything it finds in the library.
+/**
+ * Walks a directory tree for comics and registers everything it finds in the library.
+ * @module
+ */
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -7,6 +10,7 @@ import type { ScanProgress } from '../../shared/library';
 import type { LibraryRepository } from '../db/library-repository';
 import { openArchive } from './comic-service';
 
+/** Counts reported at the end of `scanIntoLibrary`. */
 export interface ScanSummary {
   added: number;
   skipped: number;
@@ -14,6 +18,7 @@ export interface ScanSummary {
   total: number;
 }
 
+/** Whether a file name has one of the `SUPPORTED_COMIC_EXTENSIONS` (case-insensitive). */
 export function isSupportedComicFile(fileName: string): boolean {
   const extension = path.extname(fileName).slice(1).toLowerCase();
   return (SUPPORTED_COMIC_EXTENSIONS as readonly string[]).includes(extension);

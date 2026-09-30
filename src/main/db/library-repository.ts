@@ -1,3 +1,7 @@
+/**
+ * Persistence of the comic library (the `library` table).
+ * @module
+ */
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 
@@ -37,6 +41,7 @@ function fromRow(row: LibraryRow): LibraryEntry {
 export class LibraryRepository {
   constructor(private readonly db: DatabaseSync) {}
 
+  /** Every entry, most recently opened first. */
   list(): LibraryEntry[] {
     const rows = this.db
       .prepare('SELECT * FROM library ORDER BY last_opened_at DESC')
@@ -213,18 +218,22 @@ export class LibraryRepository {
     return row?.path ?? null;
   }
 
+  /** Saves the last page read (0-based) for resuming later. */
   updateProgress(id: string, currentPage: number): void {
     this.db.prepare('UPDATE library SET current_page = ? WHERE id = ?').run(currentPage, id);
   }
 
+  /** Sets the user rating: 0 (unrated) to 5. The value is stored as given, not clamped. */
   updateRating(id: string, rating: number): void {
     this.db.prepare('UPDATE library SET rating = ? WHERE id = ?').run(rating, id);
   }
 
+  /** Replaces the entry's tags. */
   updateTags(id: string, tags: string[]): void {
     this.db.prepare('UPDATE library SET tags = ? WHERE id = ?').run(JSON.stringify(tags), id);
   }
 
+  /** Removes the entry from the library; the file on disk is left untouched. */
   remove(id: string): void {
     this.db.prepare('DELETE FROM library WHERE id = ?').run(id);
   }
