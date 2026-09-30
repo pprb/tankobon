@@ -1,0 +1,95 @@
+import { describe, expect, it } from 'vitest';
+
+import { availableTags, EMPTY_FILTERS, filterEntries, hasActiveFilters } from './library-filter';
+import type { LibraryEntry } from '@/shared/library';
+
+function entry(overrides: Partial<LibraryEntry> = {}): LibraryEntry {
+  return {
+    id: 'id',
+    path: 'C:/comics/book.cbz',
+    title: 'Book',
+    pageCount: 10,
+    currentPage: 0,
+    addedAt: '2026-01-01T00:00:00.000Z',
+    lastOpenedAt: '2026-01-01T00:00:00.000Z',
+    fileCount: 10,
+    fileSize: 1000,
+    rating: 0,
+    tags: [],
+    ...overrides,
+  };
+}
+
+describe('availableTags', () => {
+  it('lists the quick tags first, then the rest alphabetically', () => {
+    const entries = [entry({ tags: ['Seinen', 'Lu'] }), entry({ tags: ['Humour', 'Seinen'] })];
+    expect(availableTags(entries, ['Lu', 'À lire'])).toEqual(['Lu', 'À lire', 'Humour', 'Seinen']);
+  });
+
+  it('keeps the quick tags even when nothing carries them', () => {
+    expect(availableTags([entry()], ['Lu'])).toEqual(['Lu']);
+  });
+});
+
+describe('filterEntries', () => {
+  const entries = [
+    entry({ id: 'a', title: 'Pokémon', tags: ['Lu', 'Humour'], rating: 5 }),
+    entry({ id: 'b', title: 'Astérix', tags: ['Lu'], rating: 3 }),
+    entry({ id: 'c', title: 'Tintin', path: 'C:/bd/herge/tintin.cbr', tags: ['À lire'], rating: 0 }),
+  ];
+
+  const ids = (filters: Parameters<typeof filterEntries>[1]) =>
+    filterEntries(entries, filters).map((e) => e.id);
+
+  it('keeps everything with no filters', () => {
+    expect(ids(EMPTY_FILTERS)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('searches the title ignoring case and accents', () => {
+    expect(ids({ ...EMPTY_FILTERS, search: 'pokemon' })).toEqual(['a']);
+    expect(ids({ ...EMPTY_FILTERS, search: 'ASTERIX' })).toEqual(['b']);
+  });
+
+  it('searches the file path too', () => {
+    expect(ids({ ...EMPTY_FILTERS, search: 'herge' })).toEqual(['c']);
+  });
+
+  it('ignores surrounding whitespace in the search', () => {
+    expect(ids({ ...EMPTY_FILTERS, search: '  tintin  ' })).toEqual(['c']);
+  });
+
+  it('filters on a tag', () => {
+    expect(ids({ ...EMPTY_FILTERS, tags: ['Lu'] })).toEqual(['a', 'b']);
+    expect(ids({ ...EMPTY_FILTERS, tags: ['À lire'] })).toEqual(['c']);
+  });
+
+  it('requires every selected tag', () => {
+    expect(ids({ ...EMPTY_FILTERS, tags: ['Lu', 'Humour'] })).toEqual(['a']);
+    expect(ids({ ...EMPTY_FILTERS, tags: ['Lu', 'À lire'] })).toEqual([]);
+  });
+
+  it('keeps entries rated at least the requested number of stars', () => {
+    expect(ids({ ...EMPTY_FILTERS, rating: 3 })).toEqual(['a', 'b']);
+    expect(ids({ ...EMPTY_FILTERS, rating: 5 })).toEqual(['a']);
+  });
+
+  it('combines the filters', () => {
+    expect(ids({ search: 'i', tags: ['À lire'], rating: 'all' })).toEqual(['c']);
+    expect(ids({ search: 'i', tags: ['À lire'], rating: 1 })).toEqual([]);
+  });
+});
+
+describe('hasActiveFilters', () => {
+  it('is false for the empty filters', () => {
+    expect(hasActiveFilters(EMPTY_FILTERS)).toBe(false);
+  });
+
+  it('ignores a whitespace-only search', () => {
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, search: '   ' })).toBe(false);
+  });
+
+  it('is true once a filter is set', () => {
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, tags: ['Lu'] })).toBe(true);
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, rating: 2 })).toBe(true);
+  });
+});

@@ -1,0 +1,90 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { crc32 } from 'node:zlib';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import { CbzArchive } from './cbz-archive';
+
+/** Builds a minimal zip (STORED entries only) without any extra dependency. */
+function buildZip(entries: Record<string, Buffer>): Buffer {
+  const locals: Buffer[] = [];
+  const centrals: Buffer[] = [];
+  let offset = 0;
+  for (const [name, data] of Object.entries(entries)) {
+    const nameBuf = Buffer.from(name, 'utf8');
+    const crc = crc32(data);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4); // version needed
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(data.length, 18);
+    local.writeUInt32LE(data.length, 22);
+    local.writeUInt16LE(nameBuf.length, 26);
+    locals.push(local, nameBuf, data);
+
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt32LE(crc, 16);
+    central.writeUInt32LE(data.length, 20);
+    central.writeUInt32LE(data.length, 24);
+    central.writeUInt16LE(nameBuf.length, 28);
+    central.writeUInt32LE(offset, 42);
+    centrals.push(central, nameBuf);
+    offset += local.length + nameBuf.length + data.length;
+  }
+  const centralDir = Buffer.concat(centrals);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(centrals.length / 2, 8);
+  end.writeUInt16LE(centrals.length / 2, 10);
+  end.writeUInt32LE(centralDir.length, 12);
+  end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locals, centralDir, end]);
+}
+
+describe('CbzArchive', () => {
+  let dir: string;
+  let file: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'tankobon-cbz-'));
+    file = join(dir, 'book.cbz');
+    await writeFile(
+      file,
+      buildZip({
+        '002.jpg': Buffer.alloc(200_000, 2),
+        '001.jpg': Buffer.alloc(200_000, 1),
+        'ComicInfo.xml': Buffer.from('<ComicInfo/>'),
+      }),
+    );
+  });
+
+  afterEach(() => rm(dir, { recursive: true, force: true }));
+
+  it('lists sorted pages and counts every file', async () => {
+    const archive = await CbzArchive.open(file);
+    expect(archive.pages).toEqual(['001.jpg', '002.jpg']);
+    expect(archive.fileCount).toBe(3);
+    const page = await archive.readPage(1);
+    expect(page.mimeType).toBe('image/jpeg');
+    expect(page.data[0]).toBe(2);
+    await archive.close();
+  });
+
+  it('lets in-flight reads finish before closing instead of crashing with EBADF', async () => {
+    const archive = await CbzArchive.open(file);
+    const reads = [archive.readPage(0), archive.readPage(1)];
+    await archive.close();
+    const pages = await Promise.all(reads);
+    expect(pages.map((p) => p.data.length)).toEqual([200_000, 200_000]);
+  });
+
+  it('rejects reads started after close', async () => {
+    const archive = await CbzArchive.open(file);
+    await archive.close();
+    await expect(archive.readPage(0)).rejects.toThrow('Archive fermée');
+  });
+});

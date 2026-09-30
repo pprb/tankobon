@@ -3,6 +3,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
+import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 // https://vitejs.dev/config
 export default defineConfig({
@@ -16,6 +17,17 @@ export default defineConfig({
     }),
     react(),
     tailwindcss(),
+    // Serves the upscaling model's weights as local static files, so it never
+    // needs to fetch them from a CDN (offline-friendly, and CSP-compliant).
+    viteStaticCopy({
+      targets: [
+        {
+          src: 'node_modules/@upscalerjs/default-model/models/*',
+          dest: 'models/default-model',
+          rename: { stripBase: true },
+        },
+      ],
+    }),
   ],
   resolve: {
     alias: {

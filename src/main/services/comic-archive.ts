@@ -1,5 +1,5 @@
-// Comic archive abstraction. Each format (CBZ today, CBR/PDF later) implements
-// `ComicArchive`; the rest of the app only deals with page indexes.
+// Comic archive abstraction. Each format (CBZ, CBR, PDF) implements `ComicArchive`;
+// the rest of the app only deals with page indexes.
 import path from 'node:path';
 
 import type { ComicPage } from '../../shared/comic';
@@ -8,6 +8,8 @@ export interface ComicArchive {
   readonly path: string;
   /** Image entry names, sorted in reading order. */
   readonly pages: readonly string[];
+  /** Total entries in the archive (not just image pages). */
+  readonly fileCount: number;
   readPage(index: number): Promise<ComicPage>;
   close(): Promise<void>;
 }

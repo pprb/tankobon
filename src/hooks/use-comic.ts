@@ -43,7 +43,7 @@ export function useComic() {
     try {
       const comic = await window.tankobon.comic.open(filePath);
       revokeCurrentUrl();
-      setState({ comic, page: 0, pageUrl: null, error: null, loading: true });
+      setState({ comic, page: comic.resumePage, pageUrl: null, error: null, loading: true });
     } catch (error) {
       setState((s) => ({ ...s, loading: false, error: errorMessage(error) }));
     }
@@ -90,6 +90,13 @@ export function useComic() {
       cancelled = true;
     };
   }, [comicId, page]);
+
+  // Persist reading progress to the library database so it can be resumed later.
+  const libraryId = state.comic?.libraryId;
+  useEffect(() => {
+    if (!libraryId) return;
+    void window.tankobon.library.updateProgress(libraryId, page);
+  }, [libraryId, page]);
 
   // Release the archive and blob URL on unmount.
   useEffect(() => {

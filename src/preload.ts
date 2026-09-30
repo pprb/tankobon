@@ -4,8 +4,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 import type { ComicInfo, ComicPage } from './shared/comic';
+import type { DatabaseLocation, DatabaseLocationResult, ImportResult } from './shared/data';
+import type { LibraryEntry, ScanProgress, ScanResult } from './shared/library';
+import type { AppSettings } from './shared/settings';
 
-// Mirror of COMIC_CHANNELS in main/ipc/comic.ts (preload cannot import main code).
+// Mirror of the CHANNELS constants in main/ipc/*.ts (preload cannot import main code).
 const api = {
   versions: {
     electron: process.versions.electron,
@@ -19,6 +22,45 @@ const api = {
     readPage: (id: string, index: number): Promise<ComicPage> =>
       ipcRenderer.invoke('comic:read-page', id, index),
     close: (id: string): Promise<void> => ipcRenderer.invoke('comic:close', id),
+  },
+  library: {
+    list: (): Promise<LibraryEntry[]> => ipcRenderer.invoke('library:list'),
+    /** Opens a native directory picker, then adds every comic found under it, recursively. */
+    addFolder: (): Promise<ScanResult> => ipcRenderer.invoke('library:add-folder'),
+    /** Subscribes to `addFolder`'s progress; returns the unsubscribe function. */
+    onScanProgress: (listener: (progress: ScanProgress) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: ScanProgress) => listener(progress);
+      ipcRenderer.on('library:scan-progress', handler);
+      return () => {
+        ipcRenderer.removeListener('library:scan-progress', handler);
+      };
+    },
+    remove: (id: string): Promise<void> => ipcRenderer.invoke('library:remove', id),
+    updateProgress: (id: string, currentPage: number): Promise<void> =>
+      ipcRenderer.invoke('library:update-progress', id, currentPage),
+    updateRating: (id: string, rating: number): Promise<void> =>
+      ipcRenderer.invoke('library:update-rating', id, rating),
+    updateTags: (id: string, tags: string[]): Promise<void> => ipcRenderer.invoke('library:update-tags', id, tags),
+  },
+  settings: {
+    getAll: (): Promise<AppSettings> => ipcRenderer.invoke('settings:get-all'),
+    set: <K extends keyof AppSettings>(key: K, value: AppSettings[K]): Promise<void> =>
+      ipcRenderer.invoke('settings:set', key, value),
+  },
+  data: {
+    /** Opens a native save dialog and writes a JSON export there; resolves to the chosen path, or null if cancelled. */
+    export: (): Promise<string | null> => ipcRenderer.invoke('data:export'),
+    /** Opens a native file picker and merges the chosen JSON export into the local database. */
+    import: (): Promise<ImportResult> => ipcRenderer.invoke('data:import'),
+  },
+  database: {
+    /** Where the database file currently lives. */
+    getLocation: (): Promise<DatabaseLocation> => ipcRenderer.invoke('database:get-location'),
+    /** Opens a native directory picker; the new location only takes effect on the next start. */
+    chooseLocation: (): Promise<DatabaseLocationResult> => ipcRenderer.invoke('database:choose-location'),
+    resetLocation: (): Promise<DatabaseLocation> => ipcRenderer.invoke('database:reset-location'),
+    /** Restarts the app, e.g. to open the database from its new location. */
+    relaunch: (): Promise<void> => ipcRenderer.invoke('database:relaunch'),
   },
 };
 
