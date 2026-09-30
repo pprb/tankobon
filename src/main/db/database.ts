@@ -12,6 +12,7 @@ import { mkdirSync } from 'node:fs';
 
 import type { DatabaseLocation } from '../../shared/data';
 import { resolveDatabaseLocation } from './db-location';
+import { migrate } from './schema';
 
 /** Where the database lives for this run, resolved from Electron's `userData` directory (see db-location.ts). */
 export function databaseLocation(): DatabaseLocation {
@@ -25,36 +26,4 @@ export function openDatabase(): DatabaseSync {
   const db = new DatabaseSync(filePath);
   migrate(db);
   return db;
-}
-
-function migrate(db: DatabaseSync): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS library (
-      id TEXT PRIMARY KEY,
-      path TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      page_count INTEGER NOT NULL,
-      current_page INTEGER NOT NULL DEFAULT 0,
-      added_at TEXT NOT NULL,
-      last_opened_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-  `);
-
-  // Columns added after the initial release: existing databases need them backfilled.
-  addColumnIfMissing(db, 'library', 'file_count', 'INTEGER NOT NULL DEFAULT 0');
-  addColumnIfMissing(db, 'library', 'file_size', 'INTEGER NOT NULL DEFAULT 0');
-  addColumnIfMissing(db, 'library', 'rating', 'INTEGER NOT NULL DEFAULT 0');
-  addColumnIfMissing(db, 'library', 'tags', "TEXT NOT NULL DEFAULT '[]'");
-}
-
-function addColumnIfMissing(db: DatabaseSync, table: string, column: string, definition: string): void {
-  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-  if (!columns.some((c) => c.name === column)) {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-  }
 }
