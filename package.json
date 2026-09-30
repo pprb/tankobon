@@ -12,7 +12,12 @@
     "publish": "electron-forge publish",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "docs:gen": "node --disable-warning=ExperimentalWarning scripts/gen-reference.mjs",
+    "docs:api": "typedoc",
+    "docs:check": "node scripts/check-docs.mjs",
+    "docs:build": "npm run docs:gen && npm run docs:api && npm run docs:check && vitepress build docs",
+    "docs:dev": "npm run docs:gen && npm run docs:api && vitepress dev docs"
   },
   "keywords": [
     "electron",
@@ -58,10 +63,14 @@
     "globals": "^17.12.0",
     "tailwindcss": "^4.3.3",
     "tw-animate-css": "^1.4.0",
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.13.1",
+    "typedoc-vitepress-theme": "^1.1.4",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.70.0",
     "vite": "^8.3.0",
     "vite-plugin-static-copy": "^4.1.1",
+    "vitepress": "^1.6.4",
     "vitest": "^5.0.0"
   },
   "dependencies": {

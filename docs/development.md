@@ -44,7 +44,7 @@ Three other workflows run on GitHub:
 The site's sources are in `docs/`:
 
 - hand-written pages: `docs/guide/`, `docs/architecture.md`, `docs/development.md`, `docs/decisions/` (ADRs);
-- generated pages, never edited nor committed: `docs/reference/` (`api/` by TypeDoc, `schema.md` and `ipc.md` by `scripts/gen-reference.mjs`).
+- generated pages, never edited nor committed: `docs/reference/api/` (by TypeDoc), `docs/reference/schema.md` and `docs/reference/ipc.md` (by `scripts/gen-reference.mjs`).
 
 The API reference covers the modules listed in `typedoc.json`'s `entryPoints`. Every exported symbol there must have a TSDoc comment, or `npm run docs:api` fails.
 
