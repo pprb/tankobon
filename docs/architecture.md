@@ -30,8 +30,8 @@ Errors that the user should see come back as a `{ status: 'error', message }` me
 Persistence uses Node's built-in `node:sqlite` (`DatabaseSync`): no native module to compile, and nothing stored in the cloud or in Chromium's `localStorage`/IndexedDB ([ADR 0002](./decisions/0002-local-storage-node-sqlite.md)). The generated [schema reference](./reference/schema.md) lists the tables and columns.
 
 - **Repositories take a `DatabaseSync` in their constructor** instead of opening it themselves, which makes them testable with `new DatabaseSync(':memory:')` without touching Electron (`app.getPath`).
-- **Migrations**: `migrate()` in `database.ts` uses `CREATE TABLE IF NOT EXISTS` for tables; columns added after the initial release (`file_count`, `file_size`, `rating`, `tags`) go through `addColumnIfMissing()`, which checks `PRAGMA table_info` before an `ALTER TABLE … ADD COLUMN`. Existing installed databases pick them up without a destructive migration. A new column must follow the same pattern.
-- **Test schemas are copies**: the repository tests (`*.test.ts` in `src/main/db/`) create their own `library`/`settings` tables rather than calling `migrate()` (which isn't exported, and lives in a module that imports `electron`). A schema change has to be mirrored there by hand.
+- **Migrations**: `migrate()` in `schema.ts` uses `CREATE TABLE IF NOT EXISTS` for tables; columns added after the initial release (`file_count`, `file_size`, `rating`, `tags`) go through `addColumnIfMissing()`, which checks `PRAGMA table_info` before an `ALTER TABLE … ADD COLUMN`. Existing installed databases pick them up without a destructive migration. A new column must follow the same pattern.
+- **Tests run the real schema**: `schema.ts` holds `migrate()` on its own, away from `database.ts` (which imports `electron`), so the repository tests (`*.test.ts` in `src/main/db/`) build their `:memory:` databases with the same `migrate()` as the app, and can't drift from it. `schema.test.ts` covers a fresh database and the upgrade of one from the initial release.
 
 ### Library (`library-repository.ts`)
 

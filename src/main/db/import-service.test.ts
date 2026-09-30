@@ -5,26 +5,12 @@ import { DEFAULT_SETTINGS } from '../../shared/settings';
 import { buildExport } from './export-service';
 import { applyImport, parseExport } from './import-service';
 import { LibraryRepository } from './library-repository';
+import { migrate } from './schema';
 import { SettingsRepository } from './settings-repository';
 
 function createDatabase(): DatabaseSync {
   const db = new DatabaseSync(':memory:');
-  db.exec(`
-    CREATE TABLE library (
-      id TEXT PRIMARY KEY,
-      path TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      page_count INTEGER NOT NULL,
-      current_page INTEGER NOT NULL DEFAULT 0,
-      added_at TEXT NOT NULL,
-      last_opened_at TEXT NOT NULL,
-      file_count INTEGER NOT NULL DEFAULT 0,
-      file_size INTEGER NOT NULL DEFAULT 0,
-      rating INTEGER NOT NULL DEFAULT 0,
-      tags TEXT NOT NULL DEFAULT '[]'
-    );
-    CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-  `);
+  migrate(db);
   return db;
 }
 

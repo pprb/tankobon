@@ -2,11 +2,12 @@ import { DatabaseSync } from 'node:sqlite';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { DEFAULT_SETTINGS } from '../../shared/settings';
+import { migrate } from './schema';
 import { SettingsRepository } from './settings-repository';
 
 function createRepository(): SettingsRepository {
   const db = new DatabaseSync(':memory:');
-  db.exec('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);');
+  migrate(db);
   return new SettingsRepository(db);
 }
 
