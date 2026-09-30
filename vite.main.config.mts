@@ -5,7 +5,7 @@ import { viteStaticCopy } from 'vite-plugin-static-copy';
 export default defineConfig({
   plugins: [
     // node-unrar-js's Emscripten glue locates its .wasm file relative to its own
-    // `__dirname`, which breaks once bundled into main.js. We hand it the bytes
+    // `__dirname`, which breaks once bundled into main.cjs. We hand it the bytes
     // ourselves (see cbr-archive.ts) from this copy placed next to the bundle.
     viteStaticCopy({
       targets: [

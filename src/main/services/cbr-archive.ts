@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import type { ComicPage } from '../../shared/comic';
 import { imageMimeType, isPageEntry, sortPages, type ComicArchive } from './comic-archive';
 
-// The Emscripten-compiled wasm module is copied next to the bundled main.js (see
+// The Emscripten-compiled wasm module is copied next to the bundled main.cjs (see
 // vite.main.config.mts): loaded once and reused for every archive opened.
 let wasmBinary: ArrayBuffer | undefined;
 async function getWasmBinary(): Promise<ArrayBuffer> {
