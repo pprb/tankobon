@@ -39,6 +39,8 @@ Three other workflows run on GitHub:
 - `.github/workflows/release-please.yml` maintains a release pull request (version bump + `CHANGELOG.md`) from the Conventional Commits merged into `master`; merging that pull request tags the release.
 - `.github/workflows/pr-title.yml` checks that a pull request's title follows the [commit convention](https://github.com/pprb/tankobon/blob/master/CONTRIBUTING.md), since squash-merging turns it into the commit message on `master`.
 
+Dependabot (`.github/dependabot.yml`) opens one pull request a week, titled `ci(deps): bump …`, when the GitHub Actions used by these workflows have new versions.
+
 ## Documentation
 
 The site's sources are in `docs/`:
