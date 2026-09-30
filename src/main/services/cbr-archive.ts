@@ -17,6 +17,22 @@ async function getWasmBinary(): Promise<ArrayBuffer> {
   return wasmBinary;
 }
 
+// node-unrar-js runs every extractor through one shared wasm module, which only knows the most
+// recently *created* extractor (`createExtractorFromData` sets a module-wide pointer to it). An
+// extractor kept alive and reused after another archive was opened (a second book, a folder scan)
+// would feed the wasm the other archive's bytes: "File is not RAR archive", then a TypeError. So an
+// archive keeps only its bytes, and every operation creates its own extractor and uses it up
+// synchronously, one at a time, so that no other creation can slip in between.
+let queue: Promise<unknown> = Promise.resolve();
+function withExtractor<T>(data: ArrayBuffer, use: (extractor: Extractor<Uint8Array>) => T): Promise<T> {
+  const run = queue.then(async () => {
+    const extractor = await createExtractorFromData({ data, wasmBinary: await getWasmBinary() });
+    return use(extractor);
+  });
+  queue = run.catch(() => undefined);
+  return run;
+}
+
 /**
  * A `.cbr` (RAR) comic, read with node-unrar-js (unrar compiled to WebAssembly). The whole file is
  * loaded in memory when opened.
@@ -26,23 +42,21 @@ export class CbrArchive implements ComicArchive {
     readonly path: string,
     readonly pages: readonly string[],
     readonly fileCount: number,
-    private readonly extractor: Extractor<Uint8Array>,
+    private readonly data: ArrayBuffer,
   ) {}
 
   /** Reads and indexes the archive; throws when it holds no image. */
   static async open(filePath: string): Promise<CbrArchive> {
-    const [fileBytes, wasm] = await Promise.all([readFile(filePath), getWasmBinary()]);
-    const extractor = await createExtractorFromData({
-      data: Uint8Array.from(fileBytes).buffer,
-      wasmBinary: wasm,
-    });
-    const { fileHeaders } = extractor.getFileList();
-    const files = [...fileHeaders].filter((header) => !header.flags.directory);
+    const data = Uint8Array.from(await readFile(filePath)).buffer;
+    // The generator must be drained fully, or the underlying archive handle leaks.
+    const files = await withExtractor(data, (extractor) =>
+      [...extractor.getFileList().fileHeaders].filter((header) => !header.flags.directory),
+    );
     const pages = sortPages(files.filter((header) => isPageEntry(header.name)).map((header) => header.name));
     if (pages.length === 0) {
       throw new Error(`Aucune image trouvée dans ${filePath}`);
     }
-    return new CbrArchive(filePath, pages, files.length, extractor);
+    return new CbrArchive(filePath, pages, files.length, data);
   }
 
   /** Extracts page `index` (0-based); throws a `RangeError` when out of range. */
@@ -51,8 +65,8 @@ export class CbrArchive implements ComicArchive {
     if (entryName === undefined) {
       throw new RangeError(`Page ${index} hors limites (0-${this.pages.length - 1})`);
     }
-    // The generator must be drained fully, or the underlying archive handle leaks.
-    const [file] = [...this.extractor.extract({ files: [entryName] }).files];
+    // Drained fully here too, for the same reason as in open().
+    const [file] = await withExtractor(this.data, (extractor) => [...extractor.extract({ files: [entryName] }).files]);
     if (!file?.extraction) {
       throw new Error(`Impossible d'extraire la page : ${entryName}`);
     }
@@ -62,7 +76,7 @@ export class CbrArchive implements ComicArchive {
 
   /** Nothing to release: the archive lives in memory. */
   close(): Promise<void> {
-    // In-memory extractor: nothing to release (no open file handle to the archive itself).
+    // In-memory archive: nothing to release (no open file handle to the archive itself).
     return Promise.resolve();
   }
 }

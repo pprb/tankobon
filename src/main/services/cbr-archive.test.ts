@@ -1,0 +1,117 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { crc32 } from 'node:zlib';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { CbrArchive } from './cbr-archive';
+
+// cbr-archive.ts loads unrar.wasm from next to the bundled main.js; under Vitest, serve the
+// package's own copy instead.
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const fs = await importOriginal<typeof import('node:fs/promises')>();
+  const wasm = require.resolve('node-unrar-js/dist/js/unrar.wasm');
+  return {
+    ...fs,
+    readFile: ((file: string, ...rest: []) =>
+      fs.readFile(String(file).endsWith('unrar.wasm') ? wasm : file, ...rest)) as typeof fs.readFile,
+  };
+});
+
+/** Builds a minimal RAR 4 archive (stored entries only), since no tool here can write RAR. */
+function buildRar(entries: Record<string, Buffer>): Buffer {
+  // A header's CRC is the low 16 bits of the CRC32 of everything after the CRC field itself.
+  const withCrc = (body: Buffer): Buffer => {
+    const crc = Buffer.alloc(2);
+    crc.writeUInt16LE(crc32(body) & 0xffff);
+    return Buffer.concat([crc, body]);
+  };
+  const marker = Buffer.from([0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x00]);
+  const mainHeader = Buffer.alloc(11);
+  mainHeader.writeUInt8(0x73, 0); // HEAD_TYPE: archive header
+  mainHeader.writeUInt16LE(13, 3); // HEAD_SIZE
+  const parts = [marker, withCrc(mainHeader)];
+  for (const [name, data] of Object.entries(entries)) {
+    const nameBuf = Buffer.from(name, 'latin1');
+    const header = Buffer.alloc(30);
+    header.writeUInt8(0x74, 0); // HEAD_TYPE: file header
+    header.writeUInt16LE(0x8000, 1); // LONG_BLOCK: data follows the header
+    header.writeUInt16LE(32 + nameBuf.length, 3); // HEAD_SIZE
+    header.writeUInt32LE(data.length, 5); // PACK_SIZE
+    header.writeUInt32LE(data.length, 9); // UNP_SIZE
+    header.writeUInt8(2, 13); // HOST_OS: Windows
+    header.writeUInt32LE(crc32(data), 14); // FILE_CRC
+    header.writeUInt32LE(0x21, 18); // FTIME (DOS date 1980-01-01)
+    header.writeUInt8(20, 22); // UNP_VER: 2.0
+    header.writeUInt8(0x30, 23); // METHOD: store
+    header.writeUInt16LE(nameBuf.length, 24); // NAME_SIZE
+    header.writeUInt32LE(0x20, 26); // ATTR: archive
+    parts.push(withCrc(Buffer.concat([header, nameBuf])), data);
+  }
+  return Buffer.concat(parts);
+}
+
+describe('CbrArchive', () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'tankobon-cbr-'));
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  async function writeCbr(name: string, entries: Record<string, Buffer>): Promise<string> {
+    const file = join(dir, name);
+    await writeFile(file, buildRar(entries));
+    return file;
+  }
+
+  it('lists the image pages in natural order and counts every file', async () => {
+    const file = await writeCbr('a.cbr', {
+      'p10.jpg': Buffer.from('ten'),
+      'p2.jpg': Buffer.from('two'),
+      'ComicInfo.xml': Buffer.from('<x/>'),
+    });
+    const archive = await CbrArchive.open(file);
+
+    expect(archive.pages).toEqual(['p2.jpg', 'p10.jpg']);
+    expect(archive.fileCount).toBe(3);
+    const page = await archive.readPage(1);
+    expect(Buffer.from(page.data).toString()).toBe('ten');
+    expect(page.mimeType).toBe('image/jpeg');
+  });
+
+  it('keeps reading its own pages after another CBR was opened', async () => {
+    // node-unrar-js routes every extractor through one shared wasm module: opening a second archive
+    // used to redirect the first one's reads ("File is not RAR archive").
+    const first = await CbrArchive.open(await writeCbr('first.cbr', { 'a.png': Buffer.from('first') }));
+    const second = await CbrArchive.open(await writeCbr('second.cbr', { 'b.png': Buffer.from('second') }));
+
+    expect(Buffer.from((await first.readPage(0)).data).toString()).toBe('first');
+    expect(Buffer.from((await second.readPage(0)).data).toString()).toBe('second');
+  });
+
+  it('serves concurrent reads of different archives correctly', async () => {
+    const archives = await Promise.all(
+      ['x', 'y', 'z'].map(async (id) =>
+        CbrArchive.open(
+          await writeCbr(`${id}.cbr`, {
+            '1.jpg': Buffer.from(`${id}1`),
+            '2.jpg': Buffer.from(`${id}2`),
+          }),
+        ),
+      ),
+    );
+
+    const pages = await Promise.all(archives.flatMap((archive) => [archive.readPage(0), archive.readPage(1)]));
+
+    expect(pages.map((page) => Buffer.from(page.data).toString())).toEqual(['x1', 'x2', 'y1', 'y2', 'z1', 'z2']);
+  });
+
+  it('rejects an out-of-range page', async () => {
+    const archive = await CbrArchive.open(await writeCbr('a.cbr', { '1.jpg': Buffer.from('1') }));
+    await expect(archive.readPage(1)).rejects.toThrow(RangeError);
+  });
+});

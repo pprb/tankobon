@@ -83,6 +83,10 @@ The location can't be an `AppSettings` entry, since the settings are stored *in*
 
 `node-unrar-js`'s Emscripten glue locates its `.wasm` relative to its own `__dirname`, which breaks once Vite bundles it into `main.js`. `vite.main.config.mts` copies `unrar.wasm` next to the bundle (`vite-plugin-static-copy`), and `cbr-archive.ts` reads it itself and passes it as `wasmBinary`. A CBR is read fully into memory when opened.
 
+### CBR: one wasm module for every archive
+
+All `node-unrar-js` extractors share a single wasm module, and each `createExtractorFromData()` points that module at the extractor just created. An extractor kept from `open()` and reused later would, once another CBR has been opened (a second book, a folder scan), read the *other* archive's bytes: `File is not RAR archive`, then a `TypeError` in `getFiles`. So `CbrArchive` keeps only the file's bytes, and every operation (`open()`'s listing, each `readPage()`) creates a fresh extractor and drains it synchronously, through a module-level queue so that no other creation can slip in between; see `cbr-archive.test.ts`.
+
 ### PDF rendering
 
 See [ADR 0004](./decisions/0004-pdf-rendering-pdfjs-napi-canvas.md). `PdfArchive` rasterizes each page on demand at a fixed `RENDER_SCALE` of 200/72 (~200 DPI) through `pdfjs-dist`'s `legacy` build, returning PNG bytes.
