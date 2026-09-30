@@ -1,5 +1,9 @@
-// Types shared between the main process and the renderer (via preload).
+/**
+ * Settings types shared between the main process and the renderer (via preload).
+ * @module
+ */
 
+/** User preferences, persisted key by key in the `settings` table (see `SettingsRepository`). */
 export interface AppSettings {
   /** Page-turn direction: left-to-right (BD/comics) or right-to-left (manga). */
   readingDirection: 'ltr' | 'rtl';
@@ -15,6 +19,10 @@ export interface AppSettings {
   readerBackground: string;
 }
 
+/**
+ * Value of every setting not stored yet. Merged under the stored values on read, so adding a key
+ * needs no database migration.
+ */
 export const DEFAULT_SETTINGS: AppSettings = {
   readingDirection: 'ltr',
   sidebarCollapsed: false,

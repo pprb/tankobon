@@ -1,3 +1,8 @@
+/**
+ * Wheel-to-page-turn gesture detection (pure, no DOM).
+ * @module
+ */
+
 /** Wheel events closer together than this belong to the same gesture (swipe + its inertia). */
 const QUIET_MS = 200;
 /** A gesture must have been going on at least this long before a fresh swipe can break it. */

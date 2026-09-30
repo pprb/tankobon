@@ -1,8 +1,13 @@
+/**
+ * CBZ (ZIP) support.
+ * @module
+ */
 import StreamZip from 'node-stream-zip';
 
 import type { ComicPage } from '../../shared/comic';
 import { imageMimeType, isPageEntry, sortPages, type ComicArchive } from './comic-archive';
 
+/** A `.cbz` (ZIP) comic, read entry by entry with node-stream-zip (the file stays open until `close()`). */
 export class CbzArchive implements ComicArchive {
   // Reads still in flight. node-stream-zip closes its file descriptor immediately on
   // `close()`, and a read that's mid-way then fails with EBADF on an internal stream
@@ -19,6 +24,7 @@ export class CbzArchive implements ComicArchive {
     private readonly zip: StreamZip.StreamZipAsync,
   ) {}
 
+  /** Opens and indexes the archive; throws (after closing it) when it holds no image. */
   static async open(filePath: string): Promise<CbzArchive> {
     const zip = new StreamZip.async({ file: filePath });
     try {
@@ -35,6 +41,7 @@ export class CbzArchive implements ComicArchive {
     }
   }
 
+  /** Reads page `index` (0-based); throws a `RangeError` when out of range, or once `close()` has begun. */
   async readPage(index: number): Promise<ComicPage> {
     const entryName = this.pages[index];
     if (entryName === undefined) {
@@ -54,6 +61,7 @@ export class CbzArchive implements ComicArchive {
     }
   }
 
+  /** Waits for in-flight reads to settle, then closes the ZIP file. */
   async close(): Promise<void> {
     this.closing = true;
     await Promise.allSettled([...this.pendingReads]);

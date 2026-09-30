@@ -1,3 +1,7 @@
+/**
+ * On-device AI upscaling of reader pages.
+ * @module
+ */
 import { useEffect, useState } from 'react';
 import type Upscaler from 'upscaler';
 

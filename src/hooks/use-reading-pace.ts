@@ -1,5 +1,10 @@
+/**
+ * Reading progress and remaining-time estimate shown in the reader header.
+ * @module
+ */
 import { useState } from 'react';
 
+/** What `useReadingPace` returns. */
 export interface ReadingPace {
   /** Percentage of the book read so far (0-100), based on the current page. */
   percent: number;

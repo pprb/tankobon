@@ -1,6 +1,9 @@
-// Preload script: the only bridge between the renderer and the main process.
-// Expose a minimal, explicit API via contextBridge — never the raw ipcRenderer.
-// See https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
+/**
+ * Preload script: the only bridge between the renderer and the main process.
+ * Expose a minimal, explicit API via contextBridge — never the raw ipcRenderer.
+ * See https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
+ * @module
+ */
 import { contextBridge, ipcRenderer } from 'electron';
 
 import type { ComicInfo, ComicPage } from './shared/comic';
@@ -64,6 +67,7 @@ const api = {
   },
 };
 
+/** Type of the `window.tankobon` object the renderer uses to reach the main process. */
 export type TankobonApi = typeof api;
 
 contextBridge.exposeInMainWorld('tankobon', api);

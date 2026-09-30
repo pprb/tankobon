@@ -1,3 +1,7 @@
+/**
+ * Navigation of the settings sections.
+ * @module
+ */
 import { BookOpen, Database, Palette, type LucideIcon } from 'lucide-react';
 
 /**

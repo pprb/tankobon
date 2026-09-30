@@ -1,6 +1,11 @@
+/**
+ * Small UI helpers.
+ * @module
+ */
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+/** Joins class names (clsx) and resolves conflicting Tailwind classes (tailwind-merge) — the shadcn/ui helper. */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

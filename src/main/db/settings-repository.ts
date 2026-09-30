@@ -1,3 +1,7 @@
+/**
+ * Persistence of the application settings (the `settings` table).
+ * @module
+ */
 import type { DatabaseSync } from 'node:sqlite';
 
 import { DEFAULT_SETTINGS, type AppSettings } from '../../shared/settings';
@@ -6,6 +10,7 @@ import { DEFAULT_SETTINGS, type AppSettings } from '../../shared/settings';
 export class SettingsRepository {
   constructor(private readonly db: DatabaseSync) {}
 
+  /** The stored settings, merged over `DEFAULT_SETTINGS` for any key not stored yet. */
   getAll(): AppSettings {
     const rows = this.db.prepare('SELECT key, value FROM settings').all() as {
       key: string;
@@ -15,6 +20,7 @@ export class SettingsRepository {
     return { ...DEFAULT_SETTINGS, ...stored };
   }
 
+  /** Stores one setting (JSON-encoded), replacing any previous value. */
   set(key: keyof AppSettings, value: unknown): void {
     this.db
       .prepare(

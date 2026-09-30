@@ -1,8 +1,13 @@
+/**
+ * Client-side search and filters of the library page (pure, no DOM).
+ * @module
+ */
 import type { LibraryEntry } from '@/shared/library';
 
 /** `'all'` means "don't filter on this"; a number keeps entries rated *at least* that many stars. */
 export type RatingFilter = number | 'all';
 
+/** State of the library toolbar. */
 export interface LibraryFilters {
   /** Free text matched against the title (and the file path, so a folder name finds a series). */
   search: string;
@@ -11,6 +16,7 @@ export interface LibraryFilters {
   rating: RatingFilter;
 }
 
+/** Filters that keep every entry. */
 export const EMPTY_FILTERS: LibraryFilters = { search: '', tags: [], rating: 'all' };
 
 /**
@@ -39,6 +45,7 @@ function normalize(value: string): string {
     .toLocaleLowerCase();
 }
 
+/** Whether an entry passes the search text, *every* selected tag and the minimum rating. */
 export function matchesFilters(entry: LibraryEntry, filters: LibraryFilters): boolean {
   const search = normalize(filters.search.trim());
   if (search && !normalize(entry.title).includes(search) && !normalize(entry.path).includes(search)) {
@@ -49,10 +56,12 @@ export function matchesFilters(entry: LibraryEntry, filters: LibraryFilters): bo
   return true;
 }
 
+/** The entries that pass `matchesFilters`, in their original order. */
 export function filterEntries(entries: LibraryEntry[], filters: LibraryFilters): LibraryEntry[] {
   return entries.filter((entry) => matchesFilters(entry, filters));
 }
 
+/** Whether any filter would narrow the list (whitespace-only search does not count). */
 export function hasActiveFilters(filters: LibraryFilters): boolean {
   return filters.search.trim() !== '' || filters.tags.length > 0 || filters.rating !== 'all';
 }

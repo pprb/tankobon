@@ -1,16 +1,22 @@
-// Comic archive abstraction. Each format (CBZ, CBR, PDF) implements `ComicArchive`;
-// the rest of the app only deals with page indexes.
+/**
+ * Comic archive abstraction. Each format (CBZ, CBR, PDF) implements `ComicArchive`;
+ * the rest of the app only deals with page indexes.
+ * @module
+ */
 import path from 'node:path';
 
 import type { ComicPage } from '../../shared/comic';
 
+/** An opened comic file, whatever its format. */
 export interface ComicArchive {
   readonly path: string;
   /** Image entry names, sorted in reading order. */
   readonly pages: readonly string[];
   /** Total entries in the archive (not just image pages). */
   readonly fileCount: number;
+  /** Reads page `index` (0-based, in `pages` order); rejects with a `RangeError` when out of range. */
   readPage(index: number): Promise<ComicPage>;
+  /** Releases the underlying resources; the archive must not be used afterwards. */
   close(): Promise<void>;
 }
 
@@ -24,6 +30,7 @@ const IMAGE_MIME_TYPES: Record<string, string> = {
   '.bmp': 'image/bmp',
 };
 
+/** MIME type of an image entry from its extension, or undefined when it is not a supported image. */
 export function imageMimeType(entryName: string): string | undefined {
   return IMAGE_MIME_TYPES[path.extname(entryName).toLowerCase()];
 }
