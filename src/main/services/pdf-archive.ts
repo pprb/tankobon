@@ -40,7 +40,7 @@ type PDFDocumentLoadingTask = import('pdfjs-dist').PDFDocumentLoadingTask;
 const RENDER_SCALE = 200 / 72;
 
 // `require` (a plain CJS global here, not `createRequire(import.meta.url)`): Vite bundles this
-// module into main.js as CommonJS, where Rollup rewrites `import.meta.url` to `{}.url`
+// module into main.cjs as CommonJS, where Rollup rewrites `import.meta.url` to `{}.url`
 // (`undefined`) — the same reason cbr-archive.ts reads its wasm file via `__dirname`, not a URL.
 //
 // pdf.js validates these two options with `val.endsWith('/')` and rejects anything else, so the

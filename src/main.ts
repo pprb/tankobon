@@ -26,7 +26,7 @@ const createWindow = () => {
     minHeight: 600,
     title: 'Tankōbon',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,

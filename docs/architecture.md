@@ -81,7 +81,7 @@ The location can't be an `AppSettings` entry, since the settings are stored *in*
 
 ### CBR: the wasm file
 
-`node-unrar-js`'s Emscripten glue locates its `.wasm` relative to its own `__dirname`, which breaks once Vite bundles it into `main.js`. `vite.main.config.mts` copies `unrar.wasm` next to the bundle (`vite-plugin-static-copy`), and `cbr-archive.ts` reads it itself and passes it as `wasmBinary`. A CBR is read fully into memory when opened.
+`node-unrar-js`'s Emscripten glue locates its `.wasm` relative to its own `__dirname`, which breaks once Vite bundles it into `main.cjs`. `vite.main.config.mts` copies `unrar.wasm` next to the bundle (`vite-plugin-static-copy`), and `cbr-archive.ts` reads it itself and passes it as `wasmBinary`. A CBR is read fully into memory when opened.
 
 ### CBR: one wasm module for every archive
 
@@ -101,8 +101,9 @@ These are the non-obvious constraints of the main-process bundle. Breaking one u
 
 | Constraint | Where | What breaks otherwise |
 |---|---|---|
+| `package.json`'s `main` is `.vite/build/main.cjs`, and `src/main.ts` loads `preload.cjs` | `package.json`, `src/main.ts` | Forge 8's Vite plugin emits the main and preload bundles as `.cjs`: `electron-forge package` refuses a `main` ending in `.js`, and a stale preload path leaves `window.tankobon` undefined. |
 | `node:sqlite` listed in `build.rollupOptions.external` | `vite.main.config.mts` | It isn't in Node's `builtinModules` yet, so Vite bundles an empty stub: `DatabaseSync` is silently `undefined` at runtime. |
-| `unrar.wasm` copied next to `main.js` | `vite.main.config.mts`, `cbr-archive.ts` | CBR files can't be opened. |
+| `unrar.wasm` copied next to `main.cjs` | `vite.main.config.mts`, `cbr-archive.ts` | CBR files can't be opened. |
 | `pdfjs-dist` and `@napi-rs/canvas` external | `vite.main.config.mts` | `@napi-rs/canvas` is a native `.node` binary Rollup can't inline; pdf.js's `legacy` build is a foreign webpack bundle Rollup can't safely re-bundle. Being real packages also ships pdf.js's `standard_fonts`/`cmaps` for free. |
 | `hooks.packageAfterCopy` copies `pdfjs-dist`, `@napi-rs/canvas` and the installed `@napi-rs/canvas-<platform>-<arch>` | `forge.config.ts` | The Forge Vite plugin only packages its build output plus `package.json`, never `node_modules`: PDFs fail in the packaged app. Only the platform package matching the machine that ran `npm install` exists, so a package must be built on its target platform. |
 | `AutoUnpackNativesPlugin` | `forge.config.ts` | The native binary would stay inside the asar archive, which can't be `dlopen`ed. |

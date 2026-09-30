@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js 22 (see `.nvmrc`; CI uses Node 22 too). `node:sqlite` is used by the tests, and runs unflagged on recent Node 22 releases.
+- Node.js 22, 22.13 or later (see `.nvmrc`; CI uses Node 22 too): Electron Forge 8 requires it. `node:sqlite` is used by the tests, and runs unflagged on recent Node 22 releases.
 - npm (the repository ships a `package-lock.json`).
 
 ## Commands
@@ -52,8 +52,11 @@ The API reference covers the modules listed in `typedoc.json`'s `entryPoints`. E
 
 ## Dependency audit
 
-`package.json`'s `overrides` (`tar`, `tmp`) force transitive dependencies of `@electron-forge/*`'s build tooling (`@electron/rebuild`, `@inquirer/prompts`, etc.) up to patched versions. The remaining `npm audit` findings as of 2026-09-30 are all in dev-only tooling, never shipped in the packaged app:
+The one remaining `npm audit` finding as of 2026-09-30 is in dev-only tooling, never shipped in the packaged app: `esbuild` through `vitepress` 1.x (its bundled Vite 5). The advisory only concerns the dev server (`npm run docs:dev`); the published site is static. It has no fix until VitePress 2 leaves pre-release.
 
-- `extract-zip` (pulled in by `@electron/packager` to unpack Electron's prebuilt binaries) has no patched release. `npm audit fix --force` "fixes" it by downgrading `@electron-forge/cli` to 6.4.2, which is a regression, not a fix.
-- `esbuild` through `vitepress` 1.x (its bundled Vite 5): the advisory only concerns the dev server (`npm run docs:dev`); the published site is static.
-- `brace-expansion`, `fast-uri` and `ip-address` in lint and build tooling: reported by `npm audit` before the docs tooling was added, not investigated yet.
+Upgrading Electron Forge to 8 removed the `extract-zip` findings (`@electron/packager` 20 no longer depends on it) and made the former `tar`/`tmp` `overrides` unnecessary; `npm audit fix` took care of `brace-expansion`, `fast-uri` and `ip-address`.
+
+Majors deliberately left behind:
+
+- `@tensorflow/tfjs` stays on `~4.11.0`, the range `upscaler` itself requires.
+- TypeScript 7 and `@types/node` above 22: not needed by any fix, to be done as their own change.
