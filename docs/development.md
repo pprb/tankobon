@@ -5,6 +5,10 @@
 - Node.js 22, 22.13 or later (see `.nvmrc`; CI uses Node 22 too): Electron Forge 8 requires it. `node:sqlite` is used by the tests, and runs unflagged on recent Node 22 releases.
 - npm (the repository ships a `package-lock.json`).
 
+## Line endings
+
+Every text file uses LF. `.editorconfig` tells editors so, and `.gitattributes` (`* text=auto eol=lf`) makes Git store and check out LF whatever the platform or `core.autocrlf` setting, so a Windows checkout no longer brings CRLF back. After pulling this change into an existing clone, `git add --renormalize .` converts any file still committed with CRLF.
+
 ## Commands
 
 | Command | What it does |
