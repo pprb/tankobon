@@ -1,0 +1,17 @@
+# Force LF line endings in the repository and in every checkout, whatever the
+# platform or core.autocrlf setting (matches end_of_line in .editorconfig).
+* text=auto eol=lf
+
+# Binary files: never touch their bytes.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.wasm binary
+*.zip binary
+*.cbz binary
+*.cbr binary
+*.pdf binary
