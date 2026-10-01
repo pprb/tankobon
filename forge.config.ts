@@ -1,6 +1,8 @@
+import { watch, type FSWatcher } from 'node:fs';
 import { cp, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import type { ForgeConfig } from '@electron-forge/shared-types';
+import { requestAppRestart } from '@electron-forge/core-utils/restart';
 import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { MakerDeb } from '@electron-forge/maker-deb';
@@ -16,6 +18,31 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 // `package.json` — no `node_modules` — so anything left external has to be copied in by hand.
 async function copyNodeModule(buildPath: string, name: string): Promise<void> {
   await cp(path.join('node_modules', name), path.join(buildPath, 'node_modules', name), { recursive: true });
+}
+
+// `npm run dev`: development mode (see docs/development.md). The Electron app inherits this
+// process's environment, so `TANKOBON_DEV` is how src/main.ts knows to open DevTools.
+const devMode = process.env.npm_lifecycle_event === 'dev';
+if (devMode) {
+  process.env.TANKOBON_DEV = '1';
+}
+
+// Restarts the app whenever Vite rebuilds the main process bundle. The Vite plugin's own
+// `hotRestart` option is a no-op in Forge 8.0: its watch builds run in a subprocess that never
+// receives the option, and couldn't reach the app if it did. This runs in Forge's own process,
+// where `requestAppRestart()` is wired to `electron-forge start` (the same as typing `rs`).
+// The directory is watched rather than the file, which Rollup may replace on each rebuild.
+let mainBundleWatcher: FSWatcher | undefined;
+function restartOnMainRebuild(): void {
+  if (mainBundleWatcher) return; // postStart runs again after every restart
+  let timer: NodeJS.Timeout | undefined;
+  mainBundleWatcher = watch(path.resolve('.vite/build'), (_event, filename) => {
+    if (filename !== 'main.cjs') return;
+    // One rebuild fires several events; restart once, after the write has settled.
+    clearTimeout(timer);
+    timer = setTimeout(() => requestAppRestart(), 300);
+  });
+  mainBundleWatcher.unref();
 }
 
 const config: ForgeConfig = {
@@ -70,6 +97,9 @@ const config: ForgeConfig = {
     }),
   ],
   hooks: {
+    postStart: async () => {
+      if (devMode) restartOnMainRebuild();
+    },
     packageAfterCopy: async (_config, buildPath) => {
       await copyNodeModule(buildPath, 'pdfjs-dist');
       await copyNodeModule(buildPath, '@napi-rs/canvas');
