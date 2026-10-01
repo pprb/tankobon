@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here. This file is maintained by [release-please](https://github.com/googleapis/release-please) from the [Conventional Commits](https://www.conventionalcommits.org/) merged into `master`: don't edit released entries by hand. New versions are inserted above the previous ones.
 
+## [0.2.1](https://github.com/pprb/tankobon/compare/v0.2.0...v0.2.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **build:** name the Linux executable after the package name ([#19](https://github.com/pprb/tankobon/issues/19)) ([61e5274](https://github.com/pprb/tankobon/commit/61e5274084ea709c47a3cfa97246c8c24cddbfba))
+
 ## [0.2.0](https://github.com/pprb/tankobon/compare/v0.1.1...v0.2.0) (2026-10-01)
 
 
