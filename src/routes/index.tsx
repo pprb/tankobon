@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { FolderOpen, FolderTree, Search, Star, Trash2, X } from 'lucide-react';
+import { FolderOpen, FolderTree, ScanSearch, Search, Star, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { MetadataDialog } from '@/components/metadata-dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -12,8 +13,10 @@ import {
   type LibraryFilters,
   type RatingFilter,
 } from '@/lib/library-filter';
-import { cn, formatFileSize } from '@/lib/utils';
-import type { LibraryEntry, ScanProgress } from '@/shared/library';
+import { CREDIT_ROLE_LABELS } from '@/lib/metadata-review';
+import { cn, formatFileSize, formatLanguage } from '@/lib/utils';
+import { CREDIT_ROLES, type LibraryEntry, type ScanProgress } from '@/shared/library';
+import { formatPersonName } from '@/shared/title-parsing';
 
 export const Route = createFileRoute('/')({
   component: LibraryPage,
@@ -29,6 +32,7 @@ function LibraryPage() {
   const [filters, setFilters] = useState<LibraryFilters>(EMPTY_FILTERS);
   const [scan, setScan] = useState<ScanProgress | null>(null);
   const [scanStatus, setScanStatus] = useState<string | null>(null);
+  const [lookupEntry, setLookupEntry] = useState<LibraryEntry | null>(null);
   const visible = useMemo(() => filterEntries(entries, filters), [entries, filters]);
   const tags = useMemo(() => availableTags(entries, QUICK_TAGS), [entries]);
 
@@ -73,6 +77,10 @@ function LibraryPage() {
   const setRating = (id: string, rating: number) => {
     setEntries((prev) => prev.map((entry) => (entry.id === id ? { ...entry, rating } : entry)));
     void window.tankobon.library.updateRating(id, rating);
+  };
+
+  const replaceEntry = (updated: LibraryEntry) => {
+    setEntries((prev) => prev.map((entry) => (entry.id === updated.id ? updated : entry)));
   };
 
   const toggleTag = (entry: LibraryEntry, tag: string) => {
@@ -122,12 +130,22 @@ function LibraryPage() {
                   <p className="truncate font-medium" title={entry.path}>
                     {entry.title}
                   </p>
+                  <EntryMetadata entry={entry} />
                   <p className="text-xs text-muted-foreground">
                     Page {entry.currentPage + 1} / {entry.pageCount} · {entry.fileCount} fichiers ·{' '}
                     {formatFileSize(entry.fileSize)}
                   </p>
                 </div>
                 <StarRating rating={entry.rating} onChange={(rating) => setRating(entry.id, rating)} />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setLookupEntry(entry)}
+                  title="Rechercher les infos (série, auteurs…)"
+                  aria-label="Rechercher les infos"
+                >
+                  <ScanSearch />
+                </Button>
                 <Button
                   variant="secondary"
                   size="sm"
@@ -150,10 +168,33 @@ function LibraryPage() {
         </ul>
       )}
 
+      {lookupEntry && (
+        <MetadataDialog entry={lookupEntry} onClose={() => setLookupEntry(null)} onApplied={replaceEntry} />
+      )}
+
       <p className="text-xs text-muted-foreground">
         Electron {electron} · Chromium {chrome} · Node {node}
       </p>
     </div>
+  );
+}
+
+/** Series, volume, date, language and credits found by a metadata lookup; nothing when there are none. */
+function EntryMetadata({ entry }: { entry: LibraryEntry }) {
+  const series = [entry.series, entry.volume && `T. ${entry.volume}`].filter(Boolean).join(' · ');
+  const details = [series, entry.releaseDate?.slice(0, 4), formatLanguage(entry.language)].filter(Boolean);
+  const credits = CREDIT_ROLES.flatMap((role) => {
+    const names = entry.credits.filter((credit) => credit.role === role).map(formatPersonName);
+    return names.length > 0 ? [`${CREDIT_ROLE_LABELS[role]} : ${names.join(', ')}`] : [];
+  });
+  if (details.length === 0 && credits.length === 0) return null;
+
+  return (
+    <p className="truncate text-xs" title={credits.join('\n') || undefined}>
+      {details.join(' · ')}
+      {details.length > 0 && credits.length > 0 && ' — '}
+      <span className="text-muted-foreground">{credits.join(' · ')}</span>
+    </p>
   );
 }
 
@@ -279,7 +320,7 @@ function LibraryToolbar({
             value={filters.search}
             onChange={(event) => onChange({ ...filters, search: event.target.value })}
             type="search"
-            placeholder="Rechercher un album…"
+            placeholder="Rechercher un album, une série, un auteur…"
             aria-label="Rechercher un album"
             className="h-9 w-full rounded-md border bg-background pr-3 pl-8 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />

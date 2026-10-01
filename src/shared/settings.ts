@@ -17,6 +17,14 @@ export interface AppSettings {
   pageSpacing: number;
   /** CSS color behind the pages in the reader (any `<input type="color">` value, i.e. `#rrggbb`). */
   readerBackground: string;
+  /** Whether metadata lookups query Comic Vine (only when `comicVineApiKey` is set too). */
+  comicVineEnabled: boolean;
+  /** Personal Comic Vine API key (free, from comicvine.gamespot.com/api); Comic Vine refuses requests without one. */
+  comicVineApiKey: string;
+  /** Whether metadata lookups query Google Books. */
+  googleBooksEnabled: boolean;
+  /** Optional Google Books API key; without one, requests share Google's anonymous quota. */
+  googleBooksApiKey: string;
 }
 
 /**
@@ -30,6 +38,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   readingMode: 'single',
   pageSpacing: 16,
   readerBackground: '#000000',
+  comicVineEnabled: true,
+  comicVineApiKey: '',
+  googleBooksEnabled: true,
+  googleBooksApiKey: '',
 };
 
 /** Presets offered in the settings page; the color picker accepts anything else. */

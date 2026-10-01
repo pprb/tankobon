@@ -1,6 +1,6 @@
 # Tankōbon
 
-Desktop library manager and reader for digital comics, BD and manga (CBZ, CBR and PDF). Everything stays on your machine: the library, reading progress, ratings and tags live in a local SQLite file.
+Desktop library manager and reader for digital comics, BD and manga (CBZ, CBR and PDF). Everything stays on your machine: the library, reading progress, ratings, tags and book information live in a local SQLite file. Looking a book up in Comic Vine or Google Books is optional and only sends the search text.
 
 Built with Electron, React 19 and TypeScript.
 

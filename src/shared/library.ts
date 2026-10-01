@@ -23,6 +23,70 @@ export interface LibraryEntry {
   rating: number;
   /** Free-form user labels, e.g. "Lu", "À lire". */
   tags: string[];
+  /**
+   * Whether `title` was set by the user (accepted from a metadata lookup) rather than derived from
+   * the file name. A locked title survives reopening the file, which otherwise refreshes it.
+   */
+  titleLocked: boolean;
+  /** Series the book belongs to ("Tintin", "X-Men"), null when unknown or a one-shot. */
+  series: string | null;
+  /** Volume or issue number within `series`, as text ("3", "12.1", "HS"). Null for one-shots. */
+  volume: string | null;
+  /** Release date as precise as known: `YYYY`, `YYYY-MM` or `YYYY-MM-DD`. */
+  releaseDate: string | null;
+  /** Language of the book, as an ISO 639-1 code ("fr", "en"). */
+  language: string | null;
+  /** People credited on the book, with their role. */
+  credits: Credit[];
+}
+
+/**
+ * What a person did on a book. `author` is for sources that don't say (Google Books lists
+ * "authors" without telling the writer from the artist).
+ */
+export type CreditRole = 'writer' | 'artist' | 'colorist' | 'inker' | 'letterer' | 'cover' | 'author';
+
+/** Every `CreditRole`, in display order. */
+export const CREDIT_ROLES: readonly CreditRole[] = [
+  'writer',
+  'artist',
+  'colorist',
+  'inker',
+  'letterer',
+  'cover',
+  'author',
+];
+
+/** A person, as identified by name. `firstName` is empty for a single-word name or pen name ("Hergé"). */
+export interface PersonName {
+  firstName: string;
+  lastName: string;
+}
+
+/** A person credited on a book: one row of the `credits` table joined with `people`. */
+export interface Credit extends PersonName {
+  /** Id of the row in the `people` table; the same person shares it across books. */
+  personId: string;
+  role: CreditRole;
+}
+
+/** A credit as written by `library.updateMetadata()`: people are matched (or created) by name. */
+export interface CreditInput extends PersonName {
+  role: CreditRole;
+}
+
+/**
+ * Metadata fields to write on a library entry with `library.updateMetadata()`. Only the fields
+ * present are changed; `credits`, when present, replaces the entry's whole credit list.
+ */
+export interface MetadataUpdate {
+  /** Replaces the title and locks it (see `LibraryEntry.titleLocked`). */
+  title?: string;
+  series?: string | null;
+  volume?: string | null;
+  releaseDate?: string | null;
+  language?: string | null;
+  credits?: CreditInput[];
 }
 
 /** Progress of a folder scan, pushed from the main process while it runs. */

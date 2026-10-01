@@ -54,7 +54,8 @@ export function registerComicIpc(libraryRepo: LibraryRepository): void {
     const comic = await service.open(filePath);
     const { size } = await stat(comic.path);
     const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
-    return { ...comic, libraryId: entry.id, resumePage: entry.currentPage };
+    // The library title wins over the file name: the user may have set one from a metadata lookup.
+    return { ...comic, title: entry.title, libraryId: entry.id, resumePage: entry.currentPage };
   });
 
   ipcMain.handle(COMIC_CHANNELS.readPage, (_event, id: string, index: number) =>

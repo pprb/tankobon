@@ -5,7 +5,8 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 
-import type { LibraryEntry } from '../../shared/library';
+import type { Credit, CreditInput, CreditRole, LibraryEntry, MetadataUpdate } from '../../shared/library';
+import { PeopleRepository } from './people-repository';
 
 interface LibraryRow {
   id: string;
@@ -19,9 +20,22 @@ interface LibraryRow {
   file_size: number;
   rating: number;
   tags: string;
+  title_locked: number;
+  series: string | null;
+  volume: string | null;
+  release_date: string | null;
+  language: string | null;
 }
 
-function fromRow(row: LibraryRow): LibraryEntry {
+interface CreditRow {
+  library_id: string;
+  person_id: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+}
+
+function fromRow(row: LibraryRow, credits: Credit[]): LibraryEntry {
   return {
     id: row.id,
     path: row.path,
@@ -34,24 +48,65 @@ function fromRow(row: LibraryRow): LibraryEntry {
     fileSize: row.file_size,
     rating: row.rating,
     tags: JSON.parse(row.tags) as string[],
+    titleLocked: row.title_locked !== 0,
+    series: row.series,
+    volume: row.volume,
+    releaseDate: row.release_date,
+    language: row.language,
+    credits,
   };
 }
 
+function creditFromRow(row: CreditRow): Credit {
+  return { personId: row.person_id, firstName: row.first_name, lastName: row.last_name, role: row.role as CreditRole };
+}
+
+const CREDITS_QUERY = `
+  SELECT c.library_id, c.person_id, p.first_name, p.last_name, c.role
+  FROM credits c JOIN people p ON p.id = c.person_id`;
+
 /** Persists the comic library (one row per known file) to the local database. */
 export class LibraryRepository {
-  constructor(private readonly db: DatabaseSync) {}
+  private readonly people: PeopleRepository;
+
+  constructor(private readonly db: DatabaseSync) {
+    this.people = new PeopleRepository(db);
+  }
 
   /** Every entry, most recently opened first. */
   list(): LibraryEntry[] {
     const rows = this.db
       .prepare('SELECT * FROM library ORDER BY last_opened_at DESC')
       .all() as unknown as LibraryRow[];
-    return rows.map(fromRow);
+    const credits = new Map<string, Credit[]>();
+    const creditRows = this.db
+      .prepare(`${CREDITS_QUERY} ORDER BY c.library_id, c.position`)
+      .all() as unknown as CreditRow[];
+    for (const row of creditRows) {
+      const list = credits.get(row.library_id) ?? [];
+      list.push(creditFromRow(row));
+      credits.set(row.library_id, list);
+    }
+    return rows.map((row) => fromRow(row, credits.get(row.id) ?? []));
+  }
+
+  /** One entry by id, or null if it isn't (or no longer) in the library. */
+  get(id: string): LibraryEntry | null {
+    const row = this.db.prepare('SELECT * FROM library WHERE id = ?').get(id) as LibraryRow | undefined;
+    return row ? fromRow(row, this.creditsOf(id)) : null;
+  }
+
+  private creditsOf(id: string): Credit[] {
+    const rows = this.db
+      .prepare(`${CREDITS_QUERY} WHERE c.library_id = ? ORDER BY c.position`)
+      .all(id) as unknown as CreditRow[];
+    return rows.map(creditFromRow);
   }
 
   /**
    * Registers a comic as just opened: creates it on first open, else refreshes its metadata.
-   * Never touches `rating`/`tags`, which are only ever set by the user.
+   * Never touches `rating`/`tags` nor the looked-up metadata (series, credits…), which are only
+   * ever set by the user, and keeps a locked title instead of the file-name-derived `title`.
    */
   touch(filePath: string, title: string, pageCount: number, fileCount: number, fileSize: number): LibraryEntry {
     const now = new Date().toISOString();
@@ -61,22 +116,26 @@ export class LibraryRepository {
 
     if (existing) {
       const currentPage = Math.min(existing.current_page, pageCount - 1);
+      const newTitle = existing.title_locked !== 0 ? existing.title : title;
       this.db
         .prepare(
           `UPDATE library
            SET title = ?, page_count = ?, current_page = ?, file_count = ?, file_size = ?, last_opened_at = ?
            WHERE id = ?`,
         )
-        .run(title, pageCount, currentPage, fileCount, fileSize, now, existing.id);
-      return fromRow({
-        ...existing,
-        title,
-        page_count: pageCount,
-        current_page: currentPage,
-        file_count: fileCount,
-        file_size: fileSize,
-        last_opened_at: now,
-      });
+        .run(newTitle, pageCount, currentPage, fileCount, fileSize, now, existing.id);
+      return fromRow(
+        {
+          ...existing,
+          title: newTitle,
+          page_count: pageCount,
+          current_page: currentPage,
+          file_count: fileCount,
+          file_size: fileSize,
+          last_opened_at: now,
+        },
+        this.creditsOf(existing.id),
+      );
     }
 
     const row: LibraryRow = {
@@ -91,6 +150,11 @@ export class LibraryRepository {
       file_size: fileSize,
       rating: 0,
       tags: '[]',
+      title_locked: 0,
+      series: null,
+      volume: null,
+      release_date: null,
+      language: null,
     };
     this.db
       .prepare(
@@ -111,7 +175,7 @@ export class LibraryRepository {
         row.rating,
         row.tags,
       );
-    return fromRow(row);
+    return fromRow(row, []);
   }
 
   /** Whether a file is already in the library, so a folder scan can skip it without opening it. */
@@ -149,8 +213,8 @@ export class LibraryRepository {
   /**
    * Writes a whole entry, matching an existing one by its file path (paths are unique, ids are
    * not stable across machines) — used by the JSON import to restore a snapshot on top of the
-   * current library. Unlike `touch`, this does overwrite `rating`/`tags`: they're part of what
-   * the user is restoring.
+   * current library. Unlike `touch`, this does overwrite `rating`/`tags` and the looked-up
+   * metadata, credits included: they're part of what the user is restoring.
    */
   upsert(entry: LibraryEntry): 'created' | 'updated' {
     const existing = this.db.prepare('SELECT id FROM library WHERE path = ?').get(entry.path) as
@@ -162,7 +226,8 @@ export class LibraryRepository {
         .prepare(
           `UPDATE library
            SET title = ?, page_count = ?, current_page = ?, added_at = ?, last_opened_at = ?,
-               file_count = ?, file_size = ?, rating = ?, tags = ?
+               file_count = ?, file_size = ?, rating = ?, tags = ?,
+               title_locked = ?, series = ?, volume = ?, release_date = ?, language = ?
            WHERE id = ?`,
         )
         .run(
@@ -175,20 +240,28 @@ export class LibraryRepository {
           entry.fileSize,
           entry.rating,
           JSON.stringify(entry.tags),
+          entry.titleLocked ? 1 : 0,
+          entry.series,
+          entry.volume,
+          entry.releaseDate,
+          entry.language,
           existing.id,
         );
+      this.setCredits(existing.id, entry.credits);
       return 'updated';
     }
 
+    // A fresh id when the snapshot's one is already taken by a different file.
+    const id = this.idIsTaken(entry.id) ? randomUUID() : entry.id;
     this.db
       .prepare(
         `INSERT INTO library
-           (id, path, title, page_count, current_page, added_at, last_opened_at, file_count, file_size, rating, tags)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, path, title, page_count, current_page, added_at, last_opened_at, file_count, file_size, rating, tags,
+            title_locked, series, volume, release_date, language)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
-        // A fresh id when the snapshot's one is already taken by a different file.
-        this.idIsTaken(entry.id) ? randomUUID() : entry.id,
+        id,
         entry.path,
         entry.title,
         entry.pageCount,
@@ -199,7 +272,13 @@ export class LibraryRepository {
         entry.fileSize,
         entry.rating,
         JSON.stringify(entry.tags),
+        entry.titleLocked ? 1 : 0,
+        entry.series,
+        entry.volume,
+        entry.releaseDate,
+        entry.language,
       );
+    this.setCredits(id, entry.credits);
     return 'created';
   }
 
@@ -233,8 +312,57 @@ export class LibraryRepository {
     this.db.prepare('UPDATE library SET tags = ? WHERE id = ?').run(JSON.stringify(tags), id);
   }
 
-  /** Removes the entry from the library; the file on disk is left untouched. */
+  /**
+   * Writes the metadata fields present in `update` (typically the ones the user accepted from a
+   * lookup) and leaves the others alone. A new title is locked, so reopening the file doesn't
+   * put the file name back. Returns the updated entry, or null if the id is unknown.
+   */
+  updateMetadata(id: string, update: MetadataUpdate): LibraryEntry | null {
+    if (!this.get(id)) {
+      return null;
+    }
+    const columns: Record<string, string | number | null> = {};
+    if (update.title !== undefined) {
+      columns.title = update.title;
+      columns.title_locked = 1;
+    }
+    if (update.series !== undefined) columns.series = update.series;
+    if (update.volume !== undefined) columns.volume = update.volume;
+    if (update.releaseDate !== undefined) columns.release_date = update.releaseDate;
+    if (update.language !== undefined) columns.language = update.language;
+
+    const names = Object.keys(columns);
+    if (names.length > 0) {
+      this.db
+        .prepare(`UPDATE library SET ${names.map((name) => `${name} = ?`).join(', ')} WHERE id = ?`)
+        .run(...Object.values(columns), id);
+    }
+    if (update.credits !== undefined) {
+      this.setCredits(id, update.credits);
+    }
+    return this.get(id);
+  }
+
+  /**
+   * Replaces an entry's credits, in the given order. People are matched by name (or created);
+   * the same person in the same role twice is kept once. People no longer credited anywhere are
+   * kept, for the future author pages.
+   */
+  private setCredits(id: string, credits: CreditInput[]): void {
+    this.db.prepare('DELETE FROM credits WHERE library_id = ?').run(id);
+    const insert = this.db.prepare(
+      'INSERT OR IGNORE INTO credits (library_id, person_id, role, position) VALUES (?, ?, ?, ?)',
+    );
+    credits.forEach((credit, position) => {
+      if (credit.lastName.trim() === '') return;
+      const person = this.people.findOrCreate(credit);
+      insert.run(id, person.id, credit.role, position);
+    });
+  }
+
+  /** Removes the entry (and its credits) from the library; the file on disk is left untouched. */
   remove(id: string): void {
+    this.db.prepare('DELETE FROM credits WHERE library_id = ?').run(id);
     this.db.prepare('DELETE FROM library WHERE id = ?').run(id);
   }
 }

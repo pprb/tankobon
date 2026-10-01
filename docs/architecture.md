@@ -23,7 +23,7 @@ The shape of `window.tankobon` is declared up front as explicit interfaces (`Tan
 
 Everything is `invoke`/`handle` (request/response), except `library:scan-progress`, the one main → renderer push channel (see [Folder scanning](#folder-scanning)).
 
-Errors that the user should see come back as a `{ status: 'error', message }` member of a result union (`ImportResult`, `DatabaseLocationResult`) rather than as a thrown error: an `ipcMain.handle` rejection reaches the renderer wrapped in "Error invoking remote method …".
+Errors that the user should see come back as a `{ status: 'error', message }` member of a result union (`ImportResult`, `DatabaseLocationResult`, `MetadataSearchResult`) rather than as a thrown error: an `ipcMain.handle` rejection reaches the renderer wrapped in "Error invoking remote method …".
 
 `ArchiveInfo` is what `ComicService` knows about an opened archive before it's matched to a library entry; the `comic:open` handler (`src/main/ipc/comic.ts`) merges it with the library entry to produce the `ComicInfo` sent to the renderer.
 
@@ -32,23 +32,27 @@ Errors that the user should see come back as a `{ status: 'error', message }` me
 Persistence uses Node's built-in `node:sqlite` (`DatabaseSync`): no native module to compile, and nothing stored in the cloud or in Chromium's `localStorage`/IndexedDB ([ADR 0002](./decisions/0002-local-storage-node-sqlite.md)). The generated [schema reference](./reference/schema.md) lists the tables and columns.
 
 - **Repositories take a `DatabaseSync` in their constructor** instead of opening it themselves, which makes them testable with `new DatabaseSync(':memory:')` without touching Electron (`app.getPath`).
-- **Migrations**: `migrate()` in `schema.ts` uses `CREATE TABLE IF NOT EXISTS` for tables; columns added after the initial release (`file_count`, `file_size`, `rating`, `tags`) go through `addColumnIfMissing()`, which checks `PRAGMA table_info` before an `ALTER TABLE … ADD COLUMN`. Existing installed databases pick them up without a destructive migration. A new column must follow the same pattern.
+- **Migrations**: `migrate()` in `schema.ts` uses `CREATE TABLE IF NOT EXISTS` for tables; columns added after the initial release (`file_count`, `file_size`, `rating`, `tags`, then `title_locked`, `series`, `volume`, `release_date`, `language`) go through `addColumnIfMissing()`, which checks `PRAGMA table_info` before an `ALTER TABLE … ADD COLUMN`. Existing installed databases pick them up without a destructive migration. A new column must follow the same pattern.
 - **Tests run the real schema**: `schema.ts` holds `migrate()` on its own, away from `database.ts` (which imports `electron`), so the repository tests (`*.test.ts` in `src/main/db/`) build their `:memory:` databases with the same `migrate()` as the app, and can't drift from it. `schema.test.ts` covers a fresh database and the upgrade of one from the initial release.
 
 ### Library (`library-repository.ts`)
 
 One row per comic ever opened or scanned. Three writers, with deliberately different rules:
 
-| Method | Used by | Existing entry | `rating`/`tags` |
+| Method | Used by | Existing entry | `rating`/`tags`, looked-up metadata, credits |
 |---|---|---|---|
-| `touch()` | `comic:open` | Refreshes title, page count, file count/size, bumps `last_opened_at`, clamps `current_page` if the page count shrank | Never touched |
+| `touch()` | `comic:open` | Refreshes title (unless `title_locked`), page count, file count/size, bumps `last_opened_at`, clamps `current_page` if the page count shrank | Never touched |
 | `register()` | folder scan | Left completely alone (a scan is not a read) | Never touched |
 | `upsert()` | JSON import | Overwritten with the snapshot's values | Overwritten (restoring a backup is what the user asked for) |
 
-`updateRating()`/`updateTags()`/`updateProgress()` are the dedicated writers for user-set fields.
+`updateRating()`/`updateTags()`/`updateProgress()`/`updateMetadata()` are the dedicated writers for user-set fields.
+
+- `updateMetadata()` writes only the fields present in its `MetadataUpdate` (the ones the user accepted in the lookup dialog). Writing a `title` sets `title_locked`, which makes `touch()` keep it instead of putting the file name back; `comic:open` returns the library title, so the reader header shows it too.
 
 - `fileCount` is the archive's total entry count (all files, not just image pages); `fileSize` is the file's size on disk, computed with `fs.stat` in the IPC layer, not in `ComicArchive`.
 - `tags` is a JSON-encoded `string[]` column: no normalized tags table, a personal library doesn't need one.
+- **People and credits** are normalized, unlike tags, because people are meant to get their own page later (nationality, notes): `people` holds each person once, unique on (`first_name`, `last_name`) with `COLLATE NOCASE`; `credits` links a library entry, a person and a `CreditRole`, with a `position` keeping the source's order. `PeopleRepository.findOrCreate()` matches people by name, so two homonyms would be merged. Credits are always written as a whole list (`setCredits()`, from `updateMetadata()` and `upsert()`); `list()` loads them all in one extra query rather than one per entry. Removing an entry deletes its credits explicitly (on top of the `ON DELETE CASCADE`) and keeps its people.
+- `volume` is `TEXT`, not a number: issue numbers can be `12.1`, `HS`, `1/2`. `release_date` keeps whatever precision the source has (`YYYY`, `YYYY-MM` or `YYYY-MM-DD`).
 - `lastOpenedPath()` feeds the open dialog's `defaultPath` (`src/main/ipc/comic.ts`), falling back to the OS default when there is no history or that directory no longer exists.
 
 ### Settings (`settings-repository.ts`)
@@ -65,8 +69,8 @@ The location can't be an `AppSettings` entry, since the settings are stored *in*
 
 ### Export / import (`export-service.ts`, `import-service.ts`)
 
-- `buildExport()` snapshots library + settings as `{ version: 1, exportedAt, library, settings }`, written by `data:export` through a save dialog.
-- `parseExport()` validates a user-picked file: anything that isn't a `version: 1` export is rejected; broken library entries are dropped; only known settings keys whose value type matches the default are kept. An export is a file the user can edit, so nothing in it is trusted.
+- `buildExport()` snapshots library + settings as `{ version: 1, exportedAt, library, settings }`, written by `data:export` through a save dialog. The library entries carry their looked-up metadata and credits; the format stays `version: 1`, since those fields are only additions (an older export comes back with them empty). The settings include the metadata API keys.
+- `parseExport()` validates a user-picked file: anything that isn't a `version: 1` export is rejected; broken library entries are dropped, as are credits without a last name or with an unknown role; only known settings keys whose value type matches the default are kept. An export is a file the user can edit, so nothing in it is trusted.
 - `applyImport()` merges it: entries match on **path**, not id (ids aren't stable across machines); the snapshot wins for the entries it contains; entries only present locally are untouched; settings are replaced wholesale.
 
 ## Comic archives (`src/main/services/`)
@@ -97,6 +101,17 @@ See [ADR 0004](./decisions/0004-pdf-rendering-pdfjs-napi-canvas.md). `PdfArchive
 - `page.render()` is given the `canvas` object itself, not just a `canvasContext`.
 - `pdfjs-dist`'s package directory is found with the plain CommonJS `require.resolve('pdfjs-dist/package.json')`, **not** `createRequire(import.meta.url)`: the main bundle is CommonJS, where Rollup rewrites `import.meta.url` to `undefined`, which would crash at module load time (the app would not start at all).
 
+## Metadata lookup (`src/main/services/metadata-service.ts`)
+
+The "Rechercher les infos" action of the library looks a book up in public APIs ([ADR 0005](./decisions/0005-metadata-lookup-public-apis.md)). The requests are made by the main process (`metadata:search`, `src/main/ipc/metadata.ts`), never by the renderer: the API keys stay out of the renderer, there is no CORS to deal with, and the renderer's CSP (`index.html`) still allows no connection beyond `'self'`.
+
+- `searchMetadata()` queries the enabled sources in parallel (`ComicVineClient` only when it has an API key, `GoogleBooksClient` always when enabled) and normalizes their results to `MetadataCandidate`. A failing source adds its French message to `errors` next to the other source's results; `status: 'error'` is only for nothing configured, an empty query, or every source failing. `rankCandidates()` puts the candidates matching the requested volume first.
+- **Comic Vine** (`comic-vine.ts`): with a volume number, it searches the series (`resources=volume`) then that issue number in the top 3 series (`/issues/?filter=volume:…,issue_number:…`), else (or when that finds nothing) runs a plain issue search. The search results don't include credits, so each of the (at most 5) issues gets a detail request. All requests are sequential, since Comic Vine flags bursts. Its role names map to `CreditRole` (`penciler` → `artist`; `editor` is dropped). It needs a non-generic `User-Agent`, hence `Tankobon/<version>`.
+- **Google Books** (`google-books.ts`): one full-text search. It has no series field and doesn't tell writers from artists, so series and volume are read from the title when it spells them out (`splitSeriesTitle()`), and every author gets the generic `author` role.
+- `http-json.ts` is the one network helper: a JSON GET with a timeout, and `"<Source> : …"` French errors (unreachable, timeout, exhausted quota, the API's own message). The IPC layer passes it Electron's `net.fetch`, which goes through Chromium's network stack and honours the system proxy; tests pass a fake `fetch`.
+- The pure text helpers are shared with the renderer (`src/shared/title-parsing.ts`): `guessQueryFromTitle()` prefills the dialog's search from a file name (bracketed tags dropped, volume from "T03"/"Vol. 2"/"#12" or a standalone 1–3 digit number, so a bare year isn't taken for a volume), `splitPersonName()` turns "Jean Van Hamme" into first/last name (particles stay with the last name, a single word is a last name).
+- **Renderer side**: `MetadataDialog` (`src/components/metadata-dialog.tsx`) runs search → pick a candidate → review → `library.updateMetadata()`. The review logic is pure (`src/lib/metadata-review.ts`): `buildReview()` lists only the fields the candidate knows, pre-accepted when they'd change something, plus the current credits (kept) and the candidate's new ones (added); `reviewToUpdate()` turns the accepted rows into a `MetadataUpdate` (an emptied field is cleared, an emptied title is ignored, credits become exactly the accepted rows). Cover thumbnails are loaded straight from the sources, which is why the CSP in `index.html` allows `img-src` from `comicvine.gamespot.com` and `books.google.com` (and nothing else).
+
 ## Build gotchas
 
 These are the non-obvious constraints of the main-process bundle. Breaking one usually doesn't fail the build, only the packaged app.
@@ -118,7 +133,7 @@ File-based routes via TanStack Router, with an in-memory history (`createMemoryH
 
 ### Settings sections
 
-`src/routes/settings.tsx` is a layout route (title + `<Outlet/>`); `settings/reading.tsx`, `settings/appearance.tsx` and `settings/data.tsx` are the sections; `settings/index.tsx` only `redirect`s to the first one. The section list is `SETTINGS_SECTIONS` (`src/lib/settings-nav.ts`), shared with the sidebar so the two can't drift. Adding a section means a file in `src/routes/settings/` plus a line in `SETTINGS_SECTIONS`.
+`src/routes/settings.tsx` is a layout route (title + `<Outlet/>`); `settings/reading.tsx`, `settings/appearance.tsx`, `settings/metadata.tsx` (lookup sources and API keys) and `settings/data.tsx` are the sections; `settings/index.tsx` only `redirect`s to the first one. The section list is `SETTINGS_SECTIONS` (`src/lib/settings-nav.ts`), shared with the sidebar so the two can't drift. Adding a section means a file in `src/routes/settings/` plus a line in `SETTINGS_SECTIONS`.
 
 In the sidebar (`src/routes/__root.tsx`), `SettingsNav` unfolds those sections: clicking "Paramètres" while folded unfolds *and* navigates; while unfolded it only folds (it `preventDefault()`s the `Link`). The unfolded state is transient component state. `AppSettings.sidebarCollapsed` (a persisted setting) switches the whole sidebar to an icon-only rail, which hides the sub-entries.
 
@@ -126,7 +141,7 @@ In the sidebar (`src/routes/__root.tsx`), `SettingsNav` unfolds those sections: 
 
 The whole library comes from a single `library:list` call and is filtered client-side; a personal collection is small, so there is no SQL-side filtering. The logic is pure (unit-tested under Vitest's `node` environment, no DOM):
 
-- search matches the title *and* the file path (so a series folder name finds its albums), normalized with `NFD` + diacritic stripping ("pokemon" matches "Pokémon");
+- search matches the title, the file path (so a series folder name finds its albums), the series and the credited people's names, normalized with `NFD` + diacritic stripping ("pokemon" matches "Pokémon");
 - read/unread is a **tag** filter: `Lu`/`À lire` are the library page's `QUICK_TAGS`. `availableTags()` keeps them pinned in front even before anything carries them; selecting several tags requires *all* of them;
 - the rating filter is a *minimum* (3 stars keeps 3–5).
 

@@ -8,7 +8,8 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 import type { ComicInfo, ComicPage } from './shared/comic';
 import type { DatabaseLocation, DatabaseLocationResult, ImportResult } from './shared/data';
-import type { LibraryEntry, ScanProgress, ScanResult } from './shared/library';
+import type { LibraryEntry, MetadataUpdate, ScanProgress, ScanResult } from './shared/library';
+import type { MetadataQuery, MetadataSearchResult } from './shared/metadata';
 import type { AppSettings } from './shared/settings';
 
 /** Versions of the runtimes the app is running on, as `window.tankobon.versions`. */
@@ -49,6 +50,14 @@ export interface LibraryApi {
   updateRating(id: string, rating: number): Promise<void>;
   /** Replaces the tags of a library entry. */
   updateTags(id: string, tags: string[]): Promise<void>;
+  /** Writes the given metadata fields (title, series, credits…) of a library entry; resolves with the updated entry, or null if it is gone. */
+  updateMetadata(id: string, update: MetadataUpdate): Promise<LibraryEntry | null>;
+}
+
+/** Book information lookups in public APIs, as `window.tankobon.metadata`. */
+export interface MetadataApi {
+  /** Looks a book up in the public APIs enabled in the settings (Comic Vine, Google Books). */
+  search(query: MetadataQuery): Promise<MetadataSearchResult>;
 }
 
 /** The user's settings, as `window.tankobon.settings`. */
@@ -97,6 +106,8 @@ export interface TankobonApi {
   data: DataApi;
   /** Location of the database file. */
   database: DatabaseApi;
+  /** Book information lookups. */
+  metadata: MetadataApi;
 }
 
 // Mirror of the CHANNELS constants in main/ipc/*.ts (preload cannot import main code). The method
@@ -127,6 +138,7 @@ const api: TankobonApi = {
     updateProgress: (id, currentPage) => ipcRenderer.invoke('library:update-progress', id, currentPage),
     updateRating: (id, rating) => ipcRenderer.invoke('library:update-rating', id, rating),
     updateTags: (id, tags) => ipcRenderer.invoke('library:update-tags', id, tags),
+    updateMetadata: (id, update) => ipcRenderer.invoke('library:update-metadata', id, update),
   },
   settings: {
     getAll: () => ipcRenderer.invoke('settings:get-all'),
@@ -141,6 +153,9 @@ const api: TankobonApi = {
     chooseLocation: () => ipcRenderer.invoke('database:choose-location'),
     resetLocation: () => ipcRenderer.invoke('database:reset-location'),
     relaunch: () => ipcRenderer.invoke('database:relaunch'),
+  },
+  metadata: {
+    search: (query) => ipcRenderer.invoke('metadata:search', query),
   },
 };
 
