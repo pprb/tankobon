@@ -3,7 +3,8 @@ name: Release
 # Keeps a release pull request open on master: version bump in package.json + CHANGELOG.md, built
 # from the Conventional Commits merged since the last release. Merging it tags the release and
 # creates the GitHub release. Requires Settings > Actions > General > "Allow GitHub Actions to
-# create and approve pull requests".
+# create and approve pull requests". Once a release is created, `build` calls build.yml to attach
+# the installers to it.
 on:
   push:
     branches: [master]
@@ -16,8 +17,21 @@ jobs:
   release-please:
     name: release-please
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@v5
+        id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  # A tag created with GITHUB_TOKEN doesn't trigger build.yml's `push: tags`, hence the direct call.
+  build:
+    name: Build
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    uses: ./.github/workflows/build.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag_name }}

@@ -6,7 +6,9 @@ Built with Electron, React 19 and TypeScript.
 
 ## Install
 
-Requires Node.js 22 (see `.nvmrc`).
+Installers for Windows, macOS (Apple silicon) and Linux (`.deb`, `.rpm`) are attached to each [GitHub release](https://github.com/pprb/tankobon/releases).
+
+From source: requires Node.js 22 (see `.nvmrc`).
 
 ```sh
 npm install

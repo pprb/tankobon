@@ -5,6 +5,10 @@
 - Node.js 22, 22.13 or later (see `.nvmrc`; CI uses Node 22 too): Electron Forge 8 requires it. `node:sqlite` is used by the tests, and runs unflagged on recent Node 22 releases.
 - npm (the repository ships a `package-lock.json`).
 
+## Line endings
+
+Every text file uses LF. `.editorconfig` tells editors so, and `.gitattributes` (`* text=auto eol=lf`) makes Git store and check out LF whatever the platform or `core.autocrlf` setting, so a Windows checkout no longer brings CRLF back. After pulling this change into an existing clone, `git add --renormalize .` converts any file still committed with CRLF.
+
 ## Commands
 
 | Command | What it does |
@@ -33,10 +37,11 @@ npx vitest run -t "clamps the current page"
 
 `.github/workflows/ci.yml` runs on every push to `master` and on every pull request, as independent parallel jobs: `lint`, `typecheck`, `test` and `docs` (`npm run docs:build`).
 
-Three other workflows run on GitHub:
+Four other workflows run on GitHub:
 
 - `.github/workflows/docs.yml` builds the documentation and publishes it to GitHub Pages on every push to `master`.
 - `.github/workflows/release-please.yml` maintains a release pull request (version bump + `CHANGELOG.md`) from the Conventional Commits merged into `master`; merging that pull request tags the release.
+- `.github/workflows/build.yml` builds the installers of a release tag (`npm run make`) and attaches them to its GitHub release: Squirrel (`.exe`) on Windows, ZIP on macOS (Apple silicon), `.deb` and `.rpm` on Linux. Each platform builds on its own runner, since only the native `@napi-rs/canvas` package of the machine that ran `npm ci` gets packaged (see [Build gotchas](./architecture.md#build-gotchas)). The job fails if the tag isn't `v` + `package.json`'s version. A tag created by release-please doesn't trigger workflows (it is pushed with the default `GITHUB_TOKEN`), so `release-please.yml` calls `build.yml` itself once it has created a release; the `push: tags` trigger covers a `v*` tag pushed by hand (the release is then created if missing), and `workflow_dispatch` rebuilds an existing tag.
 - `.github/workflows/pr-title.yml` checks that a pull request's title follows the [commit convention](https://github.com/pprb/tankobon/blob/master/CONTRIBUTING.md), since squash-merging turns it into the commit message on `master`.
 
 Dependabot (`.github/dependabot.yml`) opens one pull request a week, titled `ci(deps): bump …`, when the GitHub Actions used by these workflows have new versions.

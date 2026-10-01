@@ -19,6 +19,8 @@ The app follows the standard Electron three-process split, with a strict boundar
 
 Channel-name constants (e.g. `COMIC_CHANNELS`, `LIBRARY_CHANNELS`) live in the main-process IPC files, but the preload can't import them (different process and build target), so the strings are duplicated in `src/preload.ts`. Both sides must be kept in sync by hand; `npm run docs:gen` fails if they diverge, and generates the [IPC reference](./reference/ipc.md).
 
+The shape of `window.tankobon` is declared up front as explicit interfaces (`TankobonApi`, then one per namespace: `ComicApi`, `LibraryApi`…), and the `api` object only implements them. The method descriptions live on those interfaces, once: TypeDoc renders them as the [API reference](./reference/api/preload/interfaces/TankobonApi.md), and `npm run docs:gen` reads the same comments for the IPC reference's description column. A new method needs its signature and TSDoc in the interface, then its implementation in `api`.
+
 Everything is `invoke`/`handle` (request/response), except `library:scan-progress`, the one main → renderer push channel (see [Folder scanning](#folder-scanning)).
 
 Errors that the user should see come back as a `{ status: 'error', message }` member of a result union (`ImportResult`, `DatabaseLocationResult`, `MetadataSearchResult`) rather than as a thrown error: an `ipcMain.handle` rejection reaches the renderer wrapped in "Error invoking remote method …".

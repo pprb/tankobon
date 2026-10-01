@@ -1,6 +1,6 @@
 # 0002. Local storage in a SQLite file through `node:sqlite`
 
-- **Status:** Accepted. Alternatives considered: **to be confirmed**.
+- **Status:** Accepted
 - **Date:** recorded 2026-09-30 (the decision predates this record)
 
 ## Context
@@ -24,4 +24,4 @@ The app needs to remember the library (one entry per comic: path, page count, re
 
 ## Alternatives considered
 
-Not recorded in the code (a native module such as `better-sqlite3`, browser storage, a plain JSON file…): **to be confirmed**.
+None: `node:sqlite` was chosen from the start. Other options (a native module such as `better-sqlite3`, browser storage, a plain JSON file) were not evaluated.

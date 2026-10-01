@@ -24,4 +24,4 @@ The reader, the zoom and the continuous mode all work on page *images* returned 
 ## Alternatives considered
 
 - Bundling both packages with Vite: impossible for the native `.node` binary, and unsafe for pdf.js's `legacy` build (itself a webpack bundle).
-- Other rendering approaches (in the renderer, other libraries): not recorded in the code, **to be confirmed**.
+- No other rendering approach (in the renderer, other libraries) was evaluated.

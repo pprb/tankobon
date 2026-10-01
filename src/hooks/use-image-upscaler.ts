@@ -35,9 +35,11 @@ function cachePut(src: string, dataUrl: string): void {
   cache.set(src, dataUrl);
 }
 
-interface ImageUpscalerResult {
+/** State returned by {@link useImageUpscaler}. */
+export interface ImageUpscalerResult {
   /** Data URL of the AI-upscaled image, or null while disabled/unavailable. */
   upscaledUrl: string | null;
+  /** True while the model is loading or running on the current image. */
   isUpscaling: boolean;
   /** Set when the last attempt failed; the caller falls back to the original image either way. */
   error: string | null;

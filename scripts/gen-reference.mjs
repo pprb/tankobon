@@ -102,35 +102,58 @@ function mainChannels() {
   return channels;
 }
 
+// The descriptions come from the TSDoc of the interfaces typing `api` (`TankobonApi` and the
+// per-namespace interfaces its members point to), the same comments TypeDoc renders.
+function preloadDocs(source, file) {
+  const interfaces = new Map();
+  for (const [, name, body] of source.matchAll(/^export interface (\w+)(?:<[^>]*>)? \{\n([\s\S]*?)^\}/gm)) {
+    const members = new Map();
+    let pendingDoc = [];
+    for (const line of body.split('\n')) {
+      const docLine = line.match(/^\s*\/\*\*\s?(.*?)\s*(\*\/)?$/) ?? (pendingDoc.length && line.match(/^\s*\*\s?(.*?)\s*(\*\/)?$/));
+      if (docLine) {
+        if (docLine[1] && docLine[1] !== '/') pendingDoc.push(docLine[1]);
+        continue;
+      }
+      const member = line.match(/^ {2}(\w+)[<(:]/);
+      if (member) {
+        members.set(member[1], { doc: pendingDoc.join(' ').trim(), type: line.match(/^ {2}\w+: (\w+);$/)?.[1] });
+        pendingDoc = [];
+      }
+    }
+    interfaces.set(name, members);
+  }
+  const root = interfaces.get('TankobonApi');
+  if (!root) {
+    errors.push(`${file}: interface TankobonApi not found`);
+    return new Map();
+  }
+  // namespace → (method → doc)
+  return new Map([...root].map(([namespace, { type }]) => [namespace, interfaces.get(type) ?? new Map()]));
+}
+
 function preloadChannels() {
   const file = 'src/preload.ts';
-  const lines = read(file).split('\n');
+  const source = read(file);
+  const docs = preloadDocs(source, file);
+  const apiStart = source.indexOf('const api: TankobonApi = {');
+  if (apiStart === -1) errors.push(`${file}: \`const api: TankobonApi = {\` not found`);
+  const lines = source.slice(Math.max(apiStart, 0)).split('\n');
   const channels = new Map();
   let namespace = null;
   let method = null;
-  let doc = [];
-  let pendingDoc = [];
   for (const line of lines) {
     const ns = line.match(/^ {2}(\w+): \{$/);
     const fn = line.match(/^ {4}(\w+)(?:: |\()/);
-    const docLine = line.match(/^\s*\/\*\*\s?(.*?)\s*(\*\/)?$/) ?? (pendingDoc.length && line.match(/^\s*\*\s?(.*?)\s*(\*\/)?$/));
-    if (docLine) {
-      pendingDoc.push(docLine[1]);
-      continue;
-    }
     if (ns) {
       namespace = ns[1];
-      pendingDoc = [];
       continue;
     }
-    if (fn && namespace) {
-      method = fn[1];
-      doc = pendingDoc;
-      pendingDoc = [];
-    }
+    if (fn && namespace) method = fn[1];
     const call = line.match(/ipcRenderer\.(invoke|on)\('([^']+)'/);
     if (call && namespace && method) {
-      channels.set(call[2], { method: `window.tankobon.${namespace}.${method}`, doc: doc.join(' ').trim() });
+      const doc = docs.get(namespace)?.get(method)?.doc ?? '';
+      channels.set(call[2], { method: `window.tankobon.${namespace}.${method}`, doc });
     }
   }
   if (channels.size === 0) errors.push(`${file}: no ipcRenderer.invoke/on call found`);
@@ -144,12 +167,12 @@ function generateIpc() {
     if (!preload.has(channel)) errors.push(`IPC channel '${channel}' is declared in ${main.get(channel).file} but not used in src/preload.ts`);
   }
   for (const [channel, { method, doc }] of preload) {
-    if (!doc) errors.push(`src/preload.ts: ${method} ('${channel}') has no /** … */ comment`);
+    if (!doc) errors.push(`src/preload.ts: ${method} ('${channel}') has no /** … */ comment on its interface member`);
     if (!main.has(channel)) errors.push(`IPC channel '${channel}' is used in src/preload.ts but not declared in any src/main/ipc/*.ts *_CHANNELS constant`);
   }
 
   let md = `${HEADER}# IPC channels\n\n`;
-  md += 'Every channel between the renderer and the main process, from the `*_CHANNELS` constants in `src/main/ipc/` and the `window.tankobon` API in `src/preload.ts` (whose type is [`TankobonApi`](./api/preload/type-aliases/TankobonApi.md)).\n\n';
+  md += 'Every channel between the renderer and the main process, from the `*_CHANNELS` constants in `src/main/ipc/` and the `window.tankobon` API in `src/preload.ts` (whose type is [`TankobonApi`](./api/preload/interfaces/TankobonApi.md)).\n\n';
   md += '| Channel | Direction | Preload API | Handler | Description |\n|---|---|---|---|---|\n';
   for (const channel of [...main.keys()].sort()) {
     const { file, ref, direction } = main.get(channel);
