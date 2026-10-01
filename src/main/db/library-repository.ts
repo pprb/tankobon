@@ -360,9 +360,13 @@ export class LibraryRepository {
     });
   }
 
-  /** Removes the entry (and its credits) from the library; the file on disk is left untouched. */
+  /**
+   * Removes the entry (its credits, and its place in the reading lists) from the library; the
+   * file on disk is left untouched.
+   */
   remove(id: string): void {
     this.db.prepare('DELETE FROM credits WHERE library_id = ?').run(id);
+    this.db.prepare('DELETE FROM reading_list_items WHERE library_id = ?').run(id);
     this.db.prepare('DELETE FROM library WHERE id = ?').run(id);
   }
 }

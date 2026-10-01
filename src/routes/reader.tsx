@@ -1,11 +1,23 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { ChevronLeft, ChevronRight, FolderOpen, Loader2, Maximize, Minimize, X, ZoomIn } from 'lucide-react';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import {
+  CheckCheck,
+  ChevronLeft,
+  ChevronRight,
+  FolderOpen,
+  Loader2,
+  Maximize,
+  Minimize,
+  SkipForward,
+  X,
+  ZoomIn,
+} from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useComic } from '@/hooks/use-comic';
 import { useFullscreen } from '@/hooks/use-fullscreen';
 import { useImageUpscaler } from '@/hooks/use-image-upscaler';
+import { useNextInList, type NextInList } from '@/hooks/use-next-in-list';
 import { formatRemainingTime, useReadingPace } from '@/hooks/use-reading-pace';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
@@ -30,11 +42,14 @@ function fitSize(container: Size, natural: Size): Size {
 interface ReaderSearch {
   /** Absolute path of a comic to open automatically, e.g. from the library page. */
   path?: string;
+  /** Id of the reading list the comic was opened from: its next book is offered on the last page. */
+  list?: string;
 }
 
 export const Route = createFileRoute('/reader')({
   validateSearch: (search: Record<string, unknown>): ReaderSearch => ({
     path: typeof search.path === 'string' ? search.path : undefined,
+    list: typeof search.list === 'string' ? search.list : undefined,
   }),
   component: ReaderPage,
 });
@@ -85,6 +100,37 @@ function FullscreenButton({ fullscreen, toggle }: { fullscreen: boolean; toggle:
 }
 
 /**
+ * On a book's last page, when it was opened from a reading list: opens the list's next book, or
+ * says the list is done.
+ */
+function NextInListButton({ nextInList }: { nextInList: NextInList | null }) {
+  const navigate = useNavigate();
+  if (!nextInList) return null;
+  const { listId, listName, next } = nextInList;
+
+  if (!next) {
+    return (
+      <span className="flex items-center gap-1 text-white/60" title={`Liste « ${listName} »`}>
+        <CheckCheck className="size-4" />
+        Liste terminée
+      </span>
+    );
+  }
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={() => navigate({ to: '/reader', search: { path: next.path, list: listId } })}
+      title={`Livre suivant de la liste « ${listName} »`}
+      className="max-w-64"
+    >
+      <SkipForward />
+      <span className="truncate">Suivant : {next.title}</span>
+    </Button>
+  );
+}
+
+/**
  * The reader's top bar. In fullscreen it detaches from the layout and floats over the
  * page, invisible until the mouse reaches the top edge, so the page gets the whole screen.
  */
@@ -127,10 +173,11 @@ function useReaderFullscreen(comicOpen: boolean) {
 }
 
 function ReaderPage() {
-  const { path } = Route.useSearch();
+  const { path, list } = Route.useSearch();
   const { comic, page, pageUrl, error, loading, pickAndOpen, openFile, close, next, prev } = useComic();
   const { settings } = useSettings();
   const { fullscreen, toggle: toggleFullscreen } = useReaderFullscreen(comic !== null);
+  const nextInList = useNextInList(list, comic?.libraryId);
 
   useEffect(() => {
     if (path) void openFile(path);
@@ -172,6 +219,7 @@ function ReaderPage() {
         fullscreen={fullscreen}
         toggleFullscreen={toggleFullscreen}
         background={settings.readerBackground}
+        nextInList={nextInList}
       />
     );
   }
@@ -190,6 +238,7 @@ function ReaderPage() {
       settings={settings}
       fullscreen={fullscreen}
       toggleFullscreen={toggleFullscreen}
+      nextInList={nextInList}
     />
   );
 }
@@ -207,6 +256,7 @@ interface SinglePageReaderProps {
   settings: AppSettings;
   fullscreen: boolean;
   toggleFullscreen: () => void;
+  nextInList: NextInList | null;
 }
 
 function SinglePageReader({
@@ -222,6 +272,7 @@ function SinglePageReader({
   settings,
   fullscreen,
   toggleFullscreen,
+  nextInList,
 }: SinglePageReaderProps) {
   const [zoom, setZoom] = useState<Zoom>('fit');
   const [upscaleEnabled, setUpscaleEnabled] = useState(false);
@@ -363,6 +414,7 @@ function SinglePageReader({
           {page + 1} / {comic.pageCount}
         </span>
         <ReadingProgress percent={percent} remainingMinutes={remainingMinutes} />
+        {isLast && <NextInListButton nextInList={nextInList} />}
         <label className="flex items-center gap-1.5 text-white/60">
           <ZoomIn className="size-4" />
           <span className="sr-only">Zoom</span>
@@ -471,6 +523,7 @@ interface ContinuousReaderProps {
   fullscreen: boolean;
   toggleFullscreen: () => void;
   background: string;
+  nextInList: NextInList | null;
 }
 
 function ContinuousReader({
@@ -482,6 +535,7 @@ function ContinuousReader({
   fullscreen,
   toggleFullscreen,
   background,
+  nextInList,
 }: ContinuousReaderProps) {
   const [visiblePage, setVisiblePage] = useState(comic.resumePage);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -518,6 +572,7 @@ function ContinuousReader({
           {visiblePage + 1} / {comic.pageCount}
         </span>
         <ReadingProgress percent={percent} remainingMinutes={remainingMinutes} />
+        {visiblePage === comic.pageCount - 1 && <NextInListButton nextInList={nextInList} />}
         <Button variant="ghost" size="icon-sm" onClick={pickAndOpen} title="Ouvrir un autre fichier">
           <FolderOpen />
         </Button>

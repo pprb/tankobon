@@ -4,12 +4,14 @@ import started from 'electron-squirrel-startup';
 
 import { openDatabase } from './main/db/database';
 import { LibraryRepository } from './main/db/library-repository';
+import { ReadingListRepository } from './main/db/reading-list-repository';
 import { SettingsRepository } from './main/db/settings-repository';
 import { registerComicIpc } from './main/ipc/comic';
 import { registerDatabaseIpc } from './main/ipc/database';
 import { registerDataIpc } from './main/ipc/data';
 import { registerLibraryIpc } from './main/ipc/library';
 import { registerMetadataIpc } from './main/ipc/metadata';
+import { registerReadingListIpc } from './main/ipc/reading-lists';
 import { registerSettingsIpc } from './main/ipc/settings';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -52,10 +54,12 @@ app.whenReady().then(() => {
   const db = openDatabase();
   const libraryRepo = new LibraryRepository(db);
   const settingsRepo = new SettingsRepository(db);
+  const readingListRepo = new ReadingListRepository(db);
 
   registerLibraryIpc(libraryRepo);
+  registerReadingListIpc(readingListRepo);
   registerSettingsIpc(settingsRepo);
-  registerDataIpc(libraryRepo, settingsRepo);
+  registerDataIpc(libraryRepo, settingsRepo, readingListRepo);
   registerComicIpc(libraryRepo);
   registerDatabaseIpc();
   registerMetadataIpc(settingsRepo);
