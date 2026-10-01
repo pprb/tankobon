@@ -9,6 +9,7 @@ import { registerComicIpc } from './main/ipc/comic';
 import { registerDatabaseIpc } from './main/ipc/database';
 import { registerDataIpc } from './main/ipc/data';
 import { registerLibraryIpc } from './main/ipc/library';
+import { registerMetadataIpc } from './main/ipc/metadata';
 import { registerSettingsIpc } from './main/ipc/settings';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -56,6 +57,7 @@ app.whenReady().then(() => {
   registerDataIpc(libraryRepo, settingsRepo);
   registerComicIpc(libraryRepo);
   registerDatabaseIpc();
+  registerMetadataIpc(settingsRepo);
 
   app.on('will-quit', () => db.close());
 

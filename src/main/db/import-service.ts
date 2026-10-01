@@ -4,7 +4,7 @@
  */
 import { randomUUID } from 'node:crypto';
 
-import type { LibraryEntry } from '../../shared/library';
+import { CREDIT_ROLES, type CreditInput, type CreditRole, type LibraryEntry } from '../../shared/library';
 import { DEFAULT_SETTINGS, type AppSettings } from '../../shared/settings';
 import type { ExportedData } from './export-service';
 import type { LibraryRepository } from './library-repository';
@@ -16,6 +16,31 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function toNumber(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function toNullableString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value : null;
+}
+
+/** Credits with a last name and a known role; the person ids are not kept (people are matched by name). */
+function toCredits(value: unknown): CreditInput[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((credit): CreditInput[] =>
+    isRecord(credit) &&
+    typeof credit.lastName === 'string' &&
+    credit.lastName.trim() !== '' &&
+    CREDIT_ROLES.includes(credit.role as CreditRole)
+      ? [
+          {
+            firstName: typeof credit.firstName === 'string' ? credit.firstName : '',
+            lastName: credit.lastName,
+            role: credit.role as CreditRole,
+          },
+        ]
+      : [],
+  );
 }
 
 function toEntry(value: unknown): LibraryEntry | null {
@@ -37,6 +62,13 @@ function toEntry(value: unknown): LibraryEntry | null {
     fileSize: Math.max(0, Math.trunc(toNumber(value.fileSize, 0))),
     rating: Math.min(5, Math.max(0, Math.trunc(toNumber(value.rating, 0)))),
     tags: Array.isArray(value.tags) ? value.tags.filter((tag): tag is string => typeof tag === 'string') : [],
+    // Exports from before the metadata lookup lack these fields: they come back empty.
+    titleLocked: value.titleLocked === true,
+    series: toNullableString(value.series),
+    volume: toNullableString(value.volume),
+    releaseDate: toNullableString(value.releaseDate),
+    language: toNullableString(value.language),
+    credits: toCredits(value.credits).map((credit) => ({ ...credit, personId: '' })),
   };
 }
 

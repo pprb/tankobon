@@ -16,6 +16,12 @@ function entry(overrides: Partial<LibraryEntry> = {}): LibraryEntry {
     fileSize: 1000,
     rating: 0,
     tags: [],
+    titleLocked: false,
+    series: null,
+    volume: null,
+    releaseDate: null,
+    language: null,
+    credits: [],
     ...overrides,
   };
 }
@@ -43,6 +49,20 @@ describe('filterEntries', () => {
 
   it('keeps everything with no filters', () => {
     expect(ids(EMPTY_FILTERS)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('searches the series and the credited people too', () => {
+    const withMetadata = [
+      entry({ id: 'x', title: 'Le Lotus bleu', series: 'Les Aventures de Tintin' }),
+      entry({
+        id: 'y',
+        title: 'Arctic Nation',
+        credits: [{ personId: 'p', firstName: 'Juanjo', lastName: 'Guarnido', role: 'artist' }],
+      }),
+    ];
+    const search = (text: string) => filterEntries(withMetadata, { ...EMPTY_FILTERS, search: text }).map((e) => e.id);
+    expect(search('aventures')).toEqual(['x']);
+    expect(search('juanjo guarnido')).toEqual(['y']);
   });
 
   it('searches the title ignoring case and accents', () => {

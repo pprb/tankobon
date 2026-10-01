@@ -20,3 +20,17 @@ export function formatFileSize(bytes: number): string {
   const formatted = exponent === 0 ? String(value) : value.toFixed(value < 10 ? 1 : 0);
   return `${formatted.replace('.', ',')} ${FILE_SIZE_UNITS[exponent]}`;
 }
+
+/**
+ * An ISO 639-1 code as a French language name ("fr" → "français"); null for null, the code itself
+ * when the runtime doesn't know it.
+ */
+export function formatLanguage(code: string | null): string | null {
+  if (!code) return null;
+  try {
+    return new Intl.DisplayNames(['fr'], { type: 'language' }).of(code) ?? code;
+  } catch {
+    // `of()` throws a RangeError on a malformed code.
+    return code;
+  }
+}

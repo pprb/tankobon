@@ -27,6 +27,22 @@ export function migrate(db: DatabaseSync): void {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS people (
+      id TEXT PRIMARY KEY,
+      first_name TEXT NOT NULL COLLATE NOCASE DEFAULT '',
+      last_name TEXT NOT NULL COLLATE NOCASE,
+      nationality TEXT,
+      UNIQUE (first_name, last_name)
+    );
+
+    CREATE TABLE IF NOT EXISTS credits (
+      library_id TEXT NOT NULL REFERENCES library (id) ON DELETE CASCADE,
+      person_id TEXT NOT NULL REFERENCES people (id),
+      role TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      PRIMARY KEY (library_id, person_id, role)
+    );
   `);
 
   // Columns added after the initial release: existing databases need them backfilled.
@@ -34,6 +50,11 @@ export function migrate(db: DatabaseSync): void {
   addColumnIfMissing(db, 'library', 'file_size', 'INTEGER NOT NULL DEFAULT 0');
   addColumnIfMissing(db, 'library', 'rating', 'INTEGER NOT NULL DEFAULT 0');
   addColumnIfMissing(db, 'library', 'tags', "TEXT NOT NULL DEFAULT '[]'");
+  addColumnIfMissing(db, 'library', 'title_locked', 'INTEGER NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'library', 'series', 'TEXT');
+  addColumnIfMissing(db, 'library', 'volume', 'TEXT');
+  addColumnIfMissing(db, 'library', 'release_date', 'TEXT');
+  addColumnIfMissing(db, 'library', 'language', 'TEXT');
 }
 
 function addColumnIfMissing(db: DatabaseSync, table: string, column: string, definition: string): void {

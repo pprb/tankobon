@@ -1,6 +1,6 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron';
 
-import type { ScanResult } from '../../shared/library';
+import type { MetadataUpdate, ScanResult } from '../../shared/library';
 import type { LibraryRepository } from '../db/library-repository';
 import { scanIntoLibrary } from '../services/library-scanner';
 
@@ -14,6 +14,7 @@ export const LIBRARY_CHANNELS = {
   updateProgress: 'library:update-progress',
   updateRating: 'library:update-rating',
   updateTags: 'library:update-tags',
+  updateMetadata: 'library:update-metadata',
 } as const;
 
 export function registerLibraryIpc(repo: LibraryRepository): void {
@@ -53,4 +54,8 @@ export function registerLibraryIpc(repo: LibraryRepository): void {
   );
 
   ipcMain.handle(LIBRARY_CHANNELS.updateTags, (_event, id: string, tags: string[]) => repo.updateTags(id, tags));
+
+  ipcMain.handle(LIBRARY_CHANNELS.updateMetadata, (_event, id: string, update: MetadataUpdate) =>
+    repo.updateMetadata(id, update),
+  );
 }

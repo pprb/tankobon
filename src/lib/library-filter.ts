@@ -3,13 +3,17 @@
  * @module
  */
 import type { LibraryEntry } from '@/shared/library';
+import { formatPersonName } from '@/shared/title-parsing';
 
 /** `'all'` means "don't filter on this"; a number keeps entries rated *at least* that many stars. */
 export type RatingFilter = number | 'all';
 
 /** State of the library toolbar. */
 export interface LibraryFilters {
-  /** Free text matched against the title (and the file path, so a folder name finds a series). */
+  /**
+   * Free text matched against the title, the file path (so a folder name finds a series), the
+   * series and the credited people's names.
+   */
   search: string;
   /** Entries must carry *every* selected tag; an empty list doesn't filter. */
   tags: string[];
@@ -45,10 +49,15 @@ function normalize(value: string): string {
     .toLocaleLowerCase();
 }
 
+/** The texts the search box looks into. */
+function searchableTexts(entry: LibraryEntry): string[] {
+  return [entry.title, entry.path, entry.series ?? '', ...entry.credits.map(formatPersonName)];
+}
+
 /** Whether an entry passes the search text, *every* selected tag and the minimum rating. */
 export function matchesFilters(entry: LibraryEntry, filters: LibraryFilters): boolean {
   const search = normalize(filters.search.trim());
-  if (search && !normalize(entry.title).includes(search) && !normalize(entry.path).includes(search)) {
+  if (search && !searchableTexts(entry).some((text) => normalize(text).includes(search))) {
     return false;
   }
   if (!filters.tags.every((tag) => entry.tags.includes(tag))) return false;

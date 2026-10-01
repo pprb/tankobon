@@ -110,6 +110,51 @@ describe('applyImport', () => {
     expect(byPath['/comics/local-only.cbz']).toMatchObject({ title: 'Local' });
   });
 
+  it('round-trips the looked-up metadata and credits through an export', () => {
+    const entry = libraryRepo.touch('/comics/one.cbz', 'One', 20, 22, 123456);
+    libraryRepo.updateMetadata(entry.id, {
+      title: 'Le Lotus bleu',
+      series: 'Tintin',
+      volume: '5',
+      releaseDate: '1936',
+      language: 'fr',
+      credits: [{ firstName: '', lastName: 'Hergé', role: 'author' }],
+    });
+    const raw = JSON.stringify(buildExport(libraryRepo, settingsRepo));
+
+    const target = new LibraryRepository(createDatabase());
+    applyImport(target, new SettingsRepository(createDatabase()), parseExport(raw));
+
+    expect(target.list()[0]).toMatchObject({
+      title: 'Le Lotus bleu',
+      titleLocked: true,
+      series: 'Tintin',
+      volume: '5',
+      releaseDate: '1936',
+      language: 'fr',
+      credits: [{ firstName: '', lastName: 'Hergé', role: 'author' }],
+    });
+  });
+
+  it('drops credits without a last name or with an unknown role', () => {
+    const parsed = parseExport(
+      JSON.stringify({
+        version: 1,
+        library: [
+          {
+            path: '/comics/one.cbz',
+            credits: [
+              { firstName: 'A', lastName: 'Ok', role: 'writer' },
+              { firstName: 'B', lastName: '', role: 'writer' },
+              { firstName: 'C', lastName: 'Bad', role: 'editor' },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(parsed.library[0].credits).toMatchObject([{ lastName: 'Ok', role: 'writer' }]);
+  });
+
   it('replaces the stored settings', () => {
     settingsRepo.set('readingMode', 'continuous');
 

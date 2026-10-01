@@ -24,8 +24,15 @@ describe('migrate', () => {
       'file_size',
       'rating',
       'tags',
+      'title_locked',
+      'series',
+      'volume',
+      'release_date',
+      'language',
     ]);
     expect(columnNames(db, 'settings')).toEqual(['key', 'value']);
+    expect(columnNames(db, 'people')).toEqual(['id', 'first_name', 'last_name', 'nationality']);
+    expect(columnNames(db, 'credits')).toEqual(['library_id', 'person_id', 'role', 'position']);
   });
 
   it('backfills the later columns on a database from the initial release, keeping its rows', () => {
@@ -45,12 +52,16 @@ describe('migrate', () => {
 
     migrate(db);
 
-    expect(db.prepare('SELECT current_page, file_count, file_size, rating, tags FROM library').get()).toEqual({
+    expect(
+      db.prepare('SELECT current_page, file_count, file_size, rating, tags, title_locked, series FROM library').get(),
+    ).toEqual({
       current_page: 5,
       file_count: 0,
       file_size: 0,
       rating: 0,
       tags: '[]',
+      title_locked: 0,
+      series: null,
     });
     expect(columnNames(db, 'settings')).toEqual(['key', 'value']);
   });
@@ -61,7 +72,7 @@ describe('migrate', () => {
     db.exec("INSERT INTO settings VALUES ('theme', '\"dark\"')");
 
     expect(() => migrate(db)).not.toThrow();
-    expect(columnNames(db, 'library')).toHaveLength(11);
+    expect(columnNames(db, 'library')).toHaveLength(16);
     expect(db.prepare('SELECT value FROM settings').get()).toEqual({ value: '"dark"' });
   });
 });

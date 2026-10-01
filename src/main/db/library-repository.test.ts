@@ -105,6 +105,82 @@ describe('LibraryRepository', () => {
     expect(repo.list()[0]).toMatchObject({ title: 'One', pageCount: 20, currentPage: 7, tags: ['Lu'] });
   });
 
+  it('writes only the metadata fields given', () => {
+    const entry = repo.touch('/comics/one.cbz', 'Blacksad_T02', 20, 22, 1000);
+    repo.updateMetadata(entry.id, { series: 'Blacksad', volume: '2' });
+    const updated = repo.updateMetadata(entry.id, { releaseDate: '2003-01', language: 'fr' });
+
+    expect(updated).toMatchObject({
+      title: 'Blacksad_T02',
+      titleLocked: false,
+      series: 'Blacksad',
+      volume: '2',
+      releaseDate: '2003-01',
+      language: 'fr',
+    });
+    expect(repo.updateMetadata(entry.id, { series: null })?.series).toBeNull();
+  });
+
+  it('keeps a title set from metadata when the file is reopened', () => {
+    const entry = repo.touch('/comics/one.cbz', 'Blacksad_T02', 20, 22, 1000);
+    repo.updateMetadata(entry.id, { title: 'Arctic Nation' });
+
+    const reopened = repo.touch('/comics/one.cbz', 'Blacksad_T02', 20, 22, 1000);
+    expect(reopened).toMatchObject({ title: 'Arctic Nation', titleLocked: true });
+  });
+
+  it('returns null when updating the metadata of an unknown entry', () => {
+    expect(repo.updateMetadata('missing', { series: 'X' })).toBeNull();
+  });
+
+  it('replaces the credits, sharing people across books', () => {
+    const one = repo.touch('/comics/one.cbz', 'One', 20, 22, 1000);
+    const two = repo.touch('/comics/two.cbz', 'Two', 20, 22, 1000);
+    repo.updateMetadata(one.id, {
+      credits: [
+        { firstName: 'Juan', lastName: 'Díaz Canales', role: 'writer' },
+        { firstName: 'Juanjo', lastName: 'Guarnido', role: 'artist' },
+        { firstName: 'Juanjo', lastName: 'Guarnido', role: 'colorist' },
+        // Same person and role twice: kept once.
+        { firstName: 'juanjo', lastName: 'GUARNIDO', role: 'artist' },
+        // No last name: dropped.
+        { firstName: 'Nobody', lastName: ' ', role: 'letterer' },
+      ],
+    });
+    repo.updateMetadata(two.id, { credits: [{ firstName: 'Juanjo', lastName: 'Guarnido', role: 'artist' }] });
+
+    const credits = repo.get(one.id)?.credits ?? [];
+    expect(credits.map((c) => [c.lastName, c.role])).toEqual([
+      ['Díaz Canales', 'writer'],
+      ['Guarnido', 'artist'],
+      ['Guarnido', 'colorist'],
+    ]);
+    expect(repo.get(two.id)?.credits[0].personId).toBe(credits[1].personId);
+
+    repo.updateMetadata(one.id, { credits: [] });
+    expect(repo.list().find((e) => e.id === one.id)?.credits).toEqual([]);
+    expect(repo.list().find((e) => e.id === two.id)?.credits).toHaveLength(1);
+  });
+
+  it('keeps metadata and credits when the file is reopened or rescanned', () => {
+    const entry = repo.touch('/comics/one.cbz', 'One', 20, 22, 1000);
+    repo.updateMetadata(entry.id, { series: 'S', credits: [{ firstName: '', lastName: 'Hergé', role: 'author' }] });
+
+    repo.register('/comics/one.cbz', 'One', 20, 22, 1000);
+    const reopened = repo.touch('/comics/one.cbz', 'One', 20, 22, 1000);
+    expect(reopened.series).toBe('S');
+    expect(reopened.credits).toMatchObject([{ firstName: '', lastName: 'Hergé', role: 'author' }]);
+  });
+
+  it('removes an entry along with its credits', () => {
+    const entry = repo.touch('/comics/one.cbz', 'One', 20, 22, 1000);
+    repo.updateMetadata(entry.id, { credits: [{ firstName: '', lastName: 'Hergé', role: 'author' }] });
+    repo.remove(entry.id);
+    expect(repo.list()).toHaveLength(0);
+    // Re-adding the same file starts without the old credits.
+    expect(repo.touch('/comics/one.cbz', 'One', 20, 22, 1000).credits).toEqual([]);
+  });
+
   it('removes an entry', () => {
     const entry = repo.touch('/comics/one.cbz', 'One', 20, 22, 1000);
     repo.remove(entry.id);

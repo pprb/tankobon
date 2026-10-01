@@ -15,6 +15,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
 import { Route as SettingsDataRouteImport } from './routes/settings/data'
+import { Route as SettingsMetadataRouteImport } from './routes/settings/metadata'
 import { Route as SettingsReadingRouteImport } from './routes/settings/reading'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +48,11 @@ const SettingsDataRoute = SettingsDataRouteImport.update({
   path: '/data',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsMetadataRoute = SettingsMetadataRouteImport.update({
+  id: '/metadata',
+  path: '/metadata',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsReadingRoute = SettingsReadingRouteImport.update({
   id: '/reading',
   path: '/reading',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteWithChildren
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/data': typeof SettingsDataRoute
+  '/settings/metadata': typeof SettingsMetadataRoute
   '/settings/reading': typeof SettingsReadingRoute
   '/settings/': typeof SettingsIndexRoute
 }
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/reader': typeof ReaderRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/data': typeof SettingsDataRoute
+  '/settings/metadata': typeof SettingsMetadataRoute
   '/settings/reading': typeof SettingsReadingRoute
   '/settings': typeof SettingsIndexRoute
 }
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteWithChildren
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/data': typeof SettingsDataRoute
+  '/settings/metadata': typeof SettingsMetadataRoute
   '/settings/reading': typeof SettingsReadingRoute
   '/settings/': typeof SettingsIndexRoute
 }
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/settings/appearance'
     | '/settings/data'
+    | '/settings/metadata'
     | '/settings/reading'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/reader'
     | '/settings/appearance'
     | '/settings/data'
+    | '/settings/metadata'
     | '/settings/reading'
     | '/settings'
   id:
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/settings/appearance'
     | '/settings/data'
+    | '/settings/metadata'
     | '/settings/reading'
     | '/settings/'
   fileRoutesById: FileRoutesById
@@ -159,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsDataRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/metadata': {
+      id: '/settings/metadata'
+      path: '/metadata'
+      fullPath: '/settings/metadata'
+      preLoaderRoute: typeof SettingsMetadataRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/reading': {
       id: '/settings/reading'
       path: '/reading'
@@ -172,6 +191,7 @@ declare module '@tanstack/react-router' {
 interface SettingsRouteChildren {
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
   SettingsDataRoute: typeof SettingsDataRoute
+  SettingsMetadataRoute: typeof SettingsMetadataRoute
   SettingsReadingRoute: typeof SettingsReadingRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
@@ -179,6 +199,7 @@ interface SettingsRouteChildren {
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAppearanceRoute: SettingsAppearanceRoute,
   SettingsDataRoute: SettingsDataRoute,
+  SettingsMetadataRoute: SettingsMetadataRoute,
   SettingsReadingRoute: SettingsReadingRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }

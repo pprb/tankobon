@@ -9,7 +9,7 @@ export interface ArchiveInfo {
   id: string;
   /** Absolute path on disk. */
   path: string;
-  /** File name without extension. */
+  /** File name without extension; in `ComicInfo`, the library title (which the user may have changed). */
   title: string;
   /** Page count (image entries only, sorted in reading order). */
   pageCount: number;

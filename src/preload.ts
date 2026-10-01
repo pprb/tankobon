@@ -8,7 +8,8 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 import type { ComicInfo, ComicPage } from './shared/comic';
 import type { DatabaseLocation, DatabaseLocationResult, ImportResult } from './shared/data';
-import type { LibraryEntry, ScanProgress, ScanResult } from './shared/library';
+import type { LibraryEntry, MetadataUpdate, ScanProgress, ScanResult } from './shared/library';
+import type { MetadataQuery, MetadataSearchResult } from './shared/metadata';
 import type { AppSettings } from './shared/settings';
 
 // Mirror of the CHANNELS constants in main/ipc/*.ts (preload cannot import main code).
@@ -52,6 +53,13 @@ const api = {
       ipcRenderer.invoke('library:update-rating', id, rating),
     /** Replaces the tags of a library entry. */
     updateTags: (id: string, tags: string[]): Promise<void> => ipcRenderer.invoke('library:update-tags', id, tags),
+    /** Writes the given metadata fields (title, series, credits…) of a library entry; resolves with the updated entry, or null if it is gone. */
+    updateMetadata: (id: string, update: MetadataUpdate): Promise<LibraryEntry | null> =>
+      ipcRenderer.invoke('library:update-metadata', id, update),
+  },
+  metadata: {
+    /** Looks a book up in the public APIs enabled in the settings (Comic Vine, Google Books). */
+    search: (query: MetadataQuery): Promise<MetadataSearchResult> => ipcRenderer.invoke('metadata:search', query),
   },
   settings: {
     /** Every setting, with defaults for the ones never stored. */
