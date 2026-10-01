@@ -125,6 +125,7 @@ These are the non-obvious constraints of the main-process bundle. Breaking one u
 | `pdfjs-dist` and `@napi-rs/canvas` external | `vite.main.config.mts` | `@napi-rs/canvas` is a native `.node` binary Rollup can't inline; pdf.js's `legacy` build is a foreign webpack bundle Rollup can't safely re-bundle. Being real packages also ships pdf.js's `standard_fonts`/`cmaps` for free. |
 | `hooks.packageAfterCopy` copies `pdfjs-dist`, `@napi-rs/canvas` and the installed `@napi-rs/canvas-<platform>-<arch>` | `forge.config.ts` | The Forge Vite plugin only packages its build output plus `package.json`, never `node_modules`: PDFs fail in the packaged app. Only the platform package matching the machine that ran `npm install` exists, so a package must be built on its target platform. |
 | `AutoUnpackNativesPlugin` | `forge.config.ts` | The native binary would stay inside the asar archive, which can't be `dlopen`ed. |
+| `packagerConfig.executableName` is `tankobon` on Linux | `forge.config.ts` | Packager names the Linux binary after `productName` (`Tankōbon`), while the deb and rpm makers look for `name` (`tankobon`): `npm run make` fails on Linux with "could not find the Electron app binary". |
 
 ## Renderer
 

@@ -48,6 +48,10 @@ function restartOnMainRebuild(): void {
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    // Packager names the Linux binary after `productName` ("Tankōbon"), but the deb and rpm makers
+    // look for one named after `name`: without this, `make` fails on Linux with "could not find
+    // the Electron app binary". Windows and macOS keep their product-named executables.
+    executableName: process.platform === 'linux' ? 'tankobon' : undefined,
   },
   rebuildConfig: {},
   makers: [
