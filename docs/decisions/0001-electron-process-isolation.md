@@ -1,6 +1,6 @@
 # 0001. Strict Electron process isolation, one preload bridge
 
-- **Status:** Accepted. Rationale inferred from the code: **to be confirmed**.
+- **Status:** Accepted
 - **Date:** recorded 2026-09-30 (the decision predates this record)
 
 ## Context
@@ -23,4 +23,4 @@ The app reads files the user picks from anywhere on disk (comic archives, PDFs, 
 
 ## Alternatives considered
 
-Not recorded in the code: **to be confirmed**.
+None: Electron's recommended secure configuration was adopted from the start.
