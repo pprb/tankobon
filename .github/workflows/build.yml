@@ -1,0 +1,90 @@
+name: Build
+
+# Builds the installers (`npm run make`) for a release tag and attaches them to its GitHub release.
+# Each platform builds on its own runner: `@napi-rs/canvas` only installs the native package of
+# the machine running `npm ci` (see forge.config.ts), so a package can't be cross-built.
+#
+# A tag created by release-please (with the default GITHUB_TOKEN) doesn't trigger `push: tags`
+# workflows, so release-please.yml calls this workflow itself once it has created a release. The
+# `push: tags` trigger covers a `v*` tag pushed by hand; `workflow_dispatch` rebuilds an existing
+# tag.
+on:
+  push:
+    tags: ['v*']
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag to build (e.g. v0.2.0).
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build (e.g. v0.2.0).
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  make:
+    name: Make (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # Squirrel installer on Windows, ZIP on macOS (Apple silicon), deb + rpm on Linux.
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Check the tag matches package.json
+        shell: bash
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$version" != "$TAG" ]; then
+            echo "::error::Tag $TAG does not match package.json version $version"
+            exit 1
+          fi
+      - name: Install rpmbuild
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm
+      - run: npm ci
+      - run: npm run make
+      - uses: actions/upload-artifact@v7
+        with:
+          name: make-${{ matrix.os }}
+          path: out/make/
+          if-no-files-found: error
+
+  release:
+    name: Attach to the release
+    needs: make
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: make-*
+          path: dist
+      - name: Upload the installers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            gh release create "$TAG" --verify-tag --title "$TAG" --generate-notes
+          fi
+          find dist -type f -print0 | xargs -0 gh release upload "$TAG" --clobber

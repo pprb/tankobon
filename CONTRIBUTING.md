@@ -56,4 +56,4 @@ echo "feat(reader): add a page thumbnail strip" | npx commitlint
 
 ## Releases
 
-`.github/workflows/release-please.yml` keeps a release pull request open on `master`, updated with every conventional commit merged since the last release: it bumps `package.json`'s version and writes `CHANGELOG.md`. Merging that pull request creates the Git tag and the GitHub release. Building installers is not automated yet.
+`.github/workflows/release-please.yml` keeps a release pull request open on `master`, updated with every conventional commit merged since the last release: it bumps `package.json`'s version and writes `CHANGELOG.md`. Merging that pull request creates the Git tag and the GitHub release. The same workflow then runs `.github/workflows/build.yml`, which builds the installers on Windows, macOS and Linux and attaches them to that release (see [Development](docs/development.md#continuous-integration)).
