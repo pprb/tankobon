@@ -8,6 +8,7 @@ import path from 'node:path';
 import { SUPPORTED_COMIC_EXTENSIONS } from '../../shared/comic';
 import type { ScanProgress } from '../../shared/library';
 import type { LibraryRepository } from '../db/library-repository';
+import type { ComicArchive } from './comic-archive';
 import { openArchive } from './comic-service';
 
 /** Counts reported at the end of `scanIntoLibrary`. */
@@ -58,12 +59,14 @@ export async function collectComicFiles(directory: string): Promise<string[]> {
  * Adds every comic under `directory` to the library. Each file has to be opened to learn its page
  * count — that's the slow part, and why `onProgress` reports file by file. Files already in the
  * library are skipped without being opened, and one unreadable file only costs itself (`failed`),
- * never the rest of the scan.
+ * never the rest of the scan. `onAdded` is given each newly added book's archive while it is still
+ * open (to cache its cover thumbnail); a failure there doesn't count against the file.
  */
 export async function scanIntoLibrary(
   repo: LibraryRepository,
   directory: string,
   onProgress: (progress: ScanProgress) => void,
+  onAdded?: (archive: ComicArchive) => Promise<void>,
 ): Promise<ScanSummary> {
   onProgress({ phase: 'scanning', processed: 0, total: 0, currentFile: directory });
   const files = await collectComicFiles(directory);
@@ -85,6 +88,7 @@ export async function scanIntoLibrary(
         const title = path.basename(filePath, path.extname(filePath));
         repo.register(filePath, title, archive.pages.length, archive.fileCount, size);
         summary.added += 1;
+        await onAdded?.(archive).catch(() => undefined);
       } finally {
         await archive.close();
       }

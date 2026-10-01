@@ -13,7 +13,7 @@ The app follows the standard Electron three-process split, with a strict boundar
 | Renderer | `src/renderer.tsx`, `src/routes/`, `src/hooks/`, `src/components/`, `src/lib/` | React 19 UI; talks to main exclusively through `window.tankobon`. |
 | Shared types | `src/shared/` | Types used on both sides of the IPC boundary (`ComicInfo`, `LibraryEntry`, `AppSettings`…). |
 
-`src/main.ts` opens the database once, builds the two repositories, registers the IPC handlers of `src/main/ipc/*.ts`, then creates the window.
+`src/main.ts` opens the database once, builds the two repositories and the thumbnail cache, registers the IPC handlers of `src/main/ipc/*.ts`, then creates the window.
 
 ### IPC channels
 
@@ -72,6 +72,7 @@ The location can't be an `AppSettings` entry, since the settings are stored *in*
 - `buildExport()` snapshots library + settings as `{ version: 1, exportedAt, library, settings }`, written by `data:export` through a save dialog. The library entries carry their looked-up metadata and credits; the format stays `version: 1`, since those fields are only additions (an older export comes back with them empty). The settings include the metadata API keys.
 - `parseExport()` validates a user-picked file: anything that isn't a `version: 1` export is rejected; broken library entries are dropped, as are credits without a last name or with an unknown role; only known settings keys whose value type matches the default are kept. An export is a file the user can edit, so nothing in it is trusted.
 - `applyImport()` merges it: entries match on **path**, not id (ids aren't stable across machines); the snapshot wins for the entries it contains; entries only present locally are untouched; settings are replaced wholesale.
+- Cover thumbnails are not exported: after `applyImport()`, `data:import` starts `ThumbnailCache.rebuild()` in the background (see [Cover thumbnails](#cover-thumbnails)) and returns without waiting for it.
 
 ## Comic archives (`src/main/services/`)
 
@@ -100,6 +101,16 @@ See [ADR 0004](./decisions/0004-pdf-rendering-pdfjs-napi-canvas.md). `PdfArchive
 - pdf.js references `DOMMatrix`/`Path2D`/`ImageData`/`Image` as bare globals; `pdf-archive.ts` installs `@napi-rs/canvas`'s implementations on `globalThis` once.
 - `page.render()` is given the `canvas` object itself, not just a `canvasContext`.
 - `pdfjs-dist`'s package directory is found with the plain CommonJS `require.resolve('pdfjs-dist/package.json')`, **not** `createRequire(import.meta.url)`: the main bundle is CommonJS, where Rollup rewrites `import.meta.url` to `undefined`, which would crash at module load time (the app would not start at all).
+
+### Cover thumbnails
+
+See [ADR 0007](./decisions/0007-cover-thumbnails-disk-cache.md). `ThumbnailCache` (`thumbnail-cache.ts`) keeps a WebP of each book's first page, shrunk by `renderThumbnail()` (`@napi-rs/canvas`) to fit in 240 × 360 px, as a file in `<userData>/thumbnails/` named after a hash of the book's path (`thumbnailKey()`). It is a pure cache: nothing in the database points at it, it stays in `userData` even when the database is moved, and any missing file is regenerated.
+
+- **Writers**: the folder scan, through `scanIntoLibrary()`'s `onAdded` hook, from the archive it already has open (`storeFromArchive()`); `comic:open`, in the background, from the reader's archive (`ensure(path, readFirstPage)`), so opening a book never waits for its cover; `library:thumbnail`, on demand, opening the file itself when the thumbnail is missing; `rebuild()` after a JSON import.
+- **One queue**: every generation (and `prune()`) is serialized through a promise chain, one book at a time, so a library page asking for hundreds of covers or a rebuild never opens archives in parallel; concurrent requests for the same book share one generation. `rebuild()` awaits each book in turn, so the library page's requests interleave with it instead of waiting for the end.
+- A file that couldn't be opened is remembered for the session (until the next `rebuild()`), so a missing file isn't reopened every time the library is shown. A failure of a given page reader (the reader closed the book meanwhile) is not remembered.
+- Files are written aside then renamed. `prune()` deletes everything that isn't the thumbnail of a library book, temporary files included; it runs at start-up and in `rebuild()`. `library:remove` deletes the book's thumbnail.
+- **Renderer side**: `BookCover` (`src/components/book-cover.tsx`) asks `library.thumbnail(id)` only once its row comes within 400 px of the viewport, and shows the bytes through a `blob:` URL (allowed by the CSP's `img-src`), revoked on unmount.
 
 ## Metadata lookup (`src/main/services/metadata-service.ts`)
 
@@ -151,7 +162,7 @@ The whole library comes from a single `library:list` call and is filtered client
 
 `library:add-folder` opens a directory picker, then `scanIntoLibrary()` (`src/main/services/library-scanner.ts`) walks it recursively for supported files. Unreadable directories are skipped; symlinks are never followed (`Dirent.isDirectory()` is false for them, which also rules out cycles). Learning a page count means opening each file, which is the slow part: progress is pushed file by file over `library:scan-progress`. The renderer subscribes via `library.onScanProgress()` for the whole life of the library page, not around each call, because progress starts as soon as the directory is picked. A file that won't open only counts as `failed`.
 
-Scanned files go through `register()`, never `touch()` (see the table above), and `hasPath()` lets the scanner skip known files without opening them. New rows get `last_opened_at = added_at`, which puts a fresh batch at the top of the list.
+Scanned files go through `register()`, never `touch()` (see the table above), and `hasPath()` lets the scanner skip known files without opening them. Each new file's cover thumbnail is cached while its archive is still open (see [Cover thumbnails](#cover-thumbnails)). New rows get `last_opened_at = added_at`, which puts a fresh batch at the top of the list.
 
 ### Reader (`src/routes/reader.tsx`)
 

@@ -5,6 +5,7 @@ import { dirname } from 'node:path';
 import { SUPPORTED_COMIC_EXTENSIONS } from '../../shared/comic';
 import type { LibraryRepository } from '../db/library-repository';
 import { ComicService } from '../services/comic-service';
+import type { ThumbnailCache } from '../services/thumbnail-cache';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const COMIC_CHANNELS = {
@@ -33,7 +34,7 @@ async function lastOpenedDirectory(libraryRepo: LibraryRepository): Promise<stri
   }
 }
 
-export function registerComicIpc(libraryRepo: LibraryRepository): void {
+export function registerComicIpc(libraryRepo: LibraryRepository, thumbnails: ThumbnailCache): void {
   const service = new ComicService();
 
   ipcMain.handle(COMIC_CHANNELS.pickFile, async (event) => {
@@ -54,6 +55,10 @@ export function registerComicIpc(libraryRepo: LibraryRepository): void {
     const comic = await service.open(filePath);
     const { size } = await stat(comic.path);
     const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
+    // In the background, from the archive just opened: opening the book must not wait for its cover.
+    if (comic.pageCount > 0) {
+      void thumbnails.ensure(comic.path, () => service.readPage(comic.id, 0));
+    }
     // The library title wins over the file name: the user may have set one from a metadata lookup.
     return { ...comic, title: entry.title, libraryId: entry.id, resumePage: entry.currentPage };
   });

@@ -11,6 +11,7 @@ import { registerDataIpc } from './main/ipc/data';
 import { registerLibraryIpc } from './main/ipc/library';
 import { registerMetadataIpc } from './main/ipc/metadata';
 import { registerSettingsIpc } from './main/ipc/settings';
+import { ThumbnailCache } from './main/services/thumbnail-cache';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -52,11 +53,15 @@ app.whenReady().then(() => {
   const db = openDatabase();
   const libraryRepo = new LibraryRepository(db);
   const settingsRepo = new SettingsRepository(db);
+  // A cache, so it stays in userData even when the database lives elsewhere: it is rebuilt from the files.
+  const thumbnails = new ThumbnailCache(path.join(app.getPath('userData'), 'thumbnails'));
+  // Leftovers of another database (its location changed) or of a crash between two writes.
+  void thumbnails.prune(libraryRepo.list().map((entry) => entry.path));
 
-  registerLibraryIpc(libraryRepo);
+  registerLibraryIpc(libraryRepo, thumbnails);
   registerSettingsIpc(settingsRepo);
-  registerDataIpc(libraryRepo, settingsRepo);
-  registerComicIpc(libraryRepo);
+  registerDataIpc(libraryRepo, settingsRepo, thumbnails);
+  registerComicIpc(libraryRepo, thumbnails);
   registerDatabaseIpc();
   registerMetadataIpc(settingsRepo);
 

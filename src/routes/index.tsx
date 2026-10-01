@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { FolderOpen, FolderTree, ScanSearch, Search, Star, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { BookCover } from '@/components/book-cover';
 import { MetadataDialog } from '@/components/metadata-dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -126,6 +127,15 @@ function LibraryPage() {
           {visible.map((entry) => (
             <li key={entry.id} className="flex flex-col gap-2 px-3 py-3">
               <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate({ to: '/reader', search: { path: entry.path } })}
+                  title="Ouvrir"
+                  aria-label={`Ouvrir ${entry.title}`}
+                  className="shrink-0 rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                >
+                  <BookCover entryId={entry.id} title={entry.title} className="h-20 w-14" />
+                </button>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium" title={entry.path}>
                     {entry.title}
