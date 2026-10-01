@@ -16,7 +16,8 @@ if (started) {
   app.quit();
 }
 
-const isDev = !app.isPackaged;
+// Development mode (`npm run dev`, see forge.config.ts): only there are DevTools opened.
+const isDevMode = !app.isPackaged && process.env.TANKOBON_DEV === '1';
 
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
@@ -41,7 +42,7 @@ const createWindow = () => {
     );
   }
 
-  if (isDev) {
+  if (isDevMode) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   }
 };

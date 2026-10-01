@@ -19,7 +19,8 @@ The detailed architecture, including the build gotchas that don't fail the build
 
 ```sh
 npm install
-npm start            # dev mode, HMR on the renderer; regenerates src/routeTree.gen.ts
+npm start            # app from the sources, HMR on the renderer; regenerates src/routeTree.gen.ts
+npm run dev          # same, plus auto-restart on main-process changes and DevTools (development mode)
 npm run lint         # eslint .
 npm run typecheck    # tsc --noEmit
 npm test             # vitest run

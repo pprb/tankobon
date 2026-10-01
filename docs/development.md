@@ -14,7 +14,8 @@ Every text file uses LF. `.editorconfig` tells editors so, and `.gitattributes` 
 | Command | What it does |
 |---|---|
 | `npm install` | Installs dependencies. |
-| `npm start` | `electron-forge start`: runs the app in dev mode, with HMR on the renderer. Also regenerates `src/routeTree.gen.ts`. |
+| `npm start` | `electron-forge start`: runs the app from the sources, with HMR on the renderer. Also regenerates `src/routeTree.gen.ts`. |
+| `npm run dev` | The same, in [development mode](#development-mode): the app also restarts by itself when main-process code changes, and opens DevTools. |
 | `npm run lint` | ESLint (flat config: `typescript-eslint`, `import-x`, `react-hooks`, `react-refresh`). |
 | `npm run typecheck` | `tsc --noEmit`. |
 | `npm test` | Vitest, once (`node` environment, no DOM). |
@@ -32,6 +33,22 @@ Run a single test file or a single test by name with Vitest directly:
 npx vitest run src/main/db/library-repository.test.ts
 npx vitest run -t "clamps the current page"
 ```
+
+## Development mode
+
+`npm run dev` is the command to use while working on the code. What happens on a change depends on the process it belongs to:
+
+| Code changed | Without restarting by hand |
+|---|---|
+| Renderer (`src/routes/`, `src/components/`, `src/hooks/`, `src/lib/`…) | Hot-replaced by Vite (HMR), the page keeps its state when it can. Same with `npm start`. |
+| Preload (`src/preload.ts`) | Rebuilt, then the window reloads. Same with `npm start`. |
+| Main process (`src/main.ts`, `src/main/`, `src/shared/`) | Rebuilt, then the whole app restarts (the window closes and reopens). Only in development mode; with `npm start`, type `rs` in the terminal. |
+
+DevTools open (detached) only in development mode; with `npm start` they stay closed but can still be opened from the *View* menu or with `Ctrl+Shift+I`.
+
+How it's wired: `forge.config.ts` recognizes `npm run dev` from `npm_lifecycle_event` and sets `TANKOBON_DEV=1`, which the Electron app inherits from Forge's process; `src/main.ts` opens DevTools when it is set and the app isn't packaged. The restart is a `postStart` hook watching `.vite/build/main.cjs` and calling Forge's own restart (the one `rs` triggers). The Vite plugin's `hotRestart` option is not used: in Forge 8.0 it has no effect, its watch builds running in a subprocess that never receives it.
+
+A restart kills the app without going through `will-quit`, so the database isn't closed cleanly; SQLite handles that, but a long write (a folder scan) is interrupted.
 
 ## Continuous integration
 

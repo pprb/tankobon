@@ -17,7 +17,8 @@ npm install
 ## Run
 
 ```sh
-npm start          # the app in dev mode, with hot reload of the UI
+npm run dev        # development mode: hot reload of the UI, auto-restart on main-process changes, DevTools
+npm start          # the app from the sources, with hot reload of the UI
 npm test           # unit tests
 npm run make       # installers for the current platform
 ```
