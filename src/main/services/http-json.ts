@@ -1,5 +1,5 @@
 /**
- * The one HTTP helper of the metadata clients: a JSON GET with a timeout and French errors.
+ * The HTTP helpers of the metadata clients: a JSON or HTML GET with a timeout and French errors.
  * @module
  */
 
@@ -13,16 +13,11 @@ export interface HttpOptions {
   timeoutMs: number;
 }
 
-/**
- * GETs `url` and parses its JSON body. Throws `"<source> : …"` (French, shown to the user as is)
- * when the service is unreachable, times out or answers an error. An error response whose JSON
- * carries a Comic Vine `status_code` is returned instead, for the caller to interpret.
- */
-export async function getJson(url: string, options: HttpOptions, source: string): Promise<unknown> {
-  let response: Response;
+/** GETs `url`, turning network failures and timeouts into `"<source> : …"` French errors. */
+async function get(url: string, options: HttpOptions, source: string, accept: string): Promise<Response> {
   try {
-    response = await options.fetch(url, {
-      headers: { Accept: 'application/json', 'User-Agent': options.userAgent },
+    return await options.fetch(url, {
+      headers: { Accept: accept, 'User-Agent': options.userAgent },
       signal: AbortSignal.timeout(options.timeoutMs),
     });
   } catch (error) {
@@ -31,6 +26,15 @@ export async function getJson(url: string, options: HttpOptions, source: string)
     }
     throw new Error(`${source} : impossible de joindre le service.`, { cause: error });
   }
+}
+
+/**
+ * GETs `url` and parses its JSON body. Throws `"<source> : …"` (French, shown to the user as is)
+ * when the service is unreachable, times out or answers an error. An error response whose JSON
+ * carries a Comic Vine `status_code` is returned instead, for the caller to interpret.
+ */
+export async function getJson(url: string, options: HttpOptions, source: string): Promise<unknown> {
+  const response = await get(url, options, source, 'application/json');
 
   let body: unknown;
   try {
@@ -53,4 +57,19 @@ export async function getJson(url: string, options: HttpOptions, source: string)
     throw new Error(`${source} : ${message}`);
   }
   return body;
+}
+
+/**
+ * GETs a web page and returns its HTML. Throws `"<source> : …"` (French) when the site is
+ * unreachable, times out, or answers anything but a success (a missing page is a 404).
+ */
+export async function getHtml(url: string, options: HttpOptions, source: string): Promise<string> {
+  const response = await get(url, options, source, 'text/html');
+  if (response.status === 404) {
+    throw new Error(`${source} : cette page n'existe pas.`);
+  }
+  if (!response.ok) {
+    throw new Error(`${source} : erreur HTTP ${response.status}`);
+  }
+  return response.text();
 }

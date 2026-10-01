@@ -13,7 +13,12 @@ import {
 } from '@/lib/metadata-review';
 import { cn, formatLanguage } from '@/lib/utils';
 import { CREDIT_ROLES, type CreditRole, type LibraryEntry } from '@/shared/library';
-import { METADATA_SOURCE_LABELS, type MetadataCandidate, type MetadataQuery } from '@/shared/metadata';
+import {
+  isBedethequeAlbumUrl,
+  METADATA_SOURCE_LABELS,
+  type MetadataCandidate,
+  type MetadataQuery,
+} from '@/shared/metadata';
 import { formatPersonName, guessQueryFromTitle } from '@/shared/title-parsing';
 
 type Step =
@@ -32,7 +37,8 @@ function initialQuery(entry: LibraryEntry): MetadataQuery {
 
 /**
  * Looks a library entry up in the configured public APIs, lets the user pick the right book among
- * the results, then accept, edit or refuse each proposed change before writing it.
+ * the results, then accept, edit or refuse each proposed change before writing it. A Bédéthèque
+ * album link typed in the search field skips the results and goes straight to the review.
  */
 export function MetadataDialog({
   entry,
@@ -50,16 +56,29 @@ export function MetadataDialog({
   // Only the latest search may update the dialog: an earlier, slower one would show stale results.
   const latestSearch = useRef(0);
 
-  const runSearch = useCallback(async (q: MetadataQuery) => {
-    const id = ++latestSearch.current;
-    const result = await window.tankobon.metadata.search(q);
-    if (id !== latestSearch.current) return;
-    setStep(
-      result.status === 'ok'
-        ? { kind: 'results', candidates: result.candidates, errors: result.errors }
-        : { kind: 'error', message: result.message },
-    );
-  }, []);
+  const runSearch = useCallback(
+    async (q: MetadataQuery) => {
+      const id = ++latestSearch.current;
+      if (isBedethequeAlbumUrl(q.text)) {
+        const result = await window.tankobon.metadata.fromPage(q.text.trim());
+        if (id !== latestSearch.current) return;
+        setStep(
+          result.status === 'ok'
+            ? { kind: 'review', candidates: [result.candidate], review: buildReview(entry, result.candidate) }
+            : { kind: 'error', message: result.message },
+        );
+        return;
+      }
+      const result = await window.tankobon.metadata.search(q);
+      if (id !== latestSearch.current) return;
+      setStep(
+        result.status === 'ok'
+          ? { kind: 'results', candidates: result.candidates, errors: result.errors }
+          : { kind: 'error', message: result.message },
+      );
+    },
+    [entry],
+  );
 
   const search = (q: MetadataQuery) => {
     setStep({ kind: 'searching' });
@@ -104,8 +123,8 @@ export function MetadataDialog({
         }}
       >
         <input
-          aria-label="Titre ou série"
-          placeholder="Titre ou série"
+          aria-label="Titre, série ou lien Bédéthèque"
+          placeholder="Titre, série ou lien d'une fiche Bédéthèque"
           className={cn(INPUT_CLASS, 'min-w-48 flex-1')}
           value={query.text}
           onChange={(event) => setQuery({ ...query, text: event.target.value })}
@@ -119,7 +138,7 @@ export function MetadataDialog({
         />
         <Button type="submit" size="sm" variant="outline" disabled={step.kind === 'searching'}>
           <Search />
-          Rechercher
+          {isBedethequeAlbumUrl(query.text) ? 'Lire la fiche' : 'Rechercher'}
         </Button>
       </form>
 
@@ -127,7 +146,7 @@ export function MetadataDialog({
         {step.kind === 'searching' && (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
-            Recherche en cours…
+            {isBedethequeAlbumUrl(query.text) ? 'Lecture de la fiche…' : 'Recherche en cours…'}
           </p>
         )}
         {step.kind === 'error' && <p className="text-sm whitespace-pre-line text-destructive">{step.message}</p>}
@@ -195,7 +214,8 @@ function CandidateList({
       ))}
       {candidates.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Aucun résultat. Essaie avec le nom de la série seul, ou sans numéro de tome.
+          Aucun résultat. Essaie avec le nom de la série seul, sans numéro de tome, ou colle le lien de la
+          fiche de l'album sur bedetheque.com.
         </p>
       ) : (
         <ul className="flex flex-col divide-y rounded-md border">

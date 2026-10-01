@@ -9,6 +9,7 @@ An ADR records one structural decision: the context, what was decided, and what 
 | [0003](./0003-database-location-pointer-file.md) | Database location in a pointer file, never moved automatically | Accepted |
 | [0004](./0004-pdf-rendering-pdfjs-napi-canvas.md) | PDF pages rasterized in the main process with pdf.js + `@napi-rs/canvas` | Accepted |
 | [0005](./0005-metadata-lookup-public-apis.md) | Book metadata looked up on demand in public APIs, from the main process | Accepted |
+| [0006](./0006-bedetheque-album-page-scraping.md) | Bédéthèque album pages read from a pasted link | Accepted |
 
 These first four ADRs were written after the fact, from the code and its comments, then checked by the maintainer.
 
