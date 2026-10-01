@@ -41,9 +41,5 @@
     "TypeAlias"
   ],
   "treatValidationWarningsAsErrors": true,
-  "treatWarningsAsErrors": true,
-  "intentionallyNotExported": [
-    "api",
-    "ImageUpscalerResult"
-  ]
+  "treatWarningsAsErrors": true
 }
