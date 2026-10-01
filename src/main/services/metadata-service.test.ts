@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS } from '../../shared/settings';
 import { comicVineCredits } from './comic-vine';
 import { googleBooksCandidate } from './google-books';
 import type { HttpOptions } from './http-json';
-import { rankCandidates, searchMetadata } from './metadata-service';
+import { fetchMetadataPage, rankCandidates, searchMetadata } from './metadata-service';
 
 /** A fake `fetch` answering each URL with the first route whose pattern it matches. */
 function fakeFetch(routes: [RegExp, unknown, number?][]) {
@@ -215,5 +215,17 @@ describe('searchMetadata', () => {
       status: 'error',
     });
     expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchMetadataPage', () => {
+  it('returns errors as a result, not as a rejection', async () => {
+    expect(await fetchMetadataPage('https://example.com/', http(fakeFetch([])))).toMatchObject({
+      status: 'error',
+      message: expect.stringMatching(/^Bédéthèque : ce lien n'est pas/),
+    });
+    expect(
+      await fetchMetadataPage('https://www.bedetheque.com/BD-X-1.html', http(fakeFetch([]))),
+    ).toEqual({ status: 'error', message: 'Bédéthèque : impossible de joindre le service.' });
   });
 });

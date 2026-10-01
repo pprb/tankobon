@@ -2,8 +2,9 @@
  * Metadata lookup across the configured public APIs.
  * @module
  */
-import type { MetadataCandidate, MetadataQuery, MetadataSearchResult } from '../../shared/metadata';
+import type { MetadataCandidate, MetadataPageResult, MetadataQuery, MetadataSearchResult } from '../../shared/metadata';
 import type { AppSettings } from '../../shared/settings';
+import { fetchBedethequeAlbum } from './bedetheque';
 import { ComicVineClient } from './comic-vine';
 import { GoogleBooksClient } from './google-books';
 import type { HttpOptions } from './http-json';
@@ -70,4 +71,16 @@ export async function searchMetadata(
     return { status: 'error', message: errors.join('\n') };
   }
   return { status: 'ok', candidates: rankCandidates(candidates, { text, volume }), errors };
+}
+
+/**
+ * Reads a book from the page whose link the user pasted (a Bédéthèque album page, the only kind
+ * supported). Needs no setting: pasting the link is the opt-in.
+ */
+export async function fetchMetadataPage(url: string, http: HttpOptions): Promise<MetadataPageResult> {
+  try {
+    return { status: 'ok', candidate: await fetchBedethequeAlbum(url, http) };
+  } catch (error) {
+    return { status: 'error', message: error instanceof Error ? error.message : String(error) };
+  }
 }

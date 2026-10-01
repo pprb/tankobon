@@ -5,14 +5,36 @@
  */
 import type { CreditInput } from './library';
 
-/** The public APIs a lookup can query. */
-export type MetadataSource = 'comicvine' | 'googlebooks';
+/**
+ * Where a candidate comes from: the public APIs a lookup queries, or a Bédéthèque album page whose
+ * link the user pasted.
+ */
+export type MetadataSource = 'comicvine' | 'googlebooks' | 'bedetheque';
 
 /** Display names of the sources, for the UI. */
 export const METADATA_SOURCE_LABELS: Record<MetadataSource, string> = {
   comicvine: 'Comic Vine',
   googlebooks: 'Google Books',
+  bedetheque: 'Bédéthèque',
 };
+
+/**
+ * Whether `text` is the link of a Bédéthèque album page (`https://www.bedetheque.com/BD-….html`),
+ * which `metadata.fromPage()` can read instead of running a search.
+ */
+export function isBedethequeAlbumUrl(text: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(text.trim());
+  } catch {
+    return false;
+  }
+  return (
+    (url.protocol === 'https:' || url.protocol === 'http:') &&
+    /^(www\.)?bedetheque\.com$/i.test(url.hostname) &&
+    /^\/BD-.+-\d+\.html$/i.test(url.pathname)
+  );
+}
 
 /** What to look for: free text (usually the series or book title) and an optional volume/issue number. */
 export interface MetadataQuery {
@@ -47,4 +69,9 @@ export interface MetadataCandidate {
  */
 export type MetadataSearchResult =
   | { status: 'ok'; candidates: MetadataCandidate[]; errors: string[] }
+  | { status: 'error'; message: string };
+
+/** Outcome of `metadata.fromPage()`: the book read from the page, or a French message. */
+export type MetadataPageResult =
+  | { status: 'ok'; candidate: MetadataCandidate }
   | { status: 'error'; message: string };

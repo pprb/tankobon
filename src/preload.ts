@@ -9,7 +9,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { ComicInfo, ComicPage } from './shared/comic';
 import type { DatabaseLocation, DatabaseLocationResult, ImportResult } from './shared/data';
 import type { LibraryEntry, MetadataUpdate, ScanProgress, ScanResult } from './shared/library';
-import type { MetadataQuery, MetadataSearchResult } from './shared/metadata';
+import type { MetadataPageResult, MetadataQuery, MetadataSearchResult } from './shared/metadata';
 import type { AppSettings } from './shared/settings';
 
 /** Versions of the runtimes the app is running on, as `window.tankobon.versions`. */
@@ -58,6 +58,8 @@ export interface LibraryApi {
 export interface MetadataApi {
   /** Looks a book up in the public APIs enabled in the settings (Comic Vine, Google Books). */
   search(query: MetadataQuery): Promise<MetadataSearchResult>;
+  /** Reads a book from the Bédéthèque album page at `url`, a link the user pasted. */
+  fromPage(url: string): Promise<MetadataPageResult>;
 }
 
 /** The user's settings, as `window.tankobon.settings`. */
@@ -156,6 +158,7 @@ const api: TankobonApi = {
   },
   metadata: {
     search: (query) => ipcRenderer.invoke('metadata:search', query),
+    fromPage: (url) => ipcRenderer.invoke('metadata:from-page', url),
   },
 };
 
