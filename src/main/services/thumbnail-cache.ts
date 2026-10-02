@@ -1,0 +1,190 @@
+/**
+ * Cover thumbnails: the first page of each library book, shrunk and kept on disk so the library
+ * list doesn't have to open every archive each time it is shown.
+ * @module
+ */
+import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { createHash } from 'node:crypto';
+import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
+import type { ComicPage } from '../../shared/comic';
+import type { ComicArchive } from './comic-archive';
+import { openArchive } from './comic-service';
+
+/** Bounding box of a thumbnail, in pixels: about 3× the size the library list shows it at. */
+export const THUMBNAIL_MAX_WIDTH = 240;
+/** See `THUMBNAIL_MAX_WIDTH`. */
+export const THUMBNAIL_MAX_HEIGHT = 360;
+
+const THUMBNAIL_EXTENSION = '.webp';
+const WEBP_QUALITY = 80;
+
+/**
+ * Shrinks an image (any format `@napi-rs/canvas` decodes: JPEG, PNG, WebP, GIF, AVIF…) to fit in
+ * `THUMBNAIL_MAX_WIDTH` × `THUMBNAIL_MAX_HEIGHT`, keeping its aspect ratio and never enlarging it,
+ * and encodes it as WebP.
+ */
+export async function renderThumbnail(image: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
+  const source = await loadImage(Buffer.from(image.buffer, image.byteOffset, image.byteLength));
+  const scale = Math.min(1, THUMBNAIL_MAX_WIDTH / source.width, THUMBNAIL_MAX_HEIGHT / source.height);
+  const width = Math.max(1, Math.round(source.width * scale));
+  const height = Math.max(1, Math.round(source.height * scale));
+  const canvas = createCanvas(width, height);
+  canvas.getContext('2d').drawImage(source, 0, 0, width, height);
+  return new Uint8Array(await canvas.encode('webp', WEBP_QUALITY));
+}
+
+/**
+ * Cache file name of a book: a hash of its path. Keyed by path rather than by library id because
+ * the path is what identifies a book across a JSON import (which can give an entry a new id).
+ */
+export function thumbnailKey(filePath: string): string {
+  return createHash('sha256').update(filePath).digest('hex').slice(0, 32);
+}
+
+/**
+ * The thumbnail cache directory. Every generation goes through a single queue, one book at a time:
+ * a library page asking for hundreds of covers at once, or a rebuild after an import, must not
+ * open hundreds of archives in parallel. Concurrent requests for the same book share one
+ * generation.
+ */
+export class ThumbnailCache {
+  private queue: Promise<unknown> = Promise.resolve();
+  private readonly inFlight = new Map<string, Promise<Uint8Array<ArrayBuffer> | null>>();
+  /** Books whose file couldn't be opened this session, so they aren't reopened on every request. */
+  private readonly failed = new Set<string>();
+
+  constructor(
+    private readonly directory: string,
+    private readonly open: (filePath: string) => Promise<ComicArchive> = openArchive,
+  ) {}
+
+  /** The cached thumbnail of a book, or null when there is none yet. Never generates one. */
+  async read(filePath: string): Promise<Uint8Array<ArrayBuffer> | null> {
+    try {
+      return new Uint8Array(await readFile(this.fileFor(filePath)));
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * The thumbnail of a book, generated and cached first when missing. `readFirstPage` reads the
+   * cover from an archive that is already open (the reader's); without it, the file is opened just
+   * for this. Resolves to null when the book has no image page or can't be read.
+   */
+  ensure(filePath: string, readFirstPage?: () => Promise<ComicPage>): Promise<Uint8Array<ArrayBuffer> | null> {
+    const key = thumbnailKey(filePath);
+    const pending = this.inFlight.get(key);
+    if (pending) {
+      return pending;
+    }
+    const result = this.read(filePath).then((cached) => {
+      if (cached || (!readFirstPage && this.failed.has(key))) {
+        return cached;
+      }
+      return this.enqueue(() => this.generate(filePath, readFirstPage));
+    });
+    this.inFlight.set(key, result);
+    void result.finally(() => this.inFlight.delete(key));
+    return result;
+  }
+
+  /**
+   * Generates the thumbnail of a book from an archive the caller has open (a folder scan), unless it
+   * is already cached. Never throws: a book without a cover only goes without a thumbnail.
+   */
+  async storeFromArchive(archive: ComicArchive): Promise<void> {
+    if (await this.read(archive.path)) {
+      return;
+    }
+    await this.enqueue(() => this.generate(archive.path, () => archive.readPage(0)));
+  }
+
+  /** Deletes the thumbnail of a book (removed from the library); does nothing when there is none. */
+  async remove(filePath: string): Promise<void> {
+    this.failed.delete(thumbnailKey(filePath));
+    await rm(this.fileFor(filePath), { force: true });
+  }
+
+  /**
+   * Deletes every cached file that isn't the thumbnail of one of `filePaths`, including temporary
+   * files left by a crash. Queued like a generation, so it never deletes one being written.
+   */
+  prune(filePaths: readonly string[]): Promise<void> {
+    const keep = new Set(filePaths.map((filePath) => thumbnailKey(filePath) + THUMBNAIL_EXTENSION));
+    return this.enqueue(async () => {
+      let names: string[];
+      try {
+        names = await readdir(this.directory);
+      } catch {
+        return;
+      }
+      await Promise.all(
+        names.filter((name) => !keep.has(name)).map((name) => rm(path.join(this.directory, name), { force: true })),
+      );
+    });
+  }
+
+  /**
+   * Brings the cache in line with the library after a JSON import: drops the thumbnails of books no
+   * longer listed, then generates the missing ones, one book at a time, giving earlier failures a
+   * new chance. Requests made meanwhile (the library page) take their turn between two books
+   * instead of waiting for the whole rebuild.
+   */
+  async rebuild(filePaths: readonly string[]): Promise<void> {
+    this.failed.clear();
+    await this.prune(filePaths);
+    for (const filePath of filePaths) {
+      await this.ensure(filePath);
+    }
+  }
+
+  private fileFor(filePath: string): string {
+    return path.join(this.directory, thumbnailKey(filePath) + THUMBNAIL_EXTENSION);
+  }
+
+  private enqueue<T>(task: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(task, task);
+    this.queue = run.catch(() => undefined);
+    return run;
+  }
+
+  private async generate(
+    filePath: string,
+    readFirstPage?: () => Promise<ComicPage>,
+  ): Promise<Uint8Array<ArrayBuffer> | null> {
+    const key = thumbnailKey(filePath);
+    try {
+      const page = readFirstPage ? await readFirstPage() : await this.readCover(filePath);
+      if (!page) {
+        return null;
+      }
+      const thumbnail = await renderThumbnail(page.data);
+      await mkdir(this.directory, { recursive: true });
+      // Written aside then renamed, so a reader never sees a half-written file.
+      const target = this.fileFor(filePath);
+      const temporary = `${target}.${process.pid}.tmp`;
+      await writeFile(temporary, thumbnail);
+      await rename(temporary, target);
+      this.failed.delete(key);
+      return thumbnail;
+    } catch {
+      // An archive the reader closed meanwhile isn't the book's fault: only remember failures to open it.
+      if (!readFirstPage) {
+        this.failed.add(key);
+      }
+      return null;
+    }
+  }
+
+  private async readCover(filePath: string): Promise<ComicPage | null> {
+    const archive = await this.open(filePath);
+    try {
+      return archive.pages.length > 0 ? await archive.readPage(0) : null;
+    } finally {
+      await archive.close();
+    }
+  }
+}

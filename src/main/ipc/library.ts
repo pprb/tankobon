@@ -3,6 +3,7 @@ import { BrowserWindow, dialog, ipcMain } from 'electron';
 import type { MetadataUpdate, ScanResult } from '../../shared/library';
 import type { LibraryRepository } from '../db/library-repository';
 import { scanIntoLibrary } from '../services/library-scanner';
+import type { ThumbnailCache } from '../services/thumbnail-cache';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const LIBRARY_CHANNELS = {
@@ -15,9 +16,10 @@ export const LIBRARY_CHANNELS = {
   updateRating: 'library:update-rating',
   updateTags: 'library:update-tags',
   updateMetadata: 'library:update-metadata',
+  thumbnail: 'library:thumbnail',
 } as const;
 
-export function registerLibraryIpc(repo: LibraryRepository): void {
+export function registerLibraryIpc(repo: LibraryRepository, thumbnails: ThumbnailCache): void {
   ipcMain.handle(LIBRARY_CHANNELS.list, () => repo.list());
 
   ipcMain.handle(LIBRARY_CHANNELS.addFolder, async (event): Promise<ScanResult> => {
@@ -34,16 +36,27 @@ export function registerLibraryIpc(repo: LibraryRepository): void {
     }
 
     const directory = filePaths[0];
-    const summary = await scanIntoLibrary(repo, directory, (progress) => {
-      // The renderer may be gone (window closed mid-scan); dropping the update is enough.
-      if (!event.sender.isDestroyed()) {
-        event.sender.send(LIBRARY_CHANNELS.scanProgress, progress);
-      }
-    });
+    const summary = await scanIntoLibrary(
+      repo,
+      directory,
+      (progress) => {
+        // The renderer may be gone (window closed mid-scan); dropping the update is enough.
+        if (!event.sender.isDestroyed()) {
+          event.sender.send(LIBRARY_CHANNELS.scanProgress, progress);
+        }
+      },
+      (archive) => thumbnails.storeFromArchive(archive),
+    );
     return { status: 'ok', directory, ...summary };
   });
 
-  ipcMain.handle(LIBRARY_CHANNELS.remove, (_event, id: string) => repo.remove(id));
+  ipcMain.handle(LIBRARY_CHANNELS.remove, async (_event, id: string) => {
+    const entry = repo.get(id);
+    repo.remove(id);
+    if (entry) {
+      await thumbnails.remove(entry.path);
+    }
+  });
 
   ipcMain.handle(LIBRARY_CHANNELS.updateProgress, (_event, id: string, currentPage: number) =>
     repo.updateProgress(id, currentPage),
@@ -54,6 +67,13 @@ export function registerLibraryIpc(repo: LibraryRepository): void {
   );
 
   ipcMain.handle(LIBRARY_CHANNELS.updateTags, (_event, id: string, tags: string[]) => repo.updateTags(id, tags));
+
+  // Generated on the spot when missing: books added before thumbnails existed, or by an import
+  // whose rebuild hasn't reached them yet.
+  ipcMain.handle(LIBRARY_CHANNELS.thumbnail, (_event, id: string) => {
+    const entry = repo.get(id);
+    return entry ? thumbnails.ensure(entry.path) : null;
+  });
 
   ipcMain.handle(LIBRARY_CHANNELS.updateMetadata, (_event, id: string, update: MetadataUpdate) =>
     repo.updateMetadata(id, update),

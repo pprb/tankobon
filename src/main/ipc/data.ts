@@ -7,6 +7,7 @@ import { applyImport, parseExport } from '../db/import-service';
 import type { LibraryRepository } from '../db/library-repository';
 import type { ReadingListRepository } from '../db/reading-list-repository';
 import type { SettingsRepository } from '../db/settings-repository';
+import type { ThumbnailCache } from '../services/thumbnail-cache';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const DATA_CHANNELS = {
@@ -18,6 +19,7 @@ export function registerDataIpc(
   libraryRepo: LibraryRepository,
   settingsRepo: SettingsRepository,
   readingListRepo: ReadingListRepository,
+  thumbnails: ThumbnailCache,
 ): void {
   ipcMain.handle(DATA_CHANNELS.export, async (event) => {
     const window = BrowserWindow.fromWebContents(event.sender);
@@ -54,7 +56,11 @@ export function registerDataIpc(
 
     try {
       const data = parseExport(await readFile(filePaths[0], 'utf-8'));
-      return { status: 'imported', filePath: filePaths[0], ...applyImport(libraryRepo, settingsRepo, readingListRepo, data) };
+      const counts = applyImport(libraryRepo, settingsRepo, readingListRepo, data);
+      // Thumbnails aren't part of an export: rebuild the cache in the background, without making
+      // the import wait for every archive to be opened.
+      void thumbnails.rebuild(libraryRepo.list().map((entry) => entry.path));
+      return { status: 'imported', filePath: filePaths[0], ...counts };
     } catch (error) {
       return { status: 'error', message: error instanceof Error ? error.message : String(error) };
     }
