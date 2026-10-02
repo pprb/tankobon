@@ -7,8 +7,11 @@ import { notifyReadingListsChanged } from '@/hooks/use-reading-lists';
 import type { LibraryEntry } from '@/shared/library';
 import { MAX_READING_LIST_SIZE, type ReadingList, type ReadingListResult } from '@/shared/reading-list';
 
-/** Same order as `readingLists.list()`: oldest first. */
-const byCreation = (a: ReadingList, b: ReadingList) => a.createdAt.localeCompare(b.createdAt);
+/** Puts a changed list back in place, or a new one last: the same order as `readingLists.list()`. */
+const withList = (lists: ReadingList[], changed: ReadingList) =>
+  lists.some((list) => list.id === changed.id)
+    ? lists.map((list) => (list.id === changed.id ? changed : list))
+    : [...lists, changed];
 
 /**
  * Puts a library entry in reading lists, or takes it out: one checkbox per list, plus a field
@@ -29,7 +32,7 @@ export function AddToListDialog({ entry, onClose }: { entry: LibraryEntry; onClo
       return null;
     }
     setError(null);
-    setLists((prev) => [...(prev ?? []).filter((list) => list.id !== result.list.id), result.list].sort(byCreation));
+    setLists((prev) => withList(prev ?? [], result.list));
     return result.list;
   };
 

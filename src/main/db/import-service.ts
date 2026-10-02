@@ -139,8 +139,9 @@ export function parseExport(raw: string): ExportedData {
  * Merges a parsed snapshot into the local database: library entries are matched by file path
  * (the snapshot wins for the ones it contains, so restoring a backup restores its progress,
  * ratings and tags), entries only present locally are left alone, and settings are replaced.
- * Reading lists are matched by id, the snapshot winning too; their books are found by path, and
- * a path that matches no library entry is dropped.
+ * Reading lists are matched by id, the snapshot winning too (their order included: the snapshot's
+ * lists come first, in its order); their books are found by path, and a path that matches no
+ * library entry is dropped.
  */
 export function applyImport(
   libraryRepo: LibraryRepository,
@@ -166,6 +167,12 @@ export function applyImport(
       entryIds: list.paths.flatMap((p) => idByPath.get(p) ?? []),
     });
   }
+  // The snapshot's lists in its order, then the ones only present locally, in theirs.
+  const imported = new Set(data.readingLists.map((list) => list.id));
+  readingListRepo.reorderLists([
+    ...imported,
+    ...readingListRepo.list().flatMap((list) => (imported.has(list.id) ? [] : [list.id])),
+  ]);
   for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof AppSettings)[]) {
     settingsRepo.set(key, data.settings[key]);
   }

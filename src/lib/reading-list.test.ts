@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { LibraryEntry } from '@/shared/library';
 
-import { isFinished, listEntries, listProgress, moveUnfinished, nextToRead } from './reading-list';
+import { isFinished, listEntries, listProgress, moveItem, moveUnfinished, nextToRead } from './reading-list';
 
 function entry(id: string, overrides: Partial<LibraryEntry> = {}): LibraryEntry {
   return {
@@ -84,5 +84,21 @@ describe('moveUnfinished', () => {
     expect(moveUnfinished(['a', 'b'], finished, 1, 1)).toBeNull();
     expect(moveUnfinished(['a', 'b'], finished, 0, 2)).toBeNull();
     expect(moveUnfinished(['a', 'b'], finished, -1, 0)).toBeNull();
+  });
+});
+
+describe('moveItem', () => {
+  it('moves an item down or up, shifting the ones in between', () => {
+    expect(moveItem(['a', 'b', 'c', 'd'], 0, 2)).toEqual(['b', 'c', 'a', 'd']);
+    expect(moveItem(['a', 'b', 'c', 'd'], 3, 1)).toEqual(['a', 'd', 'b', 'c']);
+    expect(moveItem(['a', 'b'], 1, 0)).toEqual(['b', 'a']);
+  });
+
+  it('refuses a no-op or out-of-range move, leaving the input alone', () => {
+    const items = ['a', 'b', 'c'];
+    expect(moveItem(items, 1, 1)).toBeNull();
+    expect(moveItem(items, -1, 0)).toBeNull();
+    expect(moveItem(items, 0, 3)).toBeNull();
+    expect(items).toEqual(['a', 'b', 'c']);
   });
 });

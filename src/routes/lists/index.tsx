@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { ReadingListProgress } from '@/components/reading-list-progress';
 import { Button } from '@/components/ui/button';
-import { notifyReadingListsChanged } from '@/hooks/use-reading-lists';
+import { notifyReadingListsChanged, onReadingListsChanged } from '@/hooks/use-reading-lists';
 import { listEntries, listProgress, nextToRead } from '@/lib/reading-list';
 import type { LibraryEntry } from '@/shared/library';
 import { MAX_READING_LIST_SIZE, type ReadingList } from '@/shared/reading-list';
@@ -29,8 +29,10 @@ function ReadingListsPage() {
     );
   }, []);
 
+  // Also reloads when the lists change elsewhere, e.g. reordered from the sidebar.
   useEffect(() => {
     refresh();
+    return onReadingListsChanged(refresh);
   }, [refresh]);
 
   const create = async () => {
@@ -41,14 +43,12 @@ function ReadingListsPage() {
     }
     setError(null);
     setNewName('');
-    refresh();
     notifyReadingListsChanged();
   };
 
   const remove = async (list: ReadingList) => {
     if (!window.confirm(`Supprimer la liste « ${list.name} » ? Les livres restent dans la bibliothèque.`)) return;
     await window.tankobon.readingLists.remove(list.id);
-    refresh();
     notifyReadingListsChanged();
   };
 

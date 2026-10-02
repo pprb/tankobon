@@ -68,6 +68,8 @@ export function migrate(db: DatabaseSync): void {
   addColumnIfMissing(db, 'library', 'volume', 'TEXT');
   addColumnIfMissing(db, 'library', 'release_date', 'TEXT');
   addColumnIfMissing(db, 'library', 'language', 'TEXT');
+  // Existing lists all get 0: `list()` then falls back to their creation order, as before.
+  addColumnIfMissing(db, 'reading_lists', 'position', 'INTEGER NOT NULL DEFAULT 0');
 }
 
 function addColumnIfMissing(db: DatabaseSync, table: string, column: string, definition: string): void {

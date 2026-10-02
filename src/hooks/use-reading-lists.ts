@@ -11,14 +11,23 @@ const CHANGED = 'changed';
 
 /**
  * Tells every mounted {@link useReadingLists} to reload. Call it after creating, renaming or
- * deleting a list (or importing data), so the sidebar doesn't keep showing stale names.
+ * deleting a list (reordering them, importing data), so the sidebar doesn't keep showing stale names.
  */
 export function notifyReadingListsChanged() {
   changes.dispatchEvent(new Event(CHANGED));
 }
 
 /**
- * Loads the reading lists (oldest first), and reloads them on {@link notifyReadingListsChanged}.
+ * Calls `listener` on every {@link notifyReadingListsChanged}, for views that load the lists
+ * along with something else. Returns the unsubscribe function.
+ */
+export function onReadingListsChanged(listener: () => void): () => void {
+  changes.addEventListener(CHANGED, listener);
+  return () => changes.removeEventListener(CHANGED, listener);
+}
+
+/**
+ * Loads the reading lists (in the user's order), and reloads them on {@link notifyReadingListsChanged}.
  * `null` until the first load.
  */
 export function useReadingLists(): ReadingList[] | null {

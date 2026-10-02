@@ -101,7 +101,31 @@ describe('ReadingListRepository', () => {
     expect(lists.upsert({ ...list, name: 'Restaurée', entryIds: [ids[2], ids[1], ids[2]] })).toBe('updated');
     expect(lists.get(list.id)).toMatchObject({ name: 'Restaurée', entryIds: [ids[2], ids[1]] });
     expect(lists.upsert({ id: 'other', name: 'Autre', createdAt: '2024-01-01', entryIds: [] })).toBe('created');
-    expect(lists.list().map((l) => l.name)).toEqual(['Autre', 'Restaurée']);
+    // A new list goes last, whatever its creation date; the import then applies the snapshot's order.
+    expect(lists.list().map((l) => l.name)).toEqual(['Restaurée', 'Autre']);
+  });
+
+  it('lists the lists in the stored order, new ones last', () => {
+    const [a, b, c] = ['A', 'B', 'C'].map((name) => okList(lists.create(name)).id);
+    expect(lists.reorderLists([c, a, b])).toMatchObject({ status: 'ok', lists: [{ id: c }, { id: a }, { id: b }] });
+    const d = okList(lists.create('D')).id;
+    expect(lists.list().map((l) => l.id)).toEqual([c, a, b, d]);
+    lists.remove(a);
+    expect(okList(lists.create('E')).name).toBe('E');
+    expect(lists.list().map((l) => l.name)).toEqual(['C', 'B', 'D', 'E']);
+  });
+
+  it('refuses a stale order of the lists', () => {
+    const [a, b] = ['A', 'B'].map((name) => okList(lists.create(name)).id);
+    for (const order of [[a], [a, b, 'other'], [a, a], [b, 'other']]) {
+      expect(lists.reorderLists(order)).toMatchObject({ status: 'error' });
+    }
+    expect(lists.list().map((l) => l.id)).toEqual([a, b]);
+  });
+
+  it('keeps the creation order for lists stored before they could be reordered', () => {
+    db.exec(`INSERT INTO reading_lists (id, name, created_at) VALUES ('new', 'Récente', '2025-01-01'), ('old', 'Ancienne', '2024-01-01')`);
+    expect(lists.list().map((l) => l.id)).toEqual(['old', 'new']);
   });
 
   it('clears the library and the lists, people included', () => {

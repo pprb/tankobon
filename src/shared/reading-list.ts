@@ -25,3 +25,9 @@ export interface ReadingList {
  * not a thrown error.
  */
 export type ReadingListResult = { status: 'ok'; list: ReadingList } | { status: 'error'; message: string };
+
+/**
+ * Outcome of reordering the reading lists themselves: every list in its new order, or a French
+ * message when the order is stale (a list was created or deleted in the meantime).
+ */
+export type ReadingListOrderResult = { status: 'ok'; lists: ReadingList[] } | { status: 'error'; message: string };

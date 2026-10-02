@@ -4,8 +4,9 @@ import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useFullscreen } from '@/hooks/use-fullscreen';
-import { useReadingLists } from '@/hooks/use-reading-lists';
+import { notifyReadingListsChanged, useReadingLists } from '@/hooks/use-reading-lists';
 import { useSettings } from '@/hooks/use-settings';
+import { moveItem } from '@/lib/reading-list';
 import { SETTINGS_SECTIONS } from '@/lib/settings-nav';
 import { cn } from '@/lib/utils';
 
@@ -136,7 +137,8 @@ function SettingsNav({ collapsed }: { collapsed: boolean }) {
 /**
  * "Listes de lecture" with each list underneath, for direct access. Unlike "Paramètres", the entry
  * has its own page (every list's progress), so its label always navigates there, unfolding the
- * lists on the way; only the chevron folds them back.
+ * lists on the way; only the chevron folds them back. The lists can be reordered by dragging
+ * them, which sets their order everywhere they are shown.
  */
 function ReadingListsNav({ collapsed }: { collapsed: boolean }) {
   const onLists = useRouterState({
@@ -146,6 +148,19 @@ function ReadingListsNav({ collapsed }: { collapsed: boolean }) {
   // Starts unfolded when the app is already on a list page (e.g. after a reload).
   const [open, setOpen] = useState(onLists);
   const unfolded = open && !collapsed;
+  // Index of the list being dragged, and of the one under the pointer (where it would land).
+  const [dragged, setDragged] = useState<number | null>(null);
+  const [over, setOver] = useState<number | null>(null);
+
+  const drop = async (to: number) => {
+    const order = lists && dragged !== null ? moveItem(lists.map((list) => list.id), dragged, to) : null;
+    setDragged(null);
+    setOver(null);
+    if (!order) return;
+    // A refused (stale) order needs no message: reloading shows the lists as they are.
+    await window.tankobon.readingLists.reorderLists(order);
+    notifyReadingListsChanged();
+  };
 
   return (
     <>
@@ -176,12 +191,37 @@ function ReadingListsNav({ collapsed }: { collapsed: boolean }) {
         (lists.length === 0 ? (
           <p className="ml-4 px-2 py-1.5 text-xs text-muted-foreground">Aucune liste</p>
         ) : (
-          lists.map((list) => (
+          lists.map((list, index) => (
             <Link
               key={list.id}
               to="/lists/$listId"
               params={{ listId: list.id }}
-              className={subLinkClass}
+              draggable
+              onDragStart={(event) => {
+                event.dataTransfer.effectAllowed = 'move';
+                setDragged(index);
+              }}
+              onDragEnd={() => {
+                setDragged(null);
+                setOver(null);
+              }}
+              onDragOver={(event) => {
+                if (dragged === null) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                setOver(index);
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                void drop(index);
+              }}
+              className={cn(
+                subLinkClass,
+                dragged === index && 'opacity-30',
+                // A line on the side the dragged list would land: above when moving up, below when moving down.
+                dragged !== null && over === index && dragged > index && 'shadow-[inset_0_2px_0_0_var(--color-primary)]',
+                dragged !== null && over === index && dragged < index && 'shadow-[inset_0_-2px_0_0_var(--color-primary)]',
+              )}
               activeProps={{ className: activeLinkClass }}
               title={list.name}
             >
