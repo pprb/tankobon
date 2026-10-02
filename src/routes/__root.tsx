@@ -1,9 +1,10 @@
 import { Link, Outlet, createRootRoute, useRouterState } from '@tanstack/react-router';
-import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, Library, ListOrdered, Settings } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, Library, List, ListOrdered, Settings } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useFullscreen } from '@/hooks/use-fullscreen';
+import { useReadingLists } from '@/hooks/use-reading-lists';
 import { useSettings } from '@/hooks/use-settings';
 import { SETTINGS_SECTIONS } from '@/lib/settings-nav';
 import { cn } from '@/lib/utils';
@@ -27,6 +28,9 @@ const linkClass = (collapsed: boolean) =>
 
 const activeLinkClass = 'bg-sidebar-accent text-sidebar-accent-foreground';
 
+/** A sub-entry under a foldable sidebar entry (settings sections, reading lists). */
+const subLinkClass = cn(linkClass(false), 'ml-4 gap-2 text-xs');
+
 function RootLayout() {
   const { settings, update } = useSettings();
   const collapsed = settings.sidebarCollapsed;
@@ -38,7 +42,7 @@ function RootLayout() {
     <div className="flex h-full">
       <aside
         className={cn(
-          'flex shrink-0 flex-col gap-1 border-r bg-sidebar p-3 text-sidebar-foreground transition-[width] duration-150',
+          'flex shrink-0 flex-col gap-1 overflow-y-auto border-r bg-sidebar p-3 text-sidebar-foreground transition-[width] duration-150',
           collapsed ? 'w-14 items-center' : 'w-56',
           fullscreen && 'hidden',
         )}
@@ -54,8 +58,11 @@ function RootLayout() {
             {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
           </Button>
         </div>
-        {nav.map(({ to, label, icon: Icon }) => (
-          <Link
+        {nav.map(({ to, label, icon: Icon }) =>
+          to === '/lists' ? (
+            <ReadingListsNav key={to} collapsed={collapsed} />
+          ) : (
+            <Link
             key={to}
             to={to}
             className={linkClass(collapsed)}
@@ -66,7 +73,8 @@ function RootLayout() {
             <Icon className="size-4" />
             {!collapsed && label}
           </Link>
-        ))}
+          ),
+        )}
         <SettingsNav collapsed={collapsed} />
       </aside>
       <main className="flex-1 overflow-auto">
@@ -114,12 +122,73 @@ function SettingsNav({ collapsed }: { collapsed: boolean }) {
           <Link
             key={to}
             to={to}
-            className={cn(linkClass(false), 'ml-4 gap-2 text-xs')}
+            className={subLinkClass}
             activeProps={{ className: activeLinkClass }}
           >
             <Icon className="size-3.5" />
             {label}
           </Link>
+        ))}
+    </>
+  );
+}
+
+/**
+ * "Listes de lecture" with each list underneath, for direct access. Unlike "Paramètres", the entry
+ * has its own page (every list's progress), so its label always navigates there, unfolding the
+ * lists on the way; only the chevron folds them back.
+ */
+function ReadingListsNav({ collapsed }: { collapsed: boolean }) {
+  const onLists = useRouterState({
+    select: (state) => state.location.pathname.startsWith('/lists'),
+  });
+  const lists = useReadingLists();
+  // Starts unfolded when the app is already on a list page (e.g. after a reload).
+  const [open, setOpen] = useState(onLists);
+  const unfolded = open && !collapsed;
+
+  return (
+    <>
+      <div className={cn(linkClass(collapsed), 'p-0', onLists && activeLinkClass)}>
+        <Link
+          to="/lists"
+          className={cn('flex min-w-0 flex-1 items-center gap-2 py-1.5', collapsed ? 'justify-center px-2' : 'pl-2')}
+          onClick={() => setOpen(true)}
+          title={collapsed ? 'Listes de lecture' : undefined}
+        >
+          <ListOrdered className="size-4" />
+          {!collapsed && <span className="truncate">Listes de lecture</span>}
+        </Link>
+        {!collapsed && (
+          <button
+            type="button"
+            className="self-stretch px-2"
+            onClick={() => setOpen(!unfolded)}
+            title={unfolded ? 'Masquer les listes de lecture' : 'Afficher les listes de lecture'}
+            aria-expanded={unfolded}
+          >
+            <ChevronDown className={cn('size-4 transition-transform', !unfolded && '-rotate-90')} />
+          </button>
+        )}
+      </div>
+      {unfolded &&
+        lists !== null &&
+        (lists.length === 0 ? (
+          <p className="ml-4 px-2 py-1.5 text-xs text-muted-foreground">Aucune liste</p>
+        ) : (
+          lists.map((list) => (
+            <Link
+              key={list.id}
+              to="/lists/$listId"
+              params={{ listId: list.id }}
+              className={subLinkClass}
+              activeProps={{ className: activeLinkClass }}
+              title={list.name}
+            >
+              <List className="size-3.5 shrink-0" />
+              <span className="truncate">{list.name}</span>
+            </Link>
+          ))
         ))}
     </>
   );

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { SettingsSection } from '@/components/settings-section';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { notifyReadingListsChanged } from '@/hooks/use-reading-lists';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
 import type { DatabaseLocation } from '@/shared/data';
@@ -72,6 +73,8 @@ function DataSettingsPage() {
     }
     // The import wrote settings straight to the database; pull them back into the form.
     await reload();
+    // It also replaced the reading lists the sidebar shows.
+    notifyReadingListsChanged();
     setDataStatus({
       message: `${result.added} BD ajoutée(s), ${result.updated} mise(s) à jour et paramètres restaurés depuis ${result.filePath}`,
     });
@@ -90,6 +93,8 @@ function DataSettingsPage() {
     setClearing(true);
     try {
       const result = await window.tankobon.data.clearLibrary();
+      // The reading lists are gone too: the sidebar must stop showing them.
+      notifyReadingListsChanged();
       setClearStatus(
         `Bibliothèque effacée : ${result.entries} BD et ${result.readingLists} liste(s) de lecture retirée(s).`,
       );

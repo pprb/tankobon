@@ -39,6 +39,8 @@ Tankōbon is a library manager and reader for digital comics, BD and manga. It o
 
 The button at the top of the sidebar collapses it to a column of icons, to give more room to the reader. The state is remembered like the other settings.
 
+"Listes de lecture" lists every reading list underneath it, for direct access to a list's page. Clicking "Listes de lecture" opens the page of all lists and unfolds them; its chevron folds or unfolds them without leaving the current page. "Paramètres" unfolds its sections the same way. Sub-entries are hidden while the sidebar is collapsed to icons.
+
 ## Your data
 
 - **Local only**: the library and the settings are stored in one SQLite file, `tankobon.db`. By default it lives in the app's user data directory; nothing is sent to the cloud. Cover thumbnails are a cache in a `thumbnails` folder of the user data directory; they stay there even when the database is moved, and can be deleted at any time. The only network requests are the information lookups the user starts, which send the search text to the enabled sources.

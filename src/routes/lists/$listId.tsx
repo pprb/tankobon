@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ReadingListProgress } from '@/components/reading-list-progress';
 import { Button } from '@/components/ui/button';
+import { notifyReadingListsChanged } from '@/hooks/use-reading-lists';
 import { isFinished, listEntries, listProgress, moveUnfinished, nextToRead } from '@/lib/reading-list';
 import { cn } from '@/lib/utils';
 import type { LibraryEntry } from '@/shared/library';
@@ -84,11 +85,13 @@ function ReadingListPage() {
     if (renaming === null) return;
     apply(await window.tankobon.readingLists.rename(list.id, renaming));
     setRenaming(null);
+    notifyReadingListsChanged();
   };
 
   const removeList = async () => {
     if (!window.confirm(`Supprimer la liste « ${list.name} » ? Les livres restent dans la bibliothèque.`)) return;
     await window.tankobon.readingLists.remove(list.id);
+    notifyReadingListsChanged();
     void navigate({ to: '/lists' });
   };
 
