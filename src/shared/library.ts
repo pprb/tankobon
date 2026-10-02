@@ -24,8 +24,9 @@ export interface LibraryEntry {
   /** Free-form user labels, e.g. "Lu", "À lire". */
   tags: string[];
   /**
-   * Whether `title` was set by the user (accepted from a metadata lookup) rather than derived from
-   * the file name. A locked title survives reopening the file, which otherwise refreshes it.
+   * Whether `title` was set by the user (accepted from a metadata lookup or typed in the edit form)
+   * rather than derived from the file name. A locked title survives reopening the file, which
+   * otherwise refreshes it.
    */
   titleLocked: boolean;
   /** Series the book belongs to ("Tintin", "X-Men"), null when unknown or a one-shot. */
