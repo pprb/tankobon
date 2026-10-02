@@ -129,6 +129,7 @@ All `node-unrar-js` extractors share a single wasm module, and each `createExtra
 
 See [ADR 0004](./decisions/0004-pdf-rendering-pdfjs-napi-canvas.md). `PdfArchive` rasterizes each page on demand at a fixed `RENDER_SCALE` of 200/72 (~200 DPI) through `pdfjs-dist`'s `legacy` build, returning PNG bytes.
 
+- **Page size ceiling**: a PDF can declare a page of thousands of points per side in a few hundred bytes, and the continuous mode renders several pages at once. `pageRenderScale()` therefore lowers the scale below `RENDER_SCALE` so that a page never exceeds `MAX_PAGE_PIXELS` (40 megapixels), computed from the page's size at scale 1. Likewise `CbzArchive.readPage()` refuses an entry whose declared size is above `MAX_ENTRY_SIZE` (200 MB) with a translated error.
 - pdf.js references `DOMMatrix`/`Path2D`/`ImageData`/`Image` as bare globals; `pdf-archive.ts` installs `@napi-rs/canvas`'s implementations on `globalThis` once.
 - `page.render()` is given the `canvas` object itself, not just a `canvasContext`.
 - `pdfjs-dist`'s package directory is found with the plain CommonJS `require.resolve('pdfjs-dist/package.json')`, **not** `createRequire(import.meta.url)`: the main bundle is CommonJS, where Rollup rewrites `import.meta.url` to `undefined`, which would crash at module load time (the app would not start at all).

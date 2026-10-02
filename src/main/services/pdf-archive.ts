@@ -40,6 +40,23 @@ type PDFDocumentLoadingTask = import('pdfjs-dist').PDFDocumentLoadingTask;
 // unlike CBZ/CBR there's no "native resolution" to defer to.
 const RENDER_SCALE = 200 / 72;
 
+/**
+ * Ceiling on a rendered page's pixel count (40 megapixels, ~160 MB of RGBA). A tiny PDF can
+ * declare a page of thousands of points per side: unbounded, the canvas would take hundreds of
+ * MB and seconds of the main process per page, and the continuous mode renders several at once.
+ */
+export const MAX_PAGE_PIXELS = 40_000_000;
+
+/**
+ * The scale to render a page of `width` × `height` points at: `RENDER_SCALE`, lowered when the
+ * result would exceed `MAX_PAGE_PIXELS`.
+ */
+export function pageRenderScale(width: number, height: number): number {
+  const area = width * height;
+  if (!(area > 0)) return RENDER_SCALE;
+  return Math.min(RENDER_SCALE, Math.sqrt(MAX_PAGE_PIXELS / area));
+}
+
 // `require` (a plain CJS global here, not `createRequire(import.meta.url)`): Vite bundles this
 // module into main.cjs as CommonJS, where Rollup rewrites `import.meta.url` to `{}.url`
 // (`undefined`) — the same reason cbr-archive.ts reads its wasm file via `__dirname`, not a URL.
@@ -92,8 +109,9 @@ export class PdfArchive implements ComicArchive {
     }
     const page = await this.doc.getPage(index + 1);
     try {
-      const viewport = page.getViewport({ scale: RENDER_SCALE });
-      const canvas = createCanvas(viewport.width, viewport.height);
+      const { width, height } = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: pageRenderScale(width, height) });
+      const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
       // `canvas`/`canvasContext` are typed for the DOM Canvas API; @napi-rs/canvas is a
       // Node-native implementation of that same API (pdf.js's own optional dependency for it).
       await page.render({ canvas: canvas as unknown as HTMLCanvasElement, viewport }).promise;

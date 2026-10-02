@@ -10,6 +10,7 @@ export default {
     pageOutOfRange: 'Page {{index}} out of range (0-{{last}})',
     extractFailed: 'Could not extract the page: {{entry}}',
     closed: 'Archive closed: {{path}}',
+    entryTooLarge: 'Page too large to be read: {{entry}}',
   },
   database: {
     notWritable: 'Cannot write to {{directory}}.',

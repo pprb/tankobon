@@ -8,6 +8,9 @@ import type { ComicPage } from '../../shared/comic';
 import { t } from '../../shared/i18n';
 import { imageMimeType, isPageEntry, sortPages, type ComicArchive } from './comic-archive';
 
+/** Largest page entry read into memory (200 MB, uncompressed size declared by the archive). */
+export const MAX_ENTRY_SIZE = 200 * 1024 * 1024;
+
 /** A `.cbz` (ZIP) comic, read entry by entry with node-stream-zip (the file stays open until `close()`). */
 export class CbzArchive implements ComicArchive {
   // Reads still in flight. node-stream-zip closes its file descriptor immediately on
@@ -22,6 +25,7 @@ export class CbzArchive implements ComicArchive {
     readonly path: string,
     readonly pages: readonly string[],
     readonly fileCount: number,
+    private readonly sizes: ReadonlyMap<string, number>,
     private readonly zip: StreamZip.StreamZipAsync,
   ) {}
 
@@ -35,7 +39,8 @@ export class CbzArchive implements ComicArchive {
       if (pages.length === 0) {
         throw new Error(t('errors:archive.noImages', { path: filePath }));
       }
-      return new CbzArchive(filePath, pages, files.length, zip);
+      const sizes = new Map(files.map((entry) => [entry.name, entry.size]));
+      return new CbzArchive(filePath, pages, files.length, sizes, zip);
     } catch (error) {
       await zip.close();
       throw error;
@@ -50,6 +55,9 @@ export class CbzArchive implements ComicArchive {
     }
     if (this.closing) {
       throw new Error(t('errors:archive.closed', { path: this.path }));
+    }
+    if ((this.sizes.get(entryName) ?? 0) > MAX_ENTRY_SIZE) {
+      throw new Error(t('errors:archive.entryTooLarge', { entry: entryName }));
     }
     const read = this.zip.entryData(entryName);
     this.pendingReads.add(read);
