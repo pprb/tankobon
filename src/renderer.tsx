@@ -29,6 +29,13 @@ if (!container) {
   throw new Error('Missing #root element in index.html');
 }
 
+// A file dropped outside a drop target would make Chromium navigate to it (replacing the UI with
+// its PDF viewer, or loading a page). Cancelling the default here leaves the components' own
+// handlers (reading lists in the sidebar and on /lists) untouched: they run on the same events.
+for (const type of ['dragover', 'drop']) {
+  document.addEventListener(type, (event) => event.preventDefault());
+}
+
 const root = createRoot(container);
 const render = () =>
   root.render(

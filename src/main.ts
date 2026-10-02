@@ -40,6 +40,16 @@ const createWindow = () => {
     },
   });
 
+  // The window only ever shows the app itself: no navigation away from it (a dropped file or a
+  // clicked link would replace the UI, and a page loaded there could reach `window.tankobon`),
+  // and no new window. Links go through `app:open-link` instead.
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (url !== mainWindow.webContents.getURL()) {
+      event.preventDefault();
+    }
+  });
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
