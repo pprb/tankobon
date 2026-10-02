@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { notifyReadingListsChanged } from '@/hooks/use-reading-lists';
 import type { LibraryEntry } from '@/shared/library';
 import { MAX_READING_LIST_SIZE, type ReadingList, type ReadingListResult } from '@/shared/reading-list';
 
@@ -43,6 +44,7 @@ export function AddToListDialog({ entry, onClose }: { entry: LibraryEntry; onClo
   const create = async () => {
     const created = apply(await window.tankobon.readingLists.create(newName));
     if (created) {
+      notifyReadingListsChanged();
       setNewName('');
       apply(await window.tankobon.readingLists.addEntry(created.id, entry.id));
     }
