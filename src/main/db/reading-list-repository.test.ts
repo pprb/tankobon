@@ -16,8 +16,10 @@ describe('ReadingListRepository', () => {
   let lists: ReadingListRepository;
   let ids: string[];
 
+  let db: DatabaseSync;
+
   beforeEach(() => {
-    const db = new DatabaseSync(':memory:');
+    db = new DatabaseSync(':memory:');
     migrate(db);
     library = new LibraryRepository(db);
     lists = new ReadingListRepository(db);
@@ -100,5 +102,20 @@ describe('ReadingListRepository', () => {
     expect(lists.get(list.id)).toMatchObject({ name: 'Restaurée', entryIds: [ids[2], ids[1]] });
     expect(lists.upsert({ id: 'other', name: 'Autre', createdAt: '2024-01-01', entryIds: [] })).toBe('created');
     expect(lists.list().map((l) => l.name)).toEqual(['Autre', 'Restaurée']);
+  });
+
+  it('clears the library and the lists, people included', () => {
+    library.updateMetadata(ids[0], { credits: [{ firstName: '', lastName: 'Hergé', role: 'author' }] });
+    okList(lists.addEntry(okList(lists.create('Pile')).id, ids[0]));
+
+    expect(library.clear()).toBe(3);
+    expect(lists.list()[0].entryIds).toEqual([]);
+    expect(lists.clear()).toBe(1);
+
+    expect(library.list()).toEqual([]);
+    expect(lists.list()).toEqual([]);
+    for (const table of ['credits', 'people', 'reading_list_items']) {
+      expect(db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get()).toEqual({ count: 0 });
+    }
   });
 });

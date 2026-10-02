@@ -7,7 +7,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 import type { ComicInfo, ComicPage } from './shared/comic';
-import type { DatabaseLocation, DatabaseLocationResult, ImportResult } from './shared/data';
+import type { ClearLibraryResult, DatabaseLocation, DatabaseLocationResult, ImportResult } from './shared/data';
 import type { LibraryEntry, MetadataUpdate, ScanProgress, ScanResult } from './shared/library';
 import type { MetadataPageResult, MetadataQuery, MetadataSearchResult } from './shared/metadata';
 import type { ReadingList, ReadingListResult } from './shared/reading-list';
@@ -91,12 +91,14 @@ export interface SettingsApi {
   set<K extends keyof AppSettings>(key: K, value: AppSettings[K]): Promise<void>;
 }
 
-/** JSON export and import of the library and settings, as `window.tankobon.data`. */
+/** JSON export and import of the library and settings, and clearing the library, as `window.tankobon.data`. */
 export interface DataApi {
   /** Opens a native save dialog and writes a JSON export there; resolves to the chosen path, or null if cancelled. */
   export(): Promise<string | null>;
   /** Opens a native file picker and merges the chosen JSON export into the local database. */
   import(): Promise<ImportResult>;
+  /** Empties the library (entries, credits, people) and deletes every reading list and cover thumbnail; the comic files and the settings are left untouched. */
+  clearLibrary(): Promise<ClearLibraryResult>;
 }
 
 /** Where the database file lives, as `window.tankobon.database`. */
@@ -182,6 +184,7 @@ const api: TankobonApi = {
   data: {
     export: () => ipcRenderer.invoke('data:export'),
     import: () => ipcRenderer.invoke('data:import'),
+    clearLibrary: () => ipcRenderer.invoke('data:clear-library'),
   },
   database: {
     getLocation: () => ipcRenderer.invoke('database:get-location'),

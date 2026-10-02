@@ -86,6 +86,13 @@ export class ReadingListRepository {
     this.db.prepare('DELETE FROM reading_lists WHERE id = ?').run(id);
   }
 
+  /** Deletes every list; the books they held stay in the library. Returns how many were deleted. */
+  clear(): number {
+    const { count } = this.db.prepare('SELECT COUNT(*) AS count FROM reading_lists').get() as { count: number };
+    this.db.exec('DELETE FROM reading_list_items; DELETE FROM reading_lists;');
+    return count;
+  }
+
   /**
    * Puts a library entry at the end of a list. A book already in the list stays where it is;
    * a list already holding `MAX_READING_LIST_SIZE` books refuses new ones.

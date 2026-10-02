@@ -369,4 +369,20 @@ export class LibraryRepository {
     this.db.prepare('DELETE FROM reading_list_items WHERE library_id = ?').run(id);
     this.db.prepare('DELETE FROM library WHERE id = ?').run(id);
   }
+
+  /**
+   * Empties the library: every entry, its credits and its place in the reading lists, plus the
+   * people (who only exist through credits). The files on disk are left untouched. Returns the
+   * number of entries removed.
+   */
+  clear(): number {
+    const { count } = this.db.prepare('SELECT COUNT(*) AS count FROM library').get() as { count: number };
+    this.db.exec(`
+      DELETE FROM reading_list_items;
+      DELETE FROM credits;
+      DELETE FROM people;
+      DELETE FROM library;
+    `);
+    return count;
+  }
 }

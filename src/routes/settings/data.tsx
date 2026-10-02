@@ -1,9 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Database, Download, Upload } from 'lucide-react';
+import { Database, Download, Trash2, Upload } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { SettingsSection } from '@/components/settings-section';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 import { notifyReadingListsChanged } from '@/hooks/use-reading-lists';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
@@ -20,6 +21,10 @@ function DataSettingsPage() {
   // A location change only takes effect on the next start, so the app has to offer a restart.
   const [restartNeeded, setRestartNeeded] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  // What clearing would delete, shown in the confirmation dialog; null while it's closed.
+  const [clearCounts, setClearCounts] = useState<{ entries: number; readingLists: number } | null>(null);
+  const [clearing, setClearing] = useState(false);
+  const [clearStatus, setClearStatus] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,6 +78,30 @@ function DataSettingsPage() {
     setDataStatus({
       message: `${result.added} BD ajoutée(s), ${result.updated} mise(s) à jour et paramètres restaurés depuis ${result.filePath}`,
     });
+  };
+
+  const askClearLibrary = async () => {
+    const [entries, readingLists] = await Promise.all([
+      window.tankobon.library.list(),
+      window.tankobon.readingLists.list(),
+    ]);
+    setClearStatus(null);
+    setClearCounts({ entries: entries.length, readingLists: readingLists.length });
+  };
+
+  const clearLibrary = async () => {
+    setClearing(true);
+    try {
+      const result = await window.tankobon.data.clearLibrary();
+      // The reading lists are gone too: the sidebar must stop showing them.
+      notifyReadingListsChanged();
+      setClearStatus(
+        `Bibliothèque effacée : ${result.entries} BD et ${result.readingLists} liste(s) de lecture retirée(s).`,
+      );
+    } finally {
+      setClearing(false);
+      setClearCounts(null);
+    }
   };
 
   return (
@@ -133,6 +162,47 @@ function DataSettingsPage() {
           </div>
         )}
       </SettingsSection>
+
+      <SettingsSection title="Effacer la bibliothèque">
+        <p className="text-sm text-muted-foreground">
+          Retire toutes les BD de la bibliothèque (progression, notes, étiquettes, infos et
+          auteurs) et supprime les listes de lecture et les miniatures. Les fichiers BD sur le
+          disque et les paramètres ne sont pas touchés. Exporte tes données avant si tu veux
+          pouvoir les restaurer.
+        </p>
+        <div>
+          <Button variant="destructive" onClick={() => void askClearLibrary()}>
+            <Trash2 />
+            Effacer la bibliothèque…
+          </Button>
+        </div>
+        {clearStatus && <p className="text-sm text-muted-foreground">{clearStatus}</p>}
+      </SettingsSection>
+
+      <Dialog
+        open={clearCounts !== null}
+        onOpenChange={(open) => !open && !clearing && setClearCounts(null)}
+        title="Effacer la bibliothèque ?"
+        description="Cette action est irréversible."
+        className="max-w-md"
+      >
+        {clearCounts && (
+          <p className="text-sm">
+            {clearCounts.entries} BD et {clearCounts.readingLists} liste(s) de lecture seront
+            retirées, avec leur progression, leurs notes, leurs étiquettes et leurs infos. Les
+            fichiers BD restent sur le disque.
+          </p>
+        )}
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" disabled={clearing} onClick={() => setClearCounts(null)}>
+            Annuler
+          </Button>
+          <Button variant="destructive" disabled={clearing} onClick={() => void clearLibrary()}>
+            <Trash2 />
+            Effacer
+          </Button>
+        </div>
+      </Dialog>
     </>
   );
 }
