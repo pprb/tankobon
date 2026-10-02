@@ -23,6 +23,8 @@ The shape of `window.tankobon` is declared up front as explicit interfaces (`Tan
 
 Everything is `invoke`/`handle` (request/response), except `library:scan-progress`, the one main → renderer push channel (see [Folder scanning](#folder-scanning)).
 
+The "À propos" section gets the app's version (`app.getVersion()`, main process only) and the runtime versions from `app:get-info`, as an `AppInfo` (`src/shared/app.ts`). Its links go through `app:open-link`, which takes a key of `APP_LINKS` (repository, documentation, releases, issues), never a URL: the main process only ever passes those fixed pages to `shell.openExternal`, so a compromised renderer can't make it open anything else.
+
 Errors that the user should see come back as a `{ status: 'error', message }` member of a result union (`ImportResult`, `DatabaseLocationResult`, `MetadataSearchResult`, `ReadingListResult`) rather than as a thrown error: an `ipcMain.handle` rejection reaches the renderer wrapped in "Error invoking remote method …".
 
 `ArchiveInfo` is what `ComicService` knows about an opened archive before it's matched to a library entry; the `comic:open` handler (`src/main/ipc/comic.ts`) merges it with the library entry to produce the `ComicInfo` sent to the renderer.
@@ -160,7 +162,7 @@ File-based routes via TanStack Router, with an in-memory history (`createMemoryH
 
 ### Settings sections
 
-`src/routes/settings.tsx` is a layout route (title + `<Outlet/>`); `settings/reading.tsx`, `settings/appearance.tsx`, `settings/metadata.tsx` (lookup sources and API keys) and `settings/data.tsx` are the sections; `settings/index.tsx` only `redirect`s to the first one. The section list is `SETTINGS_SECTIONS` (`src/lib/settings-nav.ts`), shared with the sidebar so the two can't drift. Adding a section means a file in `src/routes/settings/` plus a line in `SETTINGS_SECTIONS`.
+`src/routes/settings.tsx` is a layout route (title + `<Outlet/>`); `settings/reading.tsx`, `settings/appearance.tsx`, `settings/metadata.tsx` (lookup sources and API keys), `settings/data.tsx` and `settings/about.tsx` ("À propos") are the sections; `settings/index.tsx` only `redirect`s to the first one. The section list is `SETTINGS_SECTIONS` (`src/lib/settings-nav.ts`), shared with the sidebar so the two can't drift. Adding a section means a file in `src/routes/settings/` plus a line in `SETTINGS_SECTIONS`.
 
 In the sidebar (`src/routes/__root.tsx`), `SettingsNav` unfolds those sections: clicking "Paramètres" while folded unfolds *and* navigates; while unfolded it only folds (it `preventDefault()`s the `Link`). The unfolded state is transient component state. `ReadingListsNav` does the same for the reading lists, with one difference: `/lists` is a real page, so its label always navigates (and unfolds) and only the separate chevron button folds. Its lists come from `useReadingLists()` (`src/hooks/use-reading-lists.ts`), which reloads whenever `notifyReadingListsChanged()` is called; every view that creates, renames, deletes or reorders a list (and the data import) calls it, so the sidebar never shows a stale name; the `/lists` page, which loads the lists along with the library, listens to the same signal through `onReadingListsChanged()`. `AppSettings.sidebarCollapsed` (a persisted setting) switches the whole sidebar to an icon-only rail, which hides the sub-entries.
 

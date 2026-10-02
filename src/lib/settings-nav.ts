@@ -2,7 +2,7 @@
  * Navigation of the settings sections.
  * @module
  */
-import { BookOpen, Database, Globe, Palette, type LucideIcon } from 'lucide-react';
+import { BookOpen, Database, Globe, Info, Palette, type LucideIcon } from 'lucide-react';
 
 /**
  * The settings sub-pages, shared by the sidebar's collapsible "Paramètres" entry and the
@@ -13,4 +13,5 @@ export const SETTINGS_SECTIONS: { to: string; label: string; icon: LucideIcon }[
   { to: '/settings/appearance', label: 'Affichage', icon: Palette },
   { to: '/settings/metadata', label: 'Métadonnées', icon: Globe },
   { to: '/settings/data', label: 'Données', icon: Database },
+  { to: '/settings/about', label: 'À propos', icon: Info },
 ];

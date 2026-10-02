@@ -6,6 +6,7 @@
  */
 import { contextBridge, ipcRenderer } from 'electron';
 
+import type { AppInfo, AppLink } from './shared/app';
 import type { ComicInfo, ComicPage } from './shared/comic';
 import type { ClearLibraryResult, DatabaseLocation, DatabaseLocationResult, ImportResult } from './shared/data';
 import type { LibraryEntry, MetadataUpdate, ScanProgress, ScanResult } from './shared/library';
@@ -13,14 +14,12 @@ import type { MetadataPageResult, MetadataQuery, MetadataSearchResult } from './
 import type { ReadingList, ReadingListOrderResult, ReadingListResult } from './shared/reading-list';
 import type { AppSettings } from './shared/settings';
 
-/** Versions of the runtimes the app is running on, as `window.tankobon.versions`. */
-export interface RuntimeVersions {
-  /** Electron version. */
-  electron: string;
-  /** Chromium version. */
-  chrome: string;
-  /** Node.js version of the main process. */
-  node: string;
+/** The app itself (versions, project links), as `window.tankobon.app`. */
+export interface AppApi {
+  /** Versions of the app, Electron, Chromium, Node.js and V8, and the OS and CPU architecture. */
+  getInfo(): Promise<AppInfo>;
+  /** Opens one of the project's pages (repository, documentation…) in the default browser. */
+  openLink(link: AppLink): Promise<void>;
 }
 
 /** Opening and reading comics, as `window.tankobon.comic`. */
@@ -121,8 +120,8 @@ export interface DatabaseApi {
  * generated IPC reference.
  */
 export interface TankobonApi {
-  /** Runtime versions, read once when the preload runs. */
-  versions: RuntimeVersions;
+  /** The app itself: versions and project links. */
+  app: AppApi;
   /** Opening and reading comics. */
   comic: ComicApi;
   /** The library and its per-entry fields. */
@@ -142,10 +141,9 @@ export interface TankobonApi {
 // Mirror of the CHANNELS constants in main/ipc/*.ts (preload cannot import main code). The method
 // descriptions live on the interfaces above, where TypeDoc and the IPC reference read them.
 const api: TankobonApi = {
-  versions: {
-    electron: process.versions.electron,
-    chrome: process.versions.chrome,
-    node: process.versions.node,
+  app: {
+    getInfo: () => ipcRenderer.invoke('app:get-info'),
+    openLink: (link) => ipcRenderer.invoke('app:open-link', link),
   },
   comic: {
     pickFile: () => ipcRenderer.invoke('comic:pick-file'),
