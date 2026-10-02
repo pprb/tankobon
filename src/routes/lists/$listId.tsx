@@ -13,6 +13,9 @@ import { MAX_READING_LIST_SIZE, type ReadingList, type ReadingListResult } from 
 
 export const Route = createFileRoute('/lists/$listId')({
   component: ReadingListPage,
+  // The router keeps the component mounted when only `listId` changes: remount it so the
+  // rename, error and drag states (and a load in flight) of the previous list don't leak.
+  remountDeps: ({ params }) => params,
 });
 
 function ReadingListPage() {
