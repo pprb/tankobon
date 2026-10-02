@@ -111,4 +111,18 @@
     user-select: none;
     overscroll-behavior: none;
   }
+  /* Tailwind's preflight leaves buttons with the default arrow: every enabled clickable
+     control gets the hand cursor, so actions read as clickable. Utilities (cursor-grab,
+     the reader's resize zones) still win, being in a later layer. */
+  :is(
+      button,
+      [role='button'],
+      select,
+      summary,
+      input:is([type='checkbox'], [type='radio'], [type='color'], [type='file'])
+    ):not(:disabled),
+  label:has(> input:is([type='checkbox'], [type='radio']):not(:disabled)),
+  input:is([type='checkbox'], [type='radio']):not(:disabled) + label {
+    cursor: pointer;
+  }
 }
