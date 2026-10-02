@@ -1,11 +1,15 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { applyLanguage } from '../../shared/i18n';
 import type { MetadataCandidate } from '../../shared/metadata';
 import { DEFAULT_SETTINGS } from '../../shared/settings';
 import { comicVineCredits } from './comic-vine';
 import { googleBooksCandidate } from './google-books';
 import type { HttpOptions } from './http-json';
 import { fetchMetadataPage, rankCandidates, searchMetadata } from './metadata-service';
+
+// The user-facing messages are checked in French; English is the interface's default.
+beforeAll(() => applyLanguage('fr'));
 
 /** A fake `fetch` answering each URL with the first route whose pattern it matches. */
 function fakeFetch(routes: [RegExp, unknown, number?][]) {

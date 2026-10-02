@@ -7,6 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type { ComicPage } from '../../shared/comic';
+import { t } from '../../shared/i18n';
 import { imageMimeType, isPageEntry, sortPages, type ComicArchive } from './comic-archive';
 
 // The Emscripten-compiled wasm module is copied next to the bundled main.cjs (see
@@ -54,7 +55,7 @@ export class CbrArchive implements ComicArchive {
     );
     const pages = sortPages(files.filter((header) => isPageEntry(header.name)).map((header) => header.name));
     if (pages.length === 0) {
-      throw new Error(`Aucune image trouvée dans ${filePath}`);
+      throw new Error(t('errors:archive.noImages', { path: filePath }));
     }
     return new CbrArchive(filePath, pages, files.length, data);
   }
@@ -63,12 +64,12 @@ export class CbrArchive implements ComicArchive {
   async readPage(index: number): Promise<ComicPage> {
     const entryName = this.pages[index];
     if (entryName === undefined) {
-      throw new RangeError(`Page ${index} hors limites (0-${this.pages.length - 1})`);
+      throw new RangeError(t('errors:archive.pageOutOfRange', { index, last: this.pages.length - 1 }));
     }
     // Drained fully here too, for the same reason as in open().
     const [file] = await withExtractor(this.data, (extractor) => [...extractor.extract({ files: [entryName] }).files]);
     if (!file?.extraction) {
-      throw new Error(`Impossible d'extraire la page : ${entryName}`);
+      throw new Error(t('errors:archive.extractFailed', { entry: entryName }));
     }
     // Copy into a fresh ArrayBuffer: the extraction may be a view on a shared/wasm buffer.
     return { data: new Uint8Array(file.extraction), mimeType: imageMimeType(entryName)! };

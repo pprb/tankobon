@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -18,6 +19,7 @@ const withList = (lists: ReadingList[], changed: ReadingList) =>
  * to create a new list that the book goes straight into. Changes are saved as they're made.
  */
 export function AddToListDialog({ entry, onClose }: { entry: LibraryEntry; onClose: () => void }) {
+  const { t } = useTranslation(['lists', 'common']);
   const [lists, setLists] = useState<ReadingList[] | null>(null);
   const [newName, setNewName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -57,14 +59,14 @@ export function AddToListDialog({ entry, onClose }: { entry: LibraryEntry; onClo
     <Dialog
       open
       onOpenChange={(open) => !open && onClose()}
-      title="Listes de lecture"
+      title={t('title')}
       description={entry.title}
       className="max-w-md"
     >
       {lists === null ? (
-        <p className="text-sm text-muted-foreground">Chargement…</p>
+        <p className="text-sm text-muted-foreground">{t('common:loading')}</p>
       ) : lists.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Aucune liste pour le moment : crée la première ci-dessous.</p>
+        <p className="text-sm text-muted-foreground">{t('emptyInDialog')}</p>
       ) : (
         <ul className="flex flex-col gap-1 overflow-y-auto">
           {lists.map((list) => {
@@ -74,7 +76,7 @@ export function AddToListDialog({ entry, onClose }: { entry: LibraryEntry; onClo
               <li key={list.id}>
                 <label
                   className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent has-disabled:opacity-50"
-                  title={full ? `Liste pleine (${MAX_READING_LIST_SIZE} livres au maximum)` : undefined}
+                  title={full ? t('full', { max: MAX_READING_LIST_SIZE }) : undefined}
                 >
                   <input type="checkbox" checked={included} disabled={full} onChange={() => void toggle(list)} />
                   <span className="flex-1 truncate">{list.name}</span>
@@ -98,13 +100,13 @@ export function AddToListDialog({ entry, onClose }: { entry: LibraryEntry; onClo
         <input
           value={newName}
           onChange={(event) => setNewName(event.target.value)}
-          placeholder="Nouvelle liste"
-          aria-label="Nom de la nouvelle liste"
+          placeholder={t('newListPlaceholder')}
+          aria-label={t('newListName')}
           className="h-8 flex-1 rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring"
         />
         <Button type="submit" size="sm" disabled={newName.trim() === ''}>
           <Plus />
-          Créer et ajouter
+          {t('createAndAdd')}
         </Button>
       </form>
 

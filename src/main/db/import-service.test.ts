@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { applyLanguage } from '../../shared/i18n';
 import { DEFAULT_SETTINGS } from '../../shared/settings';
 import { buildExport } from './export-service';
 import { applyImport, parseExport } from './import-service';
@@ -8,6 +9,9 @@ import { LibraryRepository } from './library-repository';
 import { ReadingListRepository } from './reading-list-repository';
 import { migrate } from './schema';
 import { SettingsRepository } from './settings-repository';
+
+// The user-facing messages are checked in French; English is the interface's default.
+beforeAll(() => applyLanguage('fr'));
 
 function createDatabase(): DatabaseSync {
   const db = new DatabaseSync(':memory:');
@@ -70,6 +74,15 @@ describe('parseExport', () => {
 
     expect(parsed.settings).toEqual({ ...DEFAULT_SETTINGS, readingDirection: 'rtl' });
     expect(parsed.settings).not.toHaveProperty('nope');
+  });
+
+  it('keeps a supported language and turns any other back into `system`', () => {
+    const parse = (language: string) =>
+      parseExport(JSON.stringify({ version: 1, library: [], settings: { language } })).settings.language;
+
+    expect(parse('fr')).toBe('fr');
+    expect(parse('system')).toBe('system');
+    expect(parse('de')).toBe('system');
   });
 });
 

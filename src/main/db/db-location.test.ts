@@ -1,14 +1,18 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { applyLanguage } from '../../shared/i18n';
 import {
   checkDirectoryUsable,
   readLocationPointer,
   resolveDatabaseLocation,
   writeLocationPointer,
 } from './db-location';
+
+// The user-facing messages are checked in French; English is the interface's default.
+beforeAll(() => applyLanguage('fr'));
 
 describe('db-location', () => {
   let userData: string;

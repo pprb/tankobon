@@ -11,6 +11,7 @@ An ADR records one structural decision: the context, what was decided, and what 
 | [0005](./0005-metadata-lookup-public-apis.md) | Book metadata looked up on demand in public APIs, from the main process | Accepted |
 | [0006](./0006-bedetheque-album-page-scraping.md) | Bédéthèque album pages read from a pasted link | Accepted |
 | [0007](./0007-cover-thumbnails-disk-cache.md) | Cover thumbnails in a disk cache, outside the database | Accepted |
+| [0008](./0008-interface-translations-i18next.md) | Interface translations with i18next, locales split by area | Accepted |
 
 These first four ADRs were written after the fact, from the code and its comments, then checked by the maintainer.
 

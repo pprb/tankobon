@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 import type { ArchiveInfo, ComicPage } from '../../shared/comic';
+import { t } from '../../shared/i18n';
 import { CbrArchive } from './cbr-archive';
 import { CbzArchive } from './cbz-archive';
 import type { ComicArchive } from './comic-archive';
@@ -26,7 +27,7 @@ export async function openArchive(filePath: string): Promise<ComicArchive> {
   const ext = path.extname(filePath).toLowerCase();
   const opener = openers[ext];
   if (!opener) {
-    throw new Error(`Format non supporté : ${ext || '(sans extension)'}`);
+    throw new Error(t('errors:archive.unsupportedFormat', { extension: ext || t('errors:archive.noExtension') }));
   }
   return opener(filePath);
 }
@@ -74,7 +75,7 @@ export class ComicService {
   private get(id: string): ComicArchive {
     const archive = this.archives.get(id);
     if (!archive) {
-      throw new Error(`Archive inconnue : ${id}`);
+      throw new Error(t('errors:archive.unknown', { id }));
     }
     return archive;
   }

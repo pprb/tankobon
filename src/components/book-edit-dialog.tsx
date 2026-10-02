@@ -1,5 +1,6 @@
 import { Plus, X } from 'lucide-react';
 import { type ReactNode, useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -13,7 +14,7 @@ import {
   newCreditRow,
   validateForm,
 } from '@/lib/book-edit';
-import { CREDIT_ROLE_LABELS } from '@/lib/metadata-review';
+import { creditRoleLabel, reviewFieldLabel } from '@/lib/metadata-review';
 import { cn, formatLanguage } from '@/lib/utils';
 import { CREDIT_ROLES, type CreditRole, type LibraryEntry } from '@/shared/library';
 
@@ -22,7 +23,7 @@ const INPUT_CLASS =
 
 /**
  * Edits a library entry's information by hand (title, series, volume, release date, language and
- * credits), with no lookup: the same fields as "Rechercher les infos", typed by the user.
+ * credits), with no lookup: the same fields as "Look up details", typed by the user.
  */
 export function BookEditDialog({
   entry,
@@ -33,6 +34,7 @@ export function BookEditDialog({
   onClose: () => void;
   onSaved: (entry: LibraryEntry) => void;
 }) {
+  const { t } = useTranslation(['bookEdit', 'common']);
   const [form, setForm] = useState<BookForm>(() => entryToForm(entry));
   // Errors only show once the user tried to save, not while the first value is being typed.
   const [submitted, setSubmitted] = useState(false);
@@ -69,7 +71,7 @@ export function BookEditDialog({
     <Dialog
       open
       onOpenChange={(open) => !open && onClose()}
-      title="Modifier la fiche"
+      title={t('title')}
       description={entry.path}
       className="max-w-2xl"
     >
@@ -83,7 +85,7 @@ export function BookEditDialog({
         }}
       >
         <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 text-sm">
-          <Field label="Titre" error={shown.title}>
+          <Field label={reviewFieldLabel('title')} error={shown.title}>
             {(props) => (
               <input
                 {...props}
@@ -93,7 +95,7 @@ export function BookEditDialog({
               />
             )}
           </Field>
-          <Field label="Série">
+          <Field label={reviewFieldLabel('series')}>
             {(props) => (
               <input
                 {...props}
@@ -103,29 +105,29 @@ export function BookEditDialog({
               />
             )}
           </Field>
-          <Field label="Tome / n°">
+          <Field label={reviewFieldLabel('volume')}>
             {(props) => (
               <input
                 {...props}
-                placeholder="3, 12.1, HS…"
+                placeholder={t('volumePlaceholder')}
                 className={cn(INPUT_CLASS, 'w-32')}
                 value={form.volume}
                 onChange={(event) => setForm({ ...form, volume: event.target.value })}
               />
             )}
           </Field>
-          <Field label="Date de sortie" error={shown.releaseDate}>
+          <Field label={reviewFieldLabel('releaseDate')} error={shown.releaseDate}>
             {(props) => (
               <input
                 {...props}
-                placeholder="AAAA, AAAA-MM ou AAAA-MM-JJ"
+                placeholder={t('datePlaceholder')}
                 className={cn(INPUT_CLASS, 'w-56')}
                 value={form.releaseDate}
                 onChange={(event) => setForm({ ...form, releaseDate: event.target.value })}
               />
             )}
           </Field>
-          <Field label="Langue">
+          <Field label={reviewFieldLabel('language')}>
             {(props) => (
               <select
                 {...props}
@@ -145,8 +147,8 @@ export function BookEditDialog({
         </div>
 
         <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-medium">Auteurs</h3>
-          {form.credits.length === 0 && <p className="text-sm text-muted-foreground">Aucun auteur.</p>}
+          <h3 className="text-sm font-medium">{t('authors')}</h3>
+          {form.credits.length === 0 && <p className="text-sm text-muted-foreground">{t('noAuthors')}</p>}
           <ul className="flex flex-col gap-1">
             {form.credits.map((credit) => {
               const error = shown.credits?.[credit.key];
@@ -154,22 +156,22 @@ export function BookEditDialog({
                 <li key={credit.key} className="flex flex-col gap-0.5">
                   <div className="flex items-center gap-2">
                     <input
-                      aria-label="Prénom"
-                      placeholder="Prénom"
+                      aria-label={t('firstName')}
+                      placeholder={t('firstName')}
                       className={cn(INPUT_CLASS, 'w-36')}
                       value={credit.firstName}
                       onChange={(event) => setCredit(credit.key, { firstName: event.target.value })}
                     />
                     <input
-                      aria-label="Nom"
-                      placeholder="Nom ou pseudonyme"
+                      aria-label={t('lastName')}
+                      placeholder={t('lastNamePlaceholder')}
                       aria-invalid={error ? true : undefined}
                       className={cn(INPUT_CLASS, 'w-44')}
                       value={credit.lastName}
                       onChange={(event) => setCredit(credit.key, { lastName: event.target.value })}
                     />
                     <select
-                      aria-label="Rôle"
+                      aria-label={t('role')}
                       className={cn(INPUT_CLASS, 'w-32')}
                       value={credit.role}
                       onChange={(event) =>
@@ -180,7 +182,7 @@ export function BookEditDialog({
                     >
                       {CREDIT_ROLES.map((role) => (
                         <option key={role} value={role}>
-                          {CREDIT_ROLE_LABELS[role]}
+                          {creditRoleLabel(role)}
                         </option>
                       ))}
                     </select>
@@ -188,8 +190,8 @@ export function BookEditDialog({
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      title="Retirer cet auteur"
-                      aria-label="Retirer cet auteur"
+                      title={t('removeAuthor')}
+                      aria-label={t('removeAuthor')}
                       onClick={() =>
                         setForm({
                           ...form,
@@ -213,7 +215,7 @@ export function BookEditDialog({
               onClick={() => setForm({ ...form, credits: [...form.credits, newCreditRow()] })}
             >
               <Plus />
-              Ajouter un auteur
+              {t('addAuthor')}
             </Button>
           </div>
         </div>
@@ -221,10 +223,10 @@ export function BookEditDialog({
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
-          Annuler
+          {t('common:cancel')}
         </Button>
         <Button type="submit" form="book-edit-form" size="sm" disabled={saving}>
-          Enregistrer
+          {t('common:save')}
         </Button>
       </div>
     </Dialog>

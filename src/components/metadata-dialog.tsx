@@ -1,14 +1,16 @@
 import { ArrowLeft, Loader2, Search } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import {
   buildReview,
-  CREDIT_ROLE_LABELS,
+  creditRoleLabel,
   isEmptyUpdate,
   type MetadataReview,
-  REVIEW_FIELD_LABELS,
+  reviewFieldLabel,
   reviewToUpdate,
 } from '@/lib/metadata-review';
 import { cn, formatLanguage } from '@/lib/utils';
@@ -49,6 +51,7 @@ export function MetadataDialog({
   onClose: () => void;
   onApplied: (entry: LibraryEntry) => void;
 }) {
+  const { t } = useTranslation(['metadata', 'common']);
   const [query, setQuery] = useState<MetadataQuery>(() => initialQuery(entry));
   const [step, setStep] = useState<Step>({ kind: 'searching' });
   const [applying, setApplying] = useState(false);
@@ -111,7 +114,7 @@ export function MetadataDialog({
     <Dialog
       open
       onOpenChange={(open) => !open && onClose()}
-      title="Rechercher les infos"
+      title={t('title')}
       description={entry.path}
       className="max-w-3xl"
     >
@@ -123,22 +126,22 @@ export function MetadataDialog({
         }}
       >
         <input
-          aria-label="Titre, série ou lien Bédéthèque"
-          placeholder="Titre, série ou lien d'une fiche Bédéthèque"
+          aria-label={t('queryLabel')}
+          placeholder={t('queryPlaceholder')}
           className={cn(INPUT_CLASS, 'min-w-48 flex-1')}
           value={query.text}
           onChange={(event) => setQuery({ ...query, text: event.target.value })}
         />
         <input
-          aria-label="Tome ou numéro"
-          placeholder="Tome / n°"
+          aria-label={t('volumeLabel')}
+          placeholder={t('volumePlaceholder')}
           className={cn(INPUT_CLASS, 'w-24')}
           value={query.volume ?? ''}
           onChange={(event) => setQuery({ ...query, volume: event.target.value || null })}
         />
         <Button type="submit" size="sm" variant="outline" disabled={step.kind === 'searching'}>
           <Search />
-          {isBedethequeAlbumUrl(query.text) ? 'Lire la fiche' : 'Rechercher'}
+          {isBedethequeAlbumUrl(query.text) ? t('readPage') : t('search')}
         </Button>
       </form>
 
@@ -146,7 +149,7 @@ export function MetadataDialog({
         {step.kind === 'searching' && (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
-            {isBedethequeAlbumUrl(query.text) ? 'Lecture de la fiche…' : 'Recherche en cours…'}
+            {isBedethequeAlbumUrl(query.text) ? t('readingPage') : t('searching')}
           </p>
         )}
         {step.kind === 'error' && <p className="text-sm whitespace-pre-line text-destructive">{step.message}</p>}
@@ -175,14 +178,14 @@ export function MetadataDialog({
             onClick={() => setStep({ kind: 'results', candidates: step.candidates, errors: [] })}
           >
             <ArrowLeft />
-            Autres résultats
+            {t('otherResults')}
           </Button>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>
-              Annuler
+              {t('common:cancel')}
             </Button>
             <Button size="sm" onClick={() => void apply(step.review)} disabled={applying}>
-              Appliquer
+              {t('apply')}
             </Button>
           </div>
         </div>
@@ -191,9 +194,9 @@ export function MetadataDialog({
   );
 }
 
-function candidateHeading(candidate: MetadataCandidate): string {
+function candidateHeading(candidate: MetadataCandidate, t: TFunction<'metadata'>): string {
   const series = [candidate.series, candidate.volume && `#${candidate.volume}`].filter(Boolean).join(' ');
-  return [series, candidate.title].filter(Boolean).join(' — ') || 'Sans titre';
+  return [series, candidate.title].filter(Boolean).join(' — ') || t('untitled');
 }
 
 function CandidateList({
@@ -205,6 +208,7 @@ function CandidateList({
   errors: string[];
   onPick: (candidate: MetadataCandidate) => void;
 }) {
+  const { t } = useTranslation('metadata');
   return (
     <div className="flex flex-col gap-2">
       {errors.map((error) => (
@@ -213,10 +217,7 @@ function CandidateList({
         </p>
       ))}
       {candidates.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Aucun résultat. Essaie avec le nom de la série seul, sans numéro de tome, ou colle le lien de la
-          fiche de l'album sur bedetheque.com.
-        </p>
+        <p className="text-sm text-muted-foreground">{t('noResults')}</p>
       ) : (
         <ul className="flex flex-col divide-y rounded-md border">
           {candidates.map((candidate) => (
@@ -232,7 +233,7 @@ function CandidateList({
                   <div className="h-16 w-11 shrink-0 rounded-sm bg-muted" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{candidateHeading(candidate)}</p>
+                  <p className="truncate text-sm font-medium">{candidateHeading(candidate, t)}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {[candidate.releaseDate, formatLanguage(candidate.language), METADATA_SOURCE_LABELS[candidate.source]]
                       .filter(Boolean)
@@ -254,6 +255,7 @@ function CandidateList({
 }
 
 function ReviewForm({ review, onChange }: { review: MetadataReview; onChange: (review: MetadataReview) => void }) {
+  const { t } = useTranslation('metadata');
   const setField = (index: number, patch: Partial<MetadataReview['fields'][number]>) =>
     onChange({ ...review, fields: review.fields.map((row, i) => (i === index ? { ...row, ...patch } : row)) });
   const setCredit = (index: number, patch: Partial<MetadataReview['credits'][number]>) =>
@@ -266,11 +268,11 @@ function ReviewForm({ review, onChange }: { review: MetadataReview; onChange: (r
           <thead className="text-left text-xs text-muted-foreground">
             <tr>
               <th className="w-8 pb-1 font-normal">
-                <span className="sr-only">Accepter</span>
+                <span className="sr-only">{t('accept')}</span>
               </th>
-              <th className="pb-1 font-normal">Champ</th>
-              <th className="pb-1 font-normal">Actuel</th>
-              <th className="pb-1 font-normal">Proposé</th>
+              <th className="pb-1 font-normal">{t('field')}</th>
+              <th className="pb-1 font-normal">{t('current')}</th>
+              <th className="pb-1 font-normal">{t('proposed')}</th>
             </tr>
           </thead>
           <tbody>
@@ -279,18 +281,18 @@ function ReviewForm({ review, onChange }: { review: MetadataReview; onChange: (r
                 <td className="py-1">
                   <input
                     type="checkbox"
-                    aria-label={`Accepter : ${REVIEW_FIELD_LABELS[row.field]}`}
+                    aria-label={t('acceptField', { field: reviewFieldLabel(row.field) })}
                     checked={row.accepted}
                     onChange={(event) => setField(index, { accepted: event.target.checked })}
                   />
                 </td>
-                <td className="py-1 pr-2 whitespace-nowrap">{REVIEW_FIELD_LABELS[row.field]}</td>
+                <td className="py-1 pr-2 whitespace-nowrap">{reviewFieldLabel(row.field)}</td>
                 <td className="max-w-48 truncate py-1 pr-2" title={row.current ?? undefined}>
                   {row.current ?? '—'}
                 </td>
                 <td className="py-1">
                   <input
-                    aria-label={`Valeur proposée : ${REVIEW_FIELD_LABELS[row.field]}`}
+                    aria-label={t('proposedValue', { field: reviewFieldLabel(row.field) })}
                     className={cn(INPUT_CLASS, 'w-full')}
                     value={row.proposed}
                     // Editing a value means the user wants it.
@@ -304,47 +306,47 @@ function ReviewForm({ review, onChange }: { review: MetadataReview; onChange: (r
       )}
 
       <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-medium">Auteurs</h3>
+        <h3 className="text-sm font-medium">{t('authors')}</h3>
         {review.credits.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucun auteur trouvé.</p>
+          <p className="text-sm text-muted-foreground">{t('noAuthors')}</p>
         ) : (
           <ul className="flex flex-col gap-1">
             {review.credits.map((credit, index) => (
               <li key={credit.key} className={cn('flex items-center gap-2', !credit.accepted && 'opacity-60')}>
                 <input
                   type="checkbox"
-                  aria-label={`${credit.origin === 'current' ? 'Conserver' : 'Ajouter'} ${formatPersonName(credit)}`}
+                  aria-label={t(credit.origin === 'current' ? 'keepAuthor' : 'addAuthor', { name: formatPersonName(credit) })}
                   checked={credit.accepted}
                   onChange={(event) => setCredit(index, { accepted: event.target.checked })}
                 />
                 <input
-                  aria-label="Prénom"
-                  placeholder="Prénom"
+                  aria-label={t('firstName')}
+                  placeholder={t('firstName')}
                   className={cn(INPUT_CLASS, 'w-36')}
                   value={credit.firstName}
                   onChange={(event) => setCredit(index, { firstName: event.target.value })}
                 />
                 <input
-                  aria-label="Nom"
-                  placeholder="Nom"
+                  aria-label={t('lastName')}
+                  placeholder={t('lastName')}
                   className={cn(INPUT_CLASS, 'w-40')}
                   value={credit.lastName}
                   onChange={(event) => setCredit(index, { lastName: event.target.value })}
                 />
                 <select
-                  aria-label="Rôle"
+                  aria-label={t('role')}
                   className={cn(INPUT_CLASS, 'w-32')}
                   value={credit.role}
                   onChange={(event) => setCredit(index, { role: event.target.value as CreditRole })}
                 >
                   {CREDIT_ROLES.map((role) => (
                     <option key={role} value={role}>
-                      {CREDIT_ROLE_LABELS[role]}
+                      {creditRoleLabel(role)}
                     </option>
                   ))}
                 </select>
                 <span className="text-xs text-muted-foreground">
-                  {credit.origin === 'current' ? 'actuel' : 'proposé'}
+                  {credit.origin === 'current' ? t('currentTag') : t('proposedTag')}
                 </span>
               </li>
             ))}

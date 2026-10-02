@@ -3,6 +3,7 @@
  * (the BDGest' database) has no public API: the page's HTML is parsed.
  * @module
  */
+import { t } from '../../shared/i18n';
 import type { CreditInput, CreditRole } from '../../shared/library';
 import { isBedethequeAlbumUrl, type MetadataCandidate } from '../../shared/metadata';
 import { splitPersonName } from '../../shared/title-parsing';
@@ -93,13 +94,13 @@ function credits(album: string): CreditInput[] {
 
 /**
  * Parses a Bédéthèque album page. Only its main album block (`<section class="bdt-ah">`) is read,
- * not the series' other albums or editions further down the page. Throws a French message when
+ * not the series' other albums or editions further down the page. Throws a translated message when
  * the page has no album block.
  */
 export function parseBedethequeAlbum(html: string, url: string): MetadataCandidate {
   const album = /<section class="bdt-ah">([\s\S]*?)<\/section>/i.exec(html)?.[1];
   if (!album) {
-    throw new Error(`${SOURCE} : cette page ne décrit pas un album.`);
+    throw new Error(t('errors:metadata.notAlbumPage', { source: SOURCE }));
   }
 
   const series = textOf(/<h1>([\s\S]*?)<\/h1>/i.exec(album)?.[1] ?? '') || null;
@@ -124,10 +125,10 @@ export function parseBedethequeAlbum(html: string, url: string): MetadataCandida
   };
 }
 
-/** Downloads and parses a Bédéthèque album page. Throws a French message on failure. */
+/** Downloads and parses a Bédéthèque album page. Throws a translated message on failure. */
 export async function fetchBedethequeAlbum(url: string, http: HttpOptions): Promise<MetadataCandidate> {
   if (!isBedethequeAlbumUrl(url)) {
-    throw new Error(`${SOURCE} : ce lien n'est pas celui d'une fiche album (https://www.bedetheque.com/BD-….html).`);
+    throw new Error(t('errors:metadata.notAlbumUrl', { source: SOURCE }));
   }
   const normalized = new URL(url.trim());
   normalized.protocol = 'https:';

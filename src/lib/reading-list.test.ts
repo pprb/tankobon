@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { applyLanguage } from '@/shared/i18n';
 import type { LibraryEntry } from '@/shared/library';
 
 import type { ReadingList } from '@/shared/reading-list';
@@ -14,6 +15,8 @@ import {
   moveItem,
   moveUnfinished,
   nextToRead,
+  READ_TAG,
+  tagLabel,
 } from './reading-list';
 
 function entry(id: string, overrides: Partial<LibraryEntry> = {}): LibraryEntry {
@@ -133,6 +136,9 @@ describe('dragged entry encoding', () => {
 });
 
 describe('dropFeedback', () => {
+  beforeAll(() => applyLanguage('fr'));
+  afterAll(() => applyLanguage('en'));
+
   const list: ReadingList = { id: 'l', name: 'Été', createdAt: '2024-01-01', entryIds: ['b'] };
   const ok = { status: 'ok' as const, list: { ...list, entryIds: ['b', 'a'] } };
 
@@ -155,5 +161,18 @@ describe('dropFeedback', () => {
       message: 'Pleine.',
       error: true,
     });
+  });
+});
+
+describe('tagLabel', () => {
+  afterAll(() => applyLanguage('en'));
+
+  it('translates the quick tags and leaves the others alone', () => {
+    applyLanguage('en');
+    expect(tagLabel(READ_TAG)).toBe('Read');
+    expect(tagLabel('À lire')).toBe('To read');
+    expect(tagLabel('Prêté')).toBe('Prêté');
+    applyLanguage('fr');
+    expect(tagLabel(READ_TAG)).toBe('Lu');
   });
 });

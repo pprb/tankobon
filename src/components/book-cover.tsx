@@ -1,5 +1,6 @@
 import { BookImage } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 
@@ -9,6 +10,7 @@ import { cn } from '@/lib/utils';
  * without one, a placeholder icon keeps the row's layout.
  */
 export function BookCover({ entryId, title, className }: { entryId: string; title: string; className?: string }) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export function BookCover({ entryId, title, className }: { entryId: string; titl
       className={cn('flex shrink-0 items-center justify-center overflow-hidden rounded-sm bg-muted', className)}
     >
       {url ? (
-        <img src={url} alt={`Couverture de ${title}`} className="size-full object-cover" draggable={false} />
+        <img src={url} alt={t('coverOf', { title })} className="size-full object-cover" draggable={false} />
       ) : (
         <BookImage className="size-5 text-muted-foreground" aria-hidden />
       )}

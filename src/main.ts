@@ -14,6 +14,7 @@ import { registerLibraryIpc } from './main/ipc/library';
 import { registerMetadataIpc } from './main/ipc/metadata';
 import { registerReadingListIpc } from './main/ipc/reading-lists';
 import { registerSettingsIpc } from './main/ipc/settings';
+import { applyMainLanguage } from './main/language';
 import { ThumbnailCache } from './main/services/thumbnail-cache';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -57,6 +58,8 @@ app.whenReady().then(() => {
   const libraryRepo = new LibraryRepository(db);
   const settingsRepo = new SettingsRepository(db);
   const readingListRepo = new ReadingListRepository(db);
+  // Before anything can show a dialog or return an error message.
+  applyMainLanguage(settingsRepo.getAll().language);
   // A cache, so it stays in userData even when the database lives elsewhere: it is rebuilt from the files.
   const thumbnails = new ThumbnailCache(path.join(app.getPath('userData'), 'thumbnails'));
   // Leftovers of another database (its location changed) or of a crash between two writes.

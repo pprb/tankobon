@@ -4,6 +4,7 @@
  */
 import { randomUUID } from 'node:crypto';
 
+import { isSupportedLanguage, t } from '../../shared/i18n';
 import { CREDIT_ROLES, type CreditInput, type CreditRole, type LibraryEntry } from '../../shared/library';
 import { DEFAULT_SETTINGS, type AppSettings } from '../../shared/settings';
 import type { ExportedData, ExportedReadingList } from './export-service';
@@ -95,6 +96,7 @@ function toReadingLists(value: unknown): ExportedReadingList[] {
 /**
  * Keeps only the settings keys the app knows about, and only when the stored value has the
  * type the default has — an old or hand-edited export can't inject unknown keys or wrong types.
+ * A `language` the app doesn't support goes back to `system`.
  */
 function toSettings(value: unknown): AppSettings {
   if (!isRecord(value)) {
@@ -107,11 +109,14 @@ function toSettings(value: unknown): AppSettings {
       (settings[key] as unknown) = imported;
     }
   }
+  if (settings.language !== 'system' && !isSupportedLanguage(settings.language)) {
+    settings.language = 'system';
+  }
   return settings;
 }
 
 /**
- * Validates the JSON text of a file the user picked. Throws a user-facing (French) message when
+ * Validates the JSON text of a file the user picked. Throws a user-facing message (in the interface language) when
  * it isn't a Tankōbon export; individual library entries that are too broken to use are dropped
  * rather than failing the whole import.
  */
@@ -120,10 +125,10 @@ export function parseExport(raw: string): ExportedData {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new Error("Fichier illisible : ce n'est pas du JSON valide.");
+    throw new Error(t('errors:import.notJson'));
   }
   if (!isRecord(parsed) || parsed.version !== 1 || !Array.isArray(parsed.library)) {
-    throw new Error("Fichier non reconnu : ce n'est pas un export Tankōbon (version 1).");
+    throw new Error(t('errors:import.notExport'));
   }
   return {
     version: 1,

@@ -2,6 +2,7 @@
  * Metadata lookup in Comic Vine (comicvine.gamespot.com), the reference database for US comics.
  * @module
  */
+import { t } from '../../shared/i18n';
 import type { CreditInput, CreditRole } from '../../shared/library';
 import type { MetadataCandidate, MetadataQuery } from '../../shared/metadata';
 import { splitPersonName } from '../../shared/title-parsing';
@@ -84,7 +85,7 @@ function toCandidate(issue: ComicVineIssue, credits: CreditInput[]): MetadataCan
   };
 }
 
-/** Searches Comic Vine with the user's API key. Throws a French message on failure. */
+/** Searches Comic Vine with the user's API key. Throws a translated message on failure. */
 export class ComicVineClient {
   constructor(
     private readonly apiKey: string,
@@ -144,10 +145,10 @@ export class ComicVineClient {
     url.search = new URLSearchParams({ ...params, api_key: this.apiKey, format: 'json' }).toString();
     const body = (await getJson(url.toString(), this.http, 'Comic Vine')) as ComicVineResponse<T>;
     if (body.status_code === 100) {
-      throw new Error('Comic Vine : clé API invalide.');
+      throw new Error(t('errors:metadata.invalidKey', { source: 'Comic Vine' }));
     }
     if (body.status_code !== 1) {
-      throw new Error(`Comic Vine : ${body.error}`);
+      throw new Error(t('errors:metadata.sourceError', { source: 'Comic Vine', message: body.error }));
     }
     return body.results;
   }

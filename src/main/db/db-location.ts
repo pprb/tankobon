@@ -9,6 +9,7 @@ import { accessSync, constants, mkdirSync, readFileSync, rmSync, writeFileSync }
 import path from 'node:path';
 
 import type { DatabaseLocation } from '../../shared/data';
+import { t } from '../../shared/i18n';
 
 const DB_FILE_NAME = 'tankobon.db';
 const POINTER_FILE_NAME = 'db-location.json';
@@ -56,7 +57,7 @@ export function resolveDatabaseLocation(userDataDir: string): DatabaseLocation {
 }
 
 /**
- * Fails early (with a user-facing French message) on a directory the app couldn't open a database
+ * Fails early (with a user-facing message in the interface language) on a directory the app couldn't open a database
  * in — otherwise the problem would only surface as a crash on the next start.
  */
 export function checkDirectoryUsable(directory: string): string | null {
@@ -65,6 +66,6 @@ export function checkDirectoryUsable(directory: string): string | null {
     accessSync(directory, constants.W_OK);
     return null;
   } catch {
-    return `Impossible d'écrire dans ${directory}.`;
+    return t('errors:database.notWritable', { directory });
   }
 }

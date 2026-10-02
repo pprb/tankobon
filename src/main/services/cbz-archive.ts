@@ -5,6 +5,7 @@
 import StreamZip from 'node-stream-zip';
 
 import type { ComicPage } from '../../shared/comic';
+import { t } from '../../shared/i18n';
 import { imageMimeType, isPageEntry, sortPages, type ComicArchive } from './comic-archive';
 
 /** A `.cbz` (ZIP) comic, read entry by entry with node-stream-zip (the file stays open until `close()`). */
@@ -32,7 +33,7 @@ export class CbzArchive implements ComicArchive {
       const files = Object.values(entries).filter((entry) => !entry.isDirectory);
       const pages = sortPages(files.filter((entry) => isPageEntry(entry.name)).map((entry) => entry.name));
       if (pages.length === 0) {
-        throw new Error(`Aucune image trouvée dans ${filePath}`);
+        throw new Error(t('errors:archive.noImages', { path: filePath }));
       }
       return new CbzArchive(filePath, pages, files.length, zip);
     } catch (error) {
@@ -45,10 +46,10 @@ export class CbzArchive implements ComicArchive {
   async readPage(index: number): Promise<ComicPage> {
     const entryName = this.pages[index];
     if (entryName === undefined) {
-      throw new RangeError(`Page ${index} hors limites (0-${this.pages.length - 1})`);
+      throw new RangeError(t('errors:archive.pageOutOfRange', { index, last: this.pages.length - 1 }));
     }
     if (this.closing) {
-      throw new Error(`Archive fermée : ${this.path}`);
+      throw new Error(t('errors:archive.closed', { path: this.path }));
     }
     const read = this.zip.entryData(entryName);
     this.pendingReads.add(read);

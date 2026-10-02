@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
 
 import { SETTINGS_SELECT_CLASS, SettingsSection } from '@/components/settings-section';
 import { useSettings } from '@/hooks/use-settings';
@@ -8,49 +9,50 @@ export const Route = createFileRoute('/settings/reading')({
 });
 
 function ReadingSettingsPage() {
+  const { t } = useTranslation('settings', { keyPrefix: 'reading' });
   const { settings, update } = useSettings();
 
   return (
     <>
-      <SettingsSection title="Sens de lecture" htmlFor="reading-direction">
+      <SettingsSection title={t('direction')} htmlFor="reading-direction">
         <select
           id="reading-direction"
           className={SETTINGS_SELECT_CLASS}
           value={settings.readingDirection}
           onChange={(event) => update('readingDirection', event.target.value as 'ltr' | 'rtl')}
         >
-          <option value="ltr">Gauche à droite (BD, comics)</option>
-          <option value="rtl">Droite à gauche (manga)</option>
+          <option value="ltr">{t('ltr')}</option>
+          <option value="rtl">{t('rtl')}</option>
         </select>
       </SettingsSection>
 
-      <SettingsSection title="Sens du défilement (molette souris / trackpad)" htmlFor="scroll-direction">
+      <SettingsSection title={t('scroll')} htmlFor="scroll-direction">
         <select
           id="scroll-direction"
           className={SETTINGS_SELECT_CLASS}
           value={settings.scrollDirection}
           onChange={(event) => update('scrollDirection', event.target.value as 'standard' | 'inverted')}
         >
-          <option value="standard">Standard (vers le bas = page suivante)</option>
-          <option value="inverted">Inversé (vers le bas = page précédente)</option>
+          <option value="standard">{t('scrollStandard')}</option>
+          <option value="inverted">{t('scrollInverted')}</option>
         </select>
       </SettingsSection>
 
-      <SettingsSection title="Mode de lecture" htmlFor="reading-mode">
+      <SettingsSection title={t('mode')} htmlFor="reading-mode">
         <select
           id="reading-mode"
           className={SETTINGS_SELECT_CLASS}
           value={settings.readingMode}
           onChange={(event) => update('readingMode', event.target.value as 'single' | 'continuous')}
         >
-          <option value="single">Page par page</option>
-          <option value="continuous">Défilement continu (pages qui se suivent)</option>
+          <option value="single">{t('modeSingle')}</option>
+          <option value="continuous">{t('modeContinuous')}</option>
         </select>
 
         {settings.readingMode === 'continuous' && (
           <div className="flex items-center gap-2 pt-1">
             <label htmlFor="page-spacing" className="text-sm text-muted-foreground">
-              Espacement entre les pages
+              {t('pageSpacing')}
             </label>
             <input
               id="page-spacing"
@@ -61,7 +63,7 @@ function ReadingSettingsPage() {
               value={settings.pageSpacing}
               onChange={(event) => update('pageSpacing', Math.max(0, Number(event.target.value) || 0))}
             />
-            <span className="text-sm text-muted-foreground">px</span>
+            <span className="text-sm text-muted-foreground">{t('pixels')}</span>
           </div>
         )}
       </SettingsSection>

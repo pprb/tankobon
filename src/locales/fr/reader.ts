@@ -1,0 +1,32 @@
+import type en from '../en/reader';
+import type { Translation } from '../types';
+
+const reader: Translation<typeof en> = {
+  title: 'Lecteur',
+  intro: 'Ouvre un fichier CBZ, CBR ou PDF pour commencer la lecture.',
+  openFile: 'Ouvrir un fichier',
+  openAnother: 'Ouvrir un autre fichier',
+  close: 'Fermer',
+  zoom: 'Zoom',
+  zoomFit: 'Ajuster à la fenêtre',
+  zoomActual: 'Taille réelle (100 %)',
+  zoomPercent: '{{percent}} %',
+  remainingTime: 'Temps de lecture restant estimé : {{time}}',
+  bookProgress: 'Avancement dans le livre',
+  percent: '{{percent}} %',
+  enterFullscreen: 'Plein écran (F)',
+  exitFullscreen: 'Quitter le plein écran (Échap ou F)',
+  listFinished: 'Liste terminée',
+  listNamed: 'Liste « {{name}} »',
+  nextInList: 'Livre suivant de la liste « {{name}} »',
+  nextBook: 'Suivant : {{title}}',
+  upscaleHint: "Améliore la netteté de l'image agrandie grâce à un modèle d'IA local (aucune donnée envoyée en ligne)",
+  upscaling: 'Amélioration…',
+  upscaleUnavailable: 'Amélioration indisponible',
+  upscale: 'Améliorer (IA)',
+  pageAlt: 'Page {{page}}',
+  previousPage: 'Page précédente',
+  nextPage: 'Page suivante',
+};
+
+export default reader;

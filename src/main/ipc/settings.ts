@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 
 import type { AppSettings } from '../../shared/settings';
 import type { SettingsRepository } from '../db/settings-repository';
+import { applyMainLanguage } from '../language';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const SETTINGS_CHANNELS = {
@@ -14,6 +15,9 @@ export function registerSettingsIpc(repo: SettingsRepository): void {
 
   ipcMain.handle(
     SETTINGS_CHANNELS.set,
-    (_event, key: keyof AppSettings, value: AppSettings[keyof AppSettings]) => repo.set(key, value),
+    (_event, key: keyof AppSettings, value: AppSettings[keyof AppSettings]) => {
+      repo.set(key, value);
+      if (key === 'language') applyMainLanguage(String(value));
+    },
   );
 }

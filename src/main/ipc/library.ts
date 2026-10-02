@@ -1,5 +1,6 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron';
 
+import { t } from '../../shared/i18n';
 import type { MetadataUpdate, ScanResult } from '../../shared/library';
 import type { LibraryRepository } from '../db/library-repository';
 import { scanIntoLibrary } from '../services/library-scanner';
@@ -24,7 +25,7 @@ export function registerLibraryIpc(repo: LibraryRepository, thumbnails: Thumbnai
 
   ipcMain.handle(LIBRARY_CHANNELS.addFolder, async (event): Promise<ScanResult> => {
     const options: Electron.OpenDialogOptions = {
-      title: 'Ajouter un dossier de BD',
+      title: t('dialogs:addFolder'),
       properties: ['openDirectory'],
     };
     const window = BrowserWindow.fromWebContents(event.sender);

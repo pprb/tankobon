@@ -1,0 +1,41 @@
+import type en from '../en/lists';
+import type { Translation } from '../types';
+
+const lists: Translation<typeof en> = {
+  title: 'Listes de lecture',
+  intro: "Des piles de livres à lire dans l'ordre, jusqu'à {{max}} par liste. Ajoute des livres depuis la bibliothèque.",
+  newListName: 'Nom de la nouvelle liste',
+  newListPlaceholder: 'Nouvelle liste',
+  create: 'Créer',
+  createAndAdd: 'Créer et ajouter',
+  empty: 'Aucune liste de lecture pour le moment.',
+  emptyInDialog: 'Aucune liste pour le moment : crée la première ci-dessous.',
+  noLists: 'Aucune liste',
+  deleteList: 'Supprimer la liste',
+  deleteListNamed: 'Supprimer la liste {{name}}',
+  confirmDelete: 'Supprimer la liste « {{name}} » ? Les livres restent dans la bibliothèque.',
+  upNext: 'À suivre : ',
+  upNextShort: 'À suivre',
+  listEmpty: 'Liste vide.',
+  listFinished: 'Liste terminée.',
+  progressLabel: 'Avancement de la liste',
+  progress_one: '{{count}} / {{total}} lu · {{percent}} %',
+  progress_other: '{{count}} / {{total}} lus · {{percent}} %',
+  notFound: "Cette liste de lecture n'existe plus.",
+  rename: 'Renommer',
+  renameList: 'Renommer la liste',
+  listName: 'Nom de la liste',
+  count: '{{count}} / {{max}} livres. Les livres lus (dernière page atteinte ou étiquette « {{readTag}} ») restent à leur place ; les autres se réordonnent par glisser-déposer ou avec les flèches.',
+  emptyDetail: 'Liste vide : ajoute des livres depuis la bibliothèque (bouton « Ajouter à une liste de lecture »).',
+  read: 'Lire',
+  moveUp: 'Monter',
+  moveDown: 'Descendre',
+  removeFromList: 'Retirer de la liste',
+  full: 'Liste pleine ({{max}} livres au maximum)',
+  showLists: 'Afficher les listes de lecture',
+  hideLists: 'Masquer les listes de lecture',
+  dropAlreadyIn: '« {{title}} » est déjà dans « {{list}} ».',
+  dropAdded: '« {{title}} » ajouté à « {{list}} ».',
+};
+
+export default lists;

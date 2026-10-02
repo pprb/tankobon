@@ -7,6 +7,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { ComicPage } from '../../shared/comic';
+import { t } from '../../shared/i18n';
 import type { ComicArchive } from './comic-archive';
 
 // pdf.js's rendering code (the `legacy` build, meant for non-browser environments) references
@@ -78,7 +79,7 @@ export class PdfArchive implements ComicArchive {
     const doc = await loadingTask.promise;
     if (doc.numPages === 0) {
       await loadingTask.destroy();
-      throw new Error(`Aucune page trouvée dans ${filePath}`);
+      throw new Error(t('errors:archive.noPages', { path: filePath }));
     }
     const pages = Array.from({ length: doc.numPages }, (_, i) => `page-${i + 1}`);
     return new PdfArchive(filePath, pages, doc, loadingTask);
@@ -87,7 +88,7 @@ export class PdfArchive implements ComicArchive {
   /** Renders page `index` (0-based) to PNG; throws a `RangeError` when out of range. */
   async readPage(index: number): Promise<ComicPage> {
     if (index < 0 || index >= this.pages.length) {
-      throw new RangeError(`Page ${index} hors limites (0-${this.pages.length - 1})`);
+      throw new RangeError(t('errors:archive.pageOutOfRange', { index, last: this.pages.length - 1 }));
     }
     const page = await this.doc.getPage(index + 1);
     try {

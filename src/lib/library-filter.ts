@@ -2,6 +2,7 @@
  * Client-side search and filters of the library page (pure, no DOM).
  * @module
  */
+import { currentLanguage } from '@/shared/i18n';
 import type { LibraryEntry } from '@/shared/library';
 import { formatPersonName } from '@/shared/title-parsing';
 
@@ -35,7 +36,7 @@ export function availableTags(entries: LibraryEntry[], first: string[] = []): st
       if (!first.includes(tag)) rest.add(tag);
     }
   }
-  return [...first, ...[...rest].sort((a, b) => a.localeCompare(b, 'fr'))];
+  return [...first, ...[...rest].sort((a, b) => a.localeCompare(b, currentLanguage()))];
 }
 
 /**

@@ -1,8 +1,12 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { applyLanguage } from '../../shared/i18n';
 import { isBedethequeAlbumUrl } from '../../shared/metadata';
 import { fetchBedethequeAlbum, parseBedethequeAlbum } from './bedetheque';
 import type { HttpOptions } from './http-json';
+
+// The user-facing messages are checked in French; English is the interface's default.
+beforeAll(() => applyLanguage('fr'));
 
 const URL_1 = 'https://www.bedetheque.com/BD-Winged-Mermaids-Tome-1-311296.html';
 

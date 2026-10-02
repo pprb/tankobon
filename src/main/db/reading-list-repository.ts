@@ -5,6 +5,7 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 
+import { t } from '../../shared/i18n';
 import {
   MAX_READING_LIST_SIZE,
   type ReadingList,
@@ -18,7 +19,8 @@ interface ReadingListRow {
   created_at: string;
 }
 
-const NOT_FOUND: ReadingListResult = { status: 'error', message: 'Liste de lecture introuvable.' };
+/** Built on each use, so the message follows the interface language. */
+const notFound = (): ReadingListResult => ({ status: 'error', message: t('errors:readingLists.notFound') });
 
 /**
  * Persists the reading lists: named, ordered piles of library entries. Changes that can be
@@ -59,14 +61,14 @@ export class ReadingListRepository {
 
   private ok(id: string): ReadingListResult {
     const list = this.get(id);
-    return list ? { status: 'ok', list } : NOT_FOUND;
+    return list ? { status: 'ok', list } : notFound();
   }
 
   /** Creates an empty list, after the existing ones. The name is trimmed and must not be empty. */
   create(name: string): ReadingListResult {
     const trimmed = name.trim();
     if (trimmed === '') {
-      return { status: 'error', message: 'Le nom de la liste ne peut pas être vide.' };
+      return { status: 'error', message: t('errors:readingLists.emptyName') };
     }
     const id = randomUUID();
     this.insert(id, trimmed, new Date().toISOString());
@@ -77,7 +79,7 @@ export class ReadingListRepository {
   rename(id: string, name: string): ReadingListResult {
     const trimmed = name.trim();
     if (trimmed === '') {
-      return { status: 'error', message: 'Le nom de la liste ne peut pas être vide.' };
+      return { status: 'error', message: t('errors:readingLists.emptyName') };
     }
     this.db.prepare('UPDATE reading_lists SET name = ? WHERE id = ?').run(trimmed, id);
     return this.ok(id);
@@ -91,7 +93,7 @@ export class ReadingListRepository {
   reorderLists(listIds: string[]): ReadingListOrderResult {
     const current = new Set(this.list().map((list) => list.id));
     if (listIds.length !== current.size || new Set(listIds).size !== current.size || !listIds.every((id) => current.has(id))) {
-      return { status: 'error', message: 'Les listes ont changé entre-temps : réessaie.' };
+      return { status: 'error', message: t('errors:readingLists.listsChanged') };
     }
     const write = this.db.prepare('UPDATE reading_lists SET position = ? WHERE id = ?');
     listIds.forEach((id, position) => write.run(position, id));
@@ -118,7 +120,7 @@ export class ReadingListRepository {
   addEntry(id: string, libraryId: string): ReadingListResult {
     const list = this.get(id);
     if (!list) {
-      return NOT_FOUND;
+      return notFound();
     }
     if (list.entryIds.includes(libraryId)) {
       return { status: 'ok', list };
@@ -126,11 +128,11 @@ export class ReadingListRepository {
     if (list.entryIds.length >= MAX_READING_LIST_SIZE) {
       return {
         status: 'error',
-        message: `La liste « ${list.name} » est pleine (${MAX_READING_LIST_SIZE} livres au maximum).`,
+        message: t('errors:readingLists.full', { name: list.name, max: MAX_READING_LIST_SIZE }),
       };
     }
     if (this.db.prepare('SELECT 1 FROM library WHERE id = ?').get(libraryId) === undefined) {
-      return { status: 'error', message: "Ce livre n'est plus dans la bibliothèque." };
+      return { status: 'error', message: t('errors:readingLists.entryGone') };
     }
     // After the last position rather than at `length`: removing a book from the library leaves a gap.
     this.db
@@ -145,7 +147,7 @@ export class ReadingListRepository {
   /** Takes a library entry out of a list; the book stays in the library. */
   removeEntry(id: string, libraryId: string): ReadingListResult {
     if (!this.get(id)) {
-      return NOT_FOUND;
+      return notFound();
     }
     this.db.prepare('DELETE FROM reading_list_items WHERE list_id = ? AND library_id = ?').run(id, libraryId);
     this.writePositions(id, this.entryIdsOf(id));
@@ -160,11 +162,11 @@ export class ReadingListRepository {
   reorder(id: string, entryIds: string[]): ReadingListResult {
     const list = this.get(id);
     if (!list) {
-      return NOT_FOUND;
+      return notFound();
     }
     const current = new Set(list.entryIds);
     if (entryIds.length !== current.size || new Set(entryIds).size !== current.size || !entryIds.every((e) => current.has(e))) {
-      return { status: 'error', message: 'La liste a changé entre-temps : réessaie.' };
+      return { status: 'error', message: t('errors:readingLists.listChanged') };
     }
     this.writePositions(id, entryIds);
     return this.ok(id);
