@@ -2,6 +2,8 @@
 
 Tankōbon is a library manager and reader for digital comics, BD and manga. It opens **CBZ**, **CBR** and **PDF** files. The user interface is in French; labels below are quoted as they appear in the app.
 
+The mouse pointer turns into a hand over everything that can be clicked (buttons, links, menus, checkboxes and their labels), and keeps the usual arrow over disabled controls.
+
 ## Library
 
 - **Adding comics**: "Ajouter un fichier" opens one comic; "Ajouter un dossier…" adds every CBZ/CBR/PDF found in a folder and its subfolders, with a progress bar. Comics already in the library are skipped, and a file that can't be opened is counted as failed without stopping the scan.
