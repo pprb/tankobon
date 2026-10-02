@@ -1,7 +1,7 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron';
 import { readFile, writeFile } from 'node:fs/promises';
 
-import type { ImportResult } from '../../shared/data';
+import type { ClearLibraryResult, ImportResult } from '../../shared/data';
 import { buildExport } from '../db/export-service';
 import { applyImport, parseExport } from '../db/import-service';
 import type { LibraryRepository } from '../db/library-repository';
@@ -13,6 +13,7 @@ import type { ThumbnailCache } from '../services/thumbnail-cache';
 export const DATA_CHANNELS = {
   export: 'data:export',
   import: 'data:import',
+  clearLibrary: 'data:clear-library',
 } as const;
 
 export function registerDataIpc(
@@ -64,5 +65,13 @@ export function registerDataIpc(
     } catch (error) {
       return { status: 'error', message: error instanceof Error ? error.message : String(error) };
     }
+  });
+
+  ipcMain.handle(DATA_CHANNELS.clearLibrary, async (): Promise<ClearLibraryResult> => {
+    const readingLists = readingListRepo.clear();
+    const entries = libraryRepo.clear();
+    // Every thumbnail now belongs to a book that is no longer in the library.
+    await thumbnails.prune([]);
+    return { entries, readingLists };
   });
 }

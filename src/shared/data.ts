@@ -29,3 +29,11 @@ export type ImportResult =
   | { status: 'cancelled' }
   | { status: 'imported'; filePath: string; added: number; updated: number }
   | { status: 'error'; message: string };
+
+/** What `data:clear-library` deleted: library entries and reading lists. */
+export interface ClearLibraryResult {
+  /** Number of library entries removed. */
+  entries: number;
+  /** Number of reading lists deleted. */
+  readingLists: number;
+}
