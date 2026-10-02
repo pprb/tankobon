@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { FolderOpen, FolderTree, ListPlus, ScanSearch, Search, Star, Trash2, X } from 'lucide-react';
+import { FolderOpen, FolderTree, ListPlus, Pencil, ScanSearch, Search, Star, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { AddToListDialog } from '@/components/add-to-list-dialog';
 import { BookCover } from '@/components/book-cover';
+import { BookEditDialog } from '@/components/book-edit-dialog';
 import { MetadataDialog } from '@/components/metadata-dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -36,6 +37,7 @@ function LibraryPage() {
   const [scan, setScan] = useState<ScanProgress | null>(null);
   const [scanStatus, setScanStatus] = useState<string | null>(null);
   const [lookupEntry, setLookupEntry] = useState<LibraryEntry | null>(null);
+  const [editEntry, setEditEntry] = useState<LibraryEntry | null>(null);
   const [listEntry, setListEntry] = useState<LibraryEntry | null>(null);
   const visible = useMemo(() => filterEntries(entries, filters), [entries, filters]);
   const tags = useMemo(() => availableTags(entries, QUICK_TAGS), [entries]);
@@ -153,6 +155,15 @@ function LibraryPage() {
                 <Button
                   variant="ghost"
                   size="icon-sm"
+                  onClick={() => setEditEntry(entry)}
+                  title="Modifier la fiche (titre, série, auteurs…)"
+                  aria-label="Modifier la fiche"
+                >
+                  <Pencil />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={() => setLookupEntry(entry)}
                   title="Rechercher les infos (série, auteurs…)"
                   aria-label="Rechercher les infos"
@@ -193,6 +204,7 @@ function LibraryPage() {
       {lookupEntry && (
         <MetadataDialog entry={lookupEntry} onClose={() => setLookupEntry(null)} onApplied={replaceEntry} />
       )}
+      {editEntry && <BookEditDialog entry={editEntry} onClose={() => setEditEntry(null)} onSaved={replaceEntry} />}
       {listEntry && <AddToListDialog entry={listEntry} onClose={() => setListEntry(null)} />}
 
       <p className="text-xs text-muted-foreground">
