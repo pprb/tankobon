@@ -15,6 +15,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ListsIndexRouteImport } from './routes/lists/index'
 import { Route as ListsListIdRouteImport } from './routes/lists/$listId'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as SettingsAboutRouteImport } from './routes/settings/about'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
 import { Route as SettingsDataRouteImport } from './routes/settings/data'
 import { Route as SettingsMetadataRouteImport } from './routes/settings/metadata'
@@ -50,6 +51,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsAboutRoute = SettingsAboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   id: '/appearance',
   path: '/appearance',
@@ -76,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/reader': typeof ReaderRoute
   '/settings': typeof SettingsRouteWithChildren
   '/lists/$listId': typeof ListsListIdRoute
+  '/settings/about': typeof SettingsAboutRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/metadata': typeof SettingsMetadataRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/reader': typeof ReaderRoute
   '/lists/$listId': typeof ListsListIdRoute
+  '/settings/about': typeof SettingsAboutRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/metadata': typeof SettingsMetadataRoute
@@ -100,6 +108,7 @@ export interface FileRoutesById {
   '/reader': typeof ReaderRoute
   '/settings': typeof SettingsRouteWithChildren
   '/lists/$listId': typeof ListsListIdRoute
+  '/settings/about': typeof SettingsAboutRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/metadata': typeof SettingsMetadataRoute
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/reader'
     | '/settings'
     | '/lists/$listId'
+    | '/settings/about'
     | '/settings/appearance'
     | '/settings/data'
     | '/settings/metadata'
@@ -125,6 +135,7 @@ export interface FileRouteTypes {
     | '/'
     | '/reader'
     | '/lists/$listId'
+    | '/settings/about'
     | '/settings/appearance'
     | '/settings/data'
     | '/settings/metadata'
@@ -137,6 +148,7 @@ export interface FileRouteTypes {
     | '/reader'
     | '/settings'
     | '/lists/$listId'
+    | '/settings/about'
     | '/settings/appearance'
     | '/settings/data'
     | '/settings/metadata'
@@ -197,6 +209,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/about': {
+      id: '/settings/about'
+      path: '/about'
+      fullPath: '/settings/about'
+      preLoaderRoute: typeof SettingsAboutRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/appearance': {
       id: '/settings/appearance'
       path: '/appearance'
@@ -229,6 +248,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface SettingsRouteChildren {
+  SettingsAboutRoute: typeof SettingsAboutRoute
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
   SettingsDataRoute: typeof SettingsDataRoute
   SettingsMetadataRoute: typeof SettingsMetadataRoute
@@ -237,6 +257,7 @@ interface SettingsRouteChildren {
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsAboutRoute: SettingsAboutRoute,
   SettingsAppearanceRoute: SettingsAppearanceRoute,
   SettingsDataRoute: SettingsDataRoute,
   SettingsMetadataRoute: SettingsMetadataRoute,

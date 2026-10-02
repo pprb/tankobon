@@ -30,7 +30,6 @@ export const Route = createFileRoute('/')({
 const QUICK_TAGS = [READ_TAG, 'À lire'];
 
 function LibraryPage() {
-  const { electron, chrome, node } = window.tankobon.versions;
   const navigate = useNavigate();
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
   const [filters, setFilters] = useState<LibraryFilters>(EMPTY_FILTERS);
@@ -206,10 +205,6 @@ function LibraryPage() {
       )}
       {editEntry && <BookEditDialog entry={editEntry} onClose={() => setEditEntry(null)} onSaved={replaceEntry} />}
       {listEntry && <AddToListDialog entry={listEntry} onClose={() => setListEntry(null)} />}
-
-      <p className="text-xs text-muted-foreground">
-        Electron {electron} · Chromium {chrome} · Node {node}
-      </p>
     </div>
   );
 }

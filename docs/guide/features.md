@@ -42,6 +42,10 @@ The button at the top of the sidebar collapses it to a column of icons, to give 
 
 "Listes de lecture" lists every reading list underneath it, for direct access to a list's page. Clicking "Listes de lecture" opens the page of all lists and unfolds them; its chevron folds or unfolds them without leaving the current page. "Paramètres" unfolds its sections the same way. Sub-entries are hidden while the sidebar is collapsed to icons. The reading lists can be put in any order by dragging them in the sidebar (a line shows where the list will land); that order is kept and used on the page of all lists too. A new list goes last.
 
+## About
+
+Paramètres › À propos shows the app's version, along with the versions of Electron, Chromium, Node.js and V8 and the operating system. "Copier les informations" copies them as text, to paste into a bug report. Buttons open the documentation, the source code on GitHub, the published versions (installers and changelog) and the issue tracker in the default browser.
+
 ## Your data
 
 - **Local only**: the library and the settings are stored in one SQLite file, `tankobon.db`. By default it lives in the app's user data directory; nothing is sent to the cloud. Cover thumbnails are a cache in a `thumbnails` folder of the user data directory; they stay there even when the database is moved, and can be deleted at any time. The only network requests are the information lookups the user starts, which send the search text to the enabled sources.
