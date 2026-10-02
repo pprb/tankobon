@@ -2,7 +2,19 @@ import { describe, expect, it } from 'vitest';
 
 import type { LibraryEntry } from '@/shared/library';
 
-import { isFinished, listEntries, listProgress, moveItem, moveUnfinished, nextToRead } from './reading-list';
+import type { ReadingList } from '@/shared/reading-list';
+
+import {
+  decodeDraggedEntry,
+  dropFeedback,
+  encodeDraggedEntry,
+  isFinished,
+  listEntries,
+  listProgress,
+  moveItem,
+  moveUnfinished,
+  nextToRead,
+} from './reading-list';
 
 function entry(id: string, overrides: Partial<LibraryEntry> = {}): LibraryEntry {
   return {
@@ -100,5 +112,48 @@ describe('moveItem', () => {
     expect(moveItem(items, -1, 0)).toBeNull();
     expect(moveItem(items, 0, 3)).toBeNull();
     expect(items).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('dragged entry encoding', () => {
+  it('round-trips a book', () => {
+    const book = { id: 'a', title: 'Blacksad « T1 »' };
+    expect(decodeDraggedEntry(encodeDraggedEntry(book))).toEqual(book);
+  });
+
+  it('rejects anything else', () => {
+    expect(decodeDraggedEntry('')).toBeNull();
+    expect(decodeDraggedEntry('not json')).toBeNull();
+    expect(decodeDraggedEntry('null')).toBeNull();
+    expect(decodeDraggedEntry('"a"')).toBeNull();
+    expect(decodeDraggedEntry('{"id":"","title":"x"}')).toBeNull();
+    expect(decodeDraggedEntry('{"id":1,"title":"x"}')).toBeNull();
+    expect(decodeDraggedEntry('{"id":"a"}')).toBeNull();
+  });
+});
+
+describe('dropFeedback', () => {
+  const list: ReadingList = { id: 'l', name: 'Été', createdAt: '2024-01-01', entryIds: ['b'] };
+  const ok = { status: 'ok' as const, list: { ...list, entryIds: ['b', 'a'] } };
+
+  it('confirms an added book', () => {
+    expect(dropFeedback(list, { id: 'a', title: 'Astérix' }, ok)).toEqual({
+      message: '« Astérix » ajouté à « Été ».',
+      error: false,
+    });
+  });
+
+  it('says when the book was already in the list', () => {
+    expect(dropFeedback(list, { id: 'b', title: 'Blake' }, { status: 'ok', list })).toEqual({
+      message: '« Blake » est déjà dans « Été ».',
+      error: false,
+    });
+  });
+
+  it("passes a refusal's message on", () => {
+    expect(dropFeedback(list, { id: 'a', title: 'Astérix' }, { status: 'error', message: 'Pleine.' })).toEqual({
+      message: 'Pleine.',
+      error: true,
+    });
   });
 });

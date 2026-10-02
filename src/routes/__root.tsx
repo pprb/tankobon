@@ -1,14 +1,21 @@
 import { Link, Outlet, createRootRoute, useRouterState } from '@tanstack/react-router';
 import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, Library, List, ListOrdered, Settings } from 'lucide-react';
-import { useState } from 'react';
+import { type DragEvent, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useFullscreen } from '@/hooks/use-fullscreen';
 import { notifyReadingListsChanged, useReadingLists } from '@/hooks/use-reading-lists';
 import { useSettings } from '@/hooks/use-settings';
-import { moveItem } from '@/lib/reading-list';
+import {
+  decodeDraggedEntry,
+  dropFeedback,
+  type DropFeedback,
+  LIBRARY_ENTRY_DRAG_TYPE,
+  moveItem,
+} from '@/lib/reading-list';
 import { SETTINGS_SECTIONS } from '@/lib/settings-nav';
 import { cn } from '@/lib/utils';
+import type { ReadingList } from '@/shared/reading-list';
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -138,7 +145,8 @@ function SettingsNav({ collapsed }: { collapsed: boolean }) {
  * "Listes de lecture" with each list underneath, for direct access. Unlike "Paramètres", the entry
  * has its own page (every list's progress), so its label always navigates there, unfolding the
  * lists on the way; only the chevron folds them back. The lists can be reordered by dragging
- * them, which sets their order everywhere they are shown.
+ * them, which sets their order everywhere they are shown. A book dragged from the library page
+ * and dropped on a list is added to it (dragging it over the entry unfolds the lists).
  */
 function ReadingListsNav({ collapsed }: { collapsed: boolean }) {
   const onLists = useRouterState({
@@ -151,6 +159,26 @@ function ReadingListsNav({ collapsed }: { collapsed: boolean }) {
   // Index of the list being dragged, and of the one under the pointer (where it would land).
   const [dragged, setDragged] = useState<number | null>(null);
   const [over, setOver] = useState<number | null>(null);
+  // Id of the list a library book is dragged over, and the message about the last book dropped.
+  const [bookOver, setBookOver] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<DropFeedback | null>(null);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = setTimeout(() => setFeedback(null), 4000);
+    return () => clearTimeout(timer);
+  }, [feedback]);
+
+  // During a drag only the data's types can be read, not the data itself.
+  const isBookDrag = (event: DragEvent) => event.dataTransfer.types.includes(LIBRARY_ENTRY_DRAG_TYPE);
+
+  const dropBook = async (list: ReadingList, data: string) => {
+    setBookOver(null);
+    const entry = decodeDraggedEntry(data);
+    if (!entry) return;
+    setFeedback(dropFeedback(list, entry, await window.tankobon.readingLists.addEntry(list.id, entry.id)));
+    notifyReadingListsChanged();
+  };
 
   const drop = async (to: number) => {
     const order = lists && dragged !== null ? moveItem(lists.map((list) => list.id), dragged, to) : null;
@@ -164,7 +192,12 @@ function ReadingListsNav({ collapsed }: { collapsed: boolean }) {
 
   return (
     <>
-      <div className={cn(linkClass(collapsed), 'p-0', onLists && activeLinkClass)}>
+      <div
+        className={cn(linkClass(collapsed), 'p-0', onLists && activeLinkClass)}
+        onDragEnter={(event) => {
+          if (isBookDrag(event)) setOpen(true);
+        }}
+      >
         <Link
           to="/lists"
           className={cn('flex min-w-0 flex-1 items-center gap-2 py-1.5', collapsed ? 'justify-center px-2' : 'pl-2')}
@@ -206,14 +239,23 @@ function ReadingListsNav({ collapsed }: { collapsed: boolean }) {
                 setOver(null);
               }}
               onDragOver={(event) => {
-                if (dragged === null) return;
-                event.preventDefault();
-                event.dataTransfer.dropEffect = 'move';
-                setOver(index);
+                if (dragged !== null) {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = 'move';
+                  setOver(index);
+                } else if (isBookDrag(event)) {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = 'copy';
+                  setBookOver(list.id);
+                }
+              }}
+              onDragLeave={() => {
+                if (bookOver === list.id) setBookOver(null);
               }}
               onDrop={(event) => {
                 event.preventDefault();
-                void drop(index);
+                if (dragged !== null) void drop(index);
+                else if (isBookDrag(event)) void dropBook(list, event.dataTransfer.getData(LIBRARY_ENTRY_DRAG_TYPE));
               }}
               className={cn(
                 subLinkClass,
@@ -221,15 +263,22 @@ function ReadingListsNav({ collapsed }: { collapsed: boolean }) {
                 // A line on the side the dragged list would land: above when moving up, below when moving down.
                 dragged !== null && over === index && dragged > index && 'shadow-[inset_0_2px_0_0_var(--color-primary)]',
                 dragged !== null && over === index && dragged < index && 'shadow-[inset_0_-2px_0_0_var(--color-primary)]',
+                bookOver === list.id && 'bg-primary/10 text-primary ring-1 ring-primary',
               )}
               activeProps={{ className: activeLinkClass }}
               title={list.name}
             >
-              <List className="size-3.5 shrink-0" />
-              <span className="truncate">{list.name}</span>
+              {/* No pointer events on the children: entering them would fire `dragleave` on the link. */}
+              <List className="pointer-events-none size-3.5 shrink-0" />
+              <span className="pointer-events-none truncate">{list.name}</span>
             </Link>
           ))
         ))}
+      {unfolded && feedback && (
+        <p role="status" className={cn('ml-4 px-2 py-1 text-xs', feedback.error ? 'text-destructive' : 'text-muted-foreground')}>
+          {feedback.message}
+        </p>
+      )}
     </>
   );
 }

@@ -17,7 +17,7 @@ import {
   type RatingFilter,
 } from '@/lib/library-filter';
 import { CREDIT_ROLE_LABELS } from '@/lib/metadata-review';
-import { READ_TAG } from '@/lib/reading-list';
+import { encodeDraggedEntry, LIBRARY_ENTRY_DRAG_TYPE, READ_TAG } from '@/lib/reading-list';
 import { cn, formatFileSize, formatLanguage } from '@/lib/utils';
 import { CREDIT_ROLES, type LibraryEntry, type ScanProgress } from '@/shared/library';
 import { formatPersonName } from '@/shared/title-parsing';
@@ -132,24 +132,36 @@ function LibraryPage() {
           {visible.map((entry) => (
             <li key={entry.id} className="flex flex-col gap-2 px-3 py-3">
               <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => navigate({ to: '/reader', search: { path: entry.path } })}
-                  title="Ouvrir"
-                  aria-label={`Ouvrir ${entry.title}`}
-                  className="shrink-0 rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                {/* The cover and the text drag the book onto a reading list of the sidebar; the
+                    rest of the row (stars, buttons, tag field) keeps its own mouse handling. */}
+                <div
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData(LIBRARY_ENTRY_DRAG_TYPE, encodeDraggedEntry(entry));
+                    event.dataTransfer.effectAllowed = 'copy';
+                  }}
+                  className="flex min-w-0 flex-1 cursor-grab items-center gap-3 active:cursor-grabbing"
+                  title="Glisser vers une liste de lecture du panneau latéral"
                 >
-                  <BookCover entryId={entry.id} title={entry.title} className="h-20 w-14" />
-                </button>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium" title={entry.path}>
-                    {entry.title}
-                  </p>
-                  <EntryMetadata entry={entry} />
-                  <p className="text-xs text-muted-foreground">
-                    Page {entry.currentPage + 1} / {entry.pageCount} · {entry.fileCount} fichiers ·{' '}
-                    {formatFileSize(entry.fileSize)}
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate({ to: '/reader', search: { path: entry.path } })}
+                    title="Ouvrir"
+                    aria-label={`Ouvrir ${entry.title}`}
+                    className="shrink-0 rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  >
+                    <BookCover entryId={entry.id} title={entry.title} className="h-20 w-14" />
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium" title={entry.path}>
+                      {entry.title}
+                    </p>
+                    <EntryMetadata entry={entry} />
+                    <p className="text-xs text-muted-foreground">
+                      Page {entry.currentPage + 1} / {entry.pageCount} · {entry.fileCount} fichiers ·{' '}
+                      {formatFileSize(entry.fileSize)}
+                    </p>
+                  </div>
                 </div>
                 <StarRating rating={entry.rating} onChange={(rating) => setRating(entry.id, rating)} />
                 <Button
