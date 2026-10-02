@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ReaderRouteImport } from './routes/reader'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ListsIndexRouteImport } from './routes/lists/index'
+import { Route as ListsListIdRouteImport } from './routes/lists/$listId'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
 import { Route as SettingsDataRouteImport } from './routes/settings/data'
@@ -31,6 +33,16 @@ const ReaderRoute = ReaderRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ListsIndexRoute = ListsIndexRouteImport.update({
+  id: '/lists/',
+  path: '/lists/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ListsListIdRoute = ListsListIdRouteImport.update({
+  id: '/lists/$listId',
+  path: '/lists/$listId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
@@ -63,19 +75,23 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/reader': typeof ReaderRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/lists/$listId': typeof ListsListIdRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/metadata': typeof SettingsMetadataRoute
   '/settings/reading': typeof SettingsReadingRoute
+  '/lists/': typeof ListsIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/reader': typeof ReaderRoute
+  '/lists/$listId': typeof ListsListIdRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/metadata': typeof SettingsMetadataRoute
   '/settings/reading': typeof SettingsReadingRoute
+  '/lists': typeof ListsIndexRoute
   '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
@@ -83,10 +99,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/reader': typeof ReaderRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/lists/$listId': typeof ListsListIdRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/metadata': typeof SettingsMetadataRoute
   '/settings/reading': typeof SettingsReadingRoute
+  '/lists/': typeof ListsIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
@@ -95,29 +113,35 @@ export interface FileRouteTypes {
     | '/'
     | '/reader'
     | '/settings'
+    | '/lists/$listId'
     | '/settings/appearance'
     | '/settings/data'
     | '/settings/metadata'
     | '/settings/reading'
+    | '/lists/'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/reader'
+    | '/lists/$listId'
     | '/settings/appearance'
     | '/settings/data'
     | '/settings/metadata'
     | '/settings/reading'
+    | '/lists'
     | '/settings'
   id:
     | '__root__'
     | '/'
     | '/reader'
     | '/settings'
+    | '/lists/$listId'
     | '/settings/appearance'
     | '/settings/data'
     | '/settings/metadata'
     | '/settings/reading'
+    | '/lists/'
     | '/settings/'
   fileRoutesById: FileRoutesById
 }
@@ -125,6 +149,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ReaderRoute: typeof ReaderRoute
   SettingsRoute: typeof SettingsRouteWithChildren
+  ListsListIdRoute: typeof ListsListIdRoute
+  ListsIndexRoute: typeof ListsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -148,6 +174,20 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lists/': {
+      id: '/lists/'
+      path: '/lists'
+      fullPath: '/lists/'
+      preLoaderRoute: typeof ListsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lists/$listId': {
+      id: '/lists/$listId'
+      path: '/lists/$listId'
+      fullPath: '/lists/$listId'
+      preLoaderRoute: typeof ListsListIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/': {
@@ -212,6 +252,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ReaderRoute: ReaderRoute,
   SettingsRoute: SettingsRouteWithChildren,
+  ListsListIdRoute: ListsListIdRoute,
+  ListsIndexRoute: ListsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

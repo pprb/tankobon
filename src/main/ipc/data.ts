@@ -5,6 +5,7 @@ import type { ImportResult } from '../../shared/data';
 import { buildExport } from '../db/export-service';
 import { applyImport, parseExport } from '../db/import-service';
 import type { LibraryRepository } from '../db/library-repository';
+import type { ReadingListRepository } from '../db/reading-list-repository';
 import type { SettingsRepository } from '../db/settings-repository';
 import type { ThumbnailCache } from '../services/thumbnail-cache';
 
@@ -17,6 +18,7 @@ export const DATA_CHANNELS = {
 export function registerDataIpc(
   libraryRepo: LibraryRepository,
   settingsRepo: SettingsRepository,
+  readingListRepo: ReadingListRepository,
   thumbnails: ThumbnailCache,
 ): void {
   ipcMain.handle(DATA_CHANNELS.export, async (event) => {
@@ -33,7 +35,7 @@ export function registerDataIpc(
       return null;
     }
 
-    const data = buildExport(libraryRepo, settingsRepo);
+    const data = buildExport(libraryRepo, settingsRepo, readingListRepo);
     await writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
     return filePath;
   });
@@ -54,7 +56,7 @@ export function registerDataIpc(
 
     try {
       const data = parseExport(await readFile(filePaths[0], 'utf-8'));
-      const counts = applyImport(libraryRepo, settingsRepo, data);
+      const counts = applyImport(libraryRepo, settingsRepo, readingListRepo, data);
       // Thumbnails aren't part of an export: rebuild the cache in the background, without making
       // the import wait for every archive to be opened.
       void thumbnails.rebuild(libraryRepo.list().map((entry) => entry.path));

@@ -10,6 +10,7 @@ import type { ComicInfo, ComicPage } from './shared/comic';
 import type { DatabaseLocation, DatabaseLocationResult, ImportResult } from './shared/data';
 import type { LibraryEntry, MetadataUpdate, ScanProgress, ScanResult } from './shared/library';
 import type { MetadataPageResult, MetadataQuery, MetadataSearchResult } from './shared/metadata';
+import type { ReadingList, ReadingListResult } from './shared/reading-list';
 import type { AppSettings } from './shared/settings';
 
 /** Versions of the runtimes the app is running on, as `window.tankobon.versions`. */
@@ -54,6 +55,24 @@ export interface LibraryApi {
   updateMetadata(id: string, update: MetadataUpdate): Promise<LibraryEntry | null>;
   /** Cover thumbnail (first page, shrunk) of a library entry as WebP bytes, generated and cached first when missing; null if the entry is unknown or unreadable. */
   thumbnail(id: string): Promise<Uint8Array<ArrayBuffer> | null>;
+}
+
+/** Reading lists (ordered piles of library entries), as `window.tankobon.readingLists`. */
+export interface ReadingListApi {
+  /** Every reading list, oldest first, each with its library entry ids in reading order. */
+  list(): Promise<ReadingList[]>;
+  /** Creates an empty reading list; refused when the name is empty. */
+  create(name: string): Promise<ReadingListResult>;
+  /** Renames a reading list; refused when the name is empty. */
+  rename(id: string, name: string): Promise<ReadingListResult>;
+  /** Deletes a reading list; its books stay in the library. */
+  remove(id: string): Promise<void>;
+  /** Appends a library entry to a reading list; refused when the list already holds 50 books. */
+  addEntry(id: string, libraryId: string): Promise<ReadingListResult>;
+  /** Takes a library entry out of a reading list. */
+  removeEntry(id: string, libraryId: string): Promise<ReadingListResult>;
+  /** Stores a new order for a reading list; `entryIds` must hold exactly the list's current entries. */
+  reorder(id: string, entryIds: string[]): Promise<ReadingListResult>;
 }
 
 /** Book information lookups in public APIs, as `window.tankobon.metadata`. */
@@ -104,6 +123,8 @@ export interface TankobonApi {
   comic: ComicApi;
   /** The library and its per-entry fields. */
   library: LibraryApi;
+  /** Reading lists. */
+  readingLists: ReadingListApi;
   /** The user's settings. */
   settings: SettingsApi;
   /** JSON export and import. */
@@ -144,6 +165,15 @@ const api: TankobonApi = {
     updateTags: (id, tags) => ipcRenderer.invoke('library:update-tags', id, tags),
     updateMetadata: (id, update) => ipcRenderer.invoke('library:update-metadata', id, update),
     thumbnail: (id) => ipcRenderer.invoke('library:thumbnail', id),
+  },
+  readingLists: {
+    list: () => ipcRenderer.invoke('reading-lists:list'),
+    create: (name) => ipcRenderer.invoke('reading-lists:create', name),
+    rename: (id, name) => ipcRenderer.invoke('reading-lists:rename', id, name),
+    remove: (id) => ipcRenderer.invoke('reading-lists:remove', id),
+    addEntry: (id, libraryId) => ipcRenderer.invoke('reading-lists:add-entry', id, libraryId),
+    removeEntry: (id, libraryId) => ipcRenderer.invoke('reading-lists:remove-entry', id, libraryId),
+    reorder: (id, entryIds) => ipcRenderer.invoke('reading-lists:reorder', id, entryIds),
   },
   settings: {
     getAll: () => ipcRenderer.invoke('settings:get-all'),

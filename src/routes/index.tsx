@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { FolderOpen, FolderTree, ScanSearch, Search, Star, Trash2, X } from 'lucide-react';
+import { FolderOpen, FolderTree, ListPlus, ScanSearch, Search, Star, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { AddToListDialog } from '@/components/add-to-list-dialog';
 import { BookCover } from '@/components/book-cover';
 import { MetadataDialog } from '@/components/metadata-dialog';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ import {
   type RatingFilter,
 } from '@/lib/library-filter';
 import { CREDIT_ROLE_LABELS } from '@/lib/metadata-review';
+import { READ_TAG } from '@/lib/reading-list';
 import { cn, formatFileSize, formatLanguage } from '@/lib/utils';
 import { CREDIT_ROLES, type LibraryEntry, type ScanProgress } from '@/shared/library';
 import { formatPersonName } from '@/shared/title-parsing';
@@ -24,7 +26,7 @@ export const Route = createFileRoute('/')({
 });
 
 /** Always offered as one-click toggles; any other tag is free-form. */
-const QUICK_TAGS = ['Lu', 'À lire'];
+const QUICK_TAGS = [READ_TAG, 'À lire'];
 
 function LibraryPage() {
   const { electron, chrome, node } = window.tankobon.versions;
@@ -34,6 +36,7 @@ function LibraryPage() {
   const [scan, setScan] = useState<ScanProgress | null>(null);
   const [scanStatus, setScanStatus] = useState<string | null>(null);
   const [lookupEntry, setLookupEntry] = useState<LibraryEntry | null>(null);
+  const [listEntry, setListEntry] = useState<LibraryEntry | null>(null);
   const visible = useMemo(() => filterEntries(entries, filters), [entries, filters]);
   const tags = useMemo(() => availableTags(entries, QUICK_TAGS), [entries]);
 
@@ -157,6 +160,15 @@ function LibraryPage() {
                   <ScanSearch />
                 </Button>
                 <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setListEntry(entry)}
+                  title="Ajouter à une liste de lecture"
+                  aria-label="Ajouter à une liste de lecture"
+                >
+                  <ListPlus />
+                </Button>
+                <Button
                   variant="secondary"
                   size="sm"
                   onClick={() => navigate({ to: '/reader', search: { path: entry.path } })}
@@ -181,6 +193,7 @@ function LibraryPage() {
       {lookupEntry && (
         <MetadataDialog entry={lookupEntry} onClose={() => setLookupEntry(null)} onApplied={replaceEntry} />
       )}
+      {listEntry && <AddToListDialog entry={listEntry} onClose={() => setListEntry(null)} />}
 
       <p className="text-xs text-muted-foreground">
         Electron {electron} · Chromium {chrome} · Node {node}

@@ -13,7 +13,7 @@ The app follows the standard Electron three-process split, with a strict boundar
 | Renderer | `src/renderer.tsx`, `src/routes/`, `src/hooks/`, `src/components/`, `src/lib/` | React 19 UI; talks to main exclusively through `window.tankobon`. |
 | Shared types | `src/shared/` | Types used on both sides of the IPC boundary (`ComicInfo`, `LibraryEntry`, `AppSettings`…). |
 
-`src/main.ts` opens the database once, builds the two repositories and the thumbnail cache, registers the IPC handlers of `src/main/ipc/*.ts`, then creates the window.
+`src/main.ts` opens the database once, builds the repositories and the thumbnail cache, registers the IPC handlers of `src/main/ipc/*.ts`, then creates the window.
 
 ### IPC channels
 
@@ -23,7 +23,7 @@ The shape of `window.tankobon` is declared up front as explicit interfaces (`Tan
 
 Everything is `invoke`/`handle` (request/response), except `library:scan-progress`, the one main → renderer push channel (see [Folder scanning](#folder-scanning)).
 
-Errors that the user should see come back as a `{ status: 'error', message }` member of a result union (`ImportResult`, `DatabaseLocationResult`, `MetadataSearchResult`) rather than as a thrown error: an `ipcMain.handle` rejection reaches the renderer wrapped in "Error invoking remote method …".
+Errors that the user should see come back as a `{ status: 'error', message }` member of a result union (`ImportResult`, `DatabaseLocationResult`, `MetadataSearchResult`, `ReadingListResult`) rather than as a thrown error: an `ipcMain.handle` rejection reaches the renderer wrapped in "Error invoking remote method …".
 
 `ArchiveInfo` is what `ComicService` knows about an opened archive before it's matched to a library entry; the `comic:open` handler (`src/main/ipc/comic.ts`) merges it with the library entry to produce the `ComicInfo` sent to the renderer.
 
@@ -55,6 +55,15 @@ One row per comic ever opened or scanned. Three writers, with deliberately diffe
 - `volume` is `TEXT`, not a number: issue numbers can be `12.1`, `HS`, `1/2`. `release_date` keeps whatever precision the source has (`YYYY`, `YYYY-MM` or `YYYY-MM-DD`).
 - `lastOpenedPath()` feeds the open dialog's `defaultPath` (`src/main/ipc/comic.ts`), falling back to the OS default when there is no history or that directory no longer exists.
 
+### Reading lists (`reading-list-repository.ts`)
+
+`reading_lists` holds each list (`id`, `name`, `created_at`); `reading_list_items` links a list to library entries with a `position`, unique per (list, entry). A list holds at most `MAX_READING_LIST_SIZE` (50) books, enforced by `addEntry()`. Refusals (full list, empty name, unknown list, stale order) come back as a `ReadingListResult` error.
+
+- **"Finished" is derived, never stored**: `isFinished()` (`src/lib/reading-list.ts`) is true once the last page was reached or the entry carries the `Lu` tag. A list's progress, its next book (`nextToRead()`) and the greyed-out rows are all computed in the renderer from the `library:list` entries, so they can't drift from the reading progress.
+- **Reordering rule**: finished books are pinned. `moveUnfinished()` only swaps unfinished books among the slots they occupy, each finished book keeping its index; the repository's `reorder()` only checks that the new order holds exactly the list's current entries (a stale order is refused rather than dropping or adding books).
+- **Deletions**: like credits, items are deleted explicitly (`LibraryRepository.remove()`, `ReadingListRepository.remove()`), since `PRAGMA foreign_keys` is off and the `ON DELETE CASCADE` doesn't apply. Removing a library entry leaves a gap in the positions, which is why `addEntry()` appends after `MAX(position)` rather than at the list's length.
+- **Next book in the reader**: the list pages open the reader with a `list` search param; `useNextInList()` then finds the list's first unfinished book other than the current one (whose progress may not be saved yet), shown on the last page. It shows nothing when the current book isn't in that list (another file opened from the reader).
+
 ### Settings (`settings-repository.ts`)
 
 A generic key/value store (JSON-encoded values) for `AppSettings`, merged with `DEFAULT_SETTINGS` on read, so a new setting key needs no migration.
@@ -69,9 +78,9 @@ The location can't be an `AppSettings` entry, since the settings are stored *in*
 
 ### Export / import (`export-service.ts`, `import-service.ts`)
 
-- `buildExport()` snapshots library + settings as `{ version: 1, exportedAt, library, settings }`, written by `data:export` through a save dialog. The library entries carry their looked-up metadata and credits; the format stays `version: 1`, since those fields are only additions (an older export comes back with them empty). The settings include the metadata API keys.
+- `buildExport()` snapshots library, reading lists and settings as `{ version: 1, exportedAt, library, readingLists, settings }`, written by `data:export` through a save dialog. The library entries carry their looked-up metadata and credits; reading lists reference their books by **path**. The format stays `version: 1`, since those fields are only additions (an older export comes back with them empty). The settings include the metadata API keys.
 - `parseExport()` validates a user-picked file: anything that isn't a `version: 1` export is rejected; broken library entries are dropped, as are credits without a last name or with an unknown role; only known settings keys whose value type matches the default are kept. An export is a file the user can edit, so nothing in it is trusted.
-- `applyImport()` merges it: entries match on **path**, not id (ids aren't stable across machines); the snapshot wins for the entries it contains; entries only present locally are untouched; settings are replaced wholesale.
+- `applyImport()` merges it: entries match on **path**, not id (ids aren't stable across machines); the snapshot wins for the entries it contains; entries only present locally are untouched; settings are replaced wholesale. Reading lists match on **id** (random UUIDs, so the same list keeps its id on every machine) and are replaced by the snapshot's; their paths are resolved to the local entries after the library is merged, and a path with no entry is dropped.
 - Cover thumbnails are not exported: after `applyImport()`, `data:import` starts `ThumbnailCache.rebuild()` in the background (see [Cover thumbnails](#cover-thumbnails)) and returns without waiting for it.
 
 ## Comic archives (`src/main/services/`)
@@ -142,7 +151,7 @@ These are the non-obvious constraints of the main-process bundle. Breaking one u
 
 ### Routing (`src/routes/`)
 
-File-based routes via TanStack Router, with an in-memory history (`createMemoryHistory` in `src/renderer.tsx`). `src/routeTree.gen.ts` is generated by `@tanstack/router-plugin` on `npm start`/build: never edit it by hand. It is committed, because `npm run typecheck` (and CI) need it without running Vite. `validateSearch` on a route needs no manual wiring in it. The reader route (`/reader`) accepts an optional `path` search param, used by the library page to open a specific file.
+File-based routes via TanStack Router, with an in-memory history (`createMemoryHistory` in `src/renderer.tsx`). `src/routeTree.gen.ts` is generated by `@tanstack/router-plugin` on `npm start`/build: never edit it by hand. It is committed, because `npm run typecheck` (and CI) need it without running Vite. `validateSearch` on a route needs no manual wiring in it. The reader route (`/reader`) accepts an optional `path` search param, used by the library page to open a specific file, and an optional `list` (a reading-list id, see [Reading lists](#reading-lists-reading-list-repository-ts)). The reading lists are `/lists` (`lists/index.tsx`) and `/lists/$listId` (`lists/$listId.tsx`).
 
 ### Settings sections
 

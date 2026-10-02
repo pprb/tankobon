@@ -43,6 +43,19 @@ export function migrate(db: DatabaseSync): void {
       position INTEGER NOT NULL,
       PRIMARY KEY (library_id, person_id, role)
     );
+
+    CREATE TABLE IF NOT EXISTS reading_lists (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS reading_list_items (
+      list_id TEXT NOT NULL REFERENCES reading_lists (id) ON DELETE CASCADE,
+      library_id TEXT NOT NULL REFERENCES library (id) ON DELETE CASCADE,
+      position INTEGER NOT NULL,
+      PRIMARY KEY (list_id, library_id)
+    );
   `);
 
   // Columns added after the initial release: existing databases need them backfilled.

@@ -4,12 +4,14 @@ import started from 'electron-squirrel-startup';
 
 import { openDatabase } from './main/db/database';
 import { LibraryRepository } from './main/db/library-repository';
+import { ReadingListRepository } from './main/db/reading-list-repository';
 import { SettingsRepository } from './main/db/settings-repository';
 import { registerComicIpc } from './main/ipc/comic';
 import { registerDatabaseIpc } from './main/ipc/database';
 import { registerDataIpc } from './main/ipc/data';
 import { registerLibraryIpc } from './main/ipc/library';
 import { registerMetadataIpc } from './main/ipc/metadata';
+import { registerReadingListIpc } from './main/ipc/reading-lists';
 import { registerSettingsIpc } from './main/ipc/settings';
 import { ThumbnailCache } from './main/services/thumbnail-cache';
 
@@ -53,14 +55,16 @@ app.whenReady().then(() => {
   const db = openDatabase();
   const libraryRepo = new LibraryRepository(db);
   const settingsRepo = new SettingsRepository(db);
+  const readingListRepo = new ReadingListRepository(db);
   // A cache, so it stays in userData even when the database lives elsewhere: it is rebuilt from the files.
   const thumbnails = new ThumbnailCache(path.join(app.getPath('userData'), 'thumbnails'));
   // Leftovers of another database (its location changed) or of a crash between two writes.
   void thumbnails.prune(libraryRepo.list().map((entry) => entry.path));
 
   registerLibraryIpc(libraryRepo, thumbnails);
+  registerReadingListIpc(readingListRepo);
   registerSettingsIpc(settingsRepo);
-  registerDataIpc(libraryRepo, settingsRepo, thumbnails);
+  registerDataIpc(libraryRepo, settingsRepo, readingListRepo, thumbnails);
   registerComicIpc(libraryRepo, thumbnails);
   registerDatabaseIpc();
   registerMetadataIpc(settingsRepo);

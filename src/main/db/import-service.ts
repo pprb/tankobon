@@ -6,8 +6,9 @@ import { randomUUID } from 'node:crypto';
 
 import { CREDIT_ROLES, type CreditInput, type CreditRole, type LibraryEntry } from '../../shared/library';
 import { DEFAULT_SETTINGS, type AppSettings } from '../../shared/settings';
-import type { ExportedData } from './export-service';
+import type { ExportedData, ExportedReadingList } from './export-service';
 import type { LibraryRepository } from './library-repository';
+import type { ReadingListRepository } from './reading-list-repository';
 import type { SettingsRepository } from './settings-repository';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -72,6 +73,25 @@ function toEntry(value: unknown): LibraryEntry | null {
   };
 }
 
+/** Lists with an id and a name; books are kept as the paths they reference, resolved on import. */
+function toReadingLists(value: unknown): ExportedReadingList[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((list): ExportedReadingList[] =>
+    isRecord(list) && typeof list.id === 'string' && list.id !== '' && typeof list.name === 'string' && list.name.trim() !== ''
+      ? [
+          {
+            id: list.id,
+            name: list.name.trim(),
+            createdAt: typeof list.createdAt === 'string' ? list.createdAt : new Date().toISOString(),
+            paths: Array.isArray(list.paths) ? list.paths.filter((p): p is string => typeof p === 'string') : [],
+          },
+        ]
+      : [],
+  );
+}
+
 /**
  * Keeps only the settings keys the app knows about, and only when the stored value has the
  * type the default has — an old or hand-edited export can't inject unknown keys or wrong types.
@@ -109,6 +129,8 @@ export function parseExport(raw: string): ExportedData {
     version: 1,
     exportedAt: typeof parsed.exportedAt === 'string' ? parsed.exportedAt : new Date().toISOString(),
     library: parsed.library.map(toEntry).filter((entry): entry is LibraryEntry => entry !== null),
+    // Exports from before reading lists have none.
+    readingLists: toReadingLists(parsed.readingLists),
     settings: toSettings(parsed.settings),
   };
 }
@@ -117,10 +139,13 @@ export function parseExport(raw: string): ExportedData {
  * Merges a parsed snapshot into the local database: library entries are matched by file path
  * (the snapshot wins for the ones it contains, so restoring a backup restores its progress,
  * ratings and tags), entries only present locally are left alone, and settings are replaced.
+ * Reading lists are matched by id, the snapshot winning too; their books are found by path, and
+ * a path that matches no library entry is dropped.
  */
 export function applyImport(
   libraryRepo: LibraryRepository,
   settingsRepo: SettingsRepository,
+  readingListRepo: ReadingListRepository,
   data: ExportedData,
 ): { added: number; updated: number } {
   let added = 0;
@@ -131,6 +156,15 @@ export function applyImport(
     } else {
       updated += 1;
     }
+  }
+  const idByPath = new Map(libraryRepo.list().map((entry) => [entry.path, entry.id]));
+  for (const list of data.readingLists) {
+    readingListRepo.upsert({
+      id: list.id,
+      name: list.name,
+      createdAt: list.createdAt,
+      entryIds: list.paths.flatMap((p) => idByPath.get(p) ?? []),
+    });
   }
   for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof AppSettings)[]) {
     settingsRepo.set(key, data.settings[key]);
