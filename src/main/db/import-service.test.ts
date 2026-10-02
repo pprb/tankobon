@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { applyLanguage } from '../../shared/i18n';
 import { DEFAULT_SETTINGS } from '../../shared/settings';
@@ -105,6 +105,7 @@ describe('applyImport', () => {
     libraryRepo.touch('/comics/local-only.cbz', 'Local', 5, 5, 10);
 
     const summary = applyImport(
+      db,
       libraryRepo,
       settingsRepo,
       readingListRepo,
@@ -141,7 +142,7 @@ describe('applyImport', () => {
 
     const targetDb = createDatabase();
     const target = new LibraryRepository(targetDb);
-    applyImport(target, new SettingsRepository(targetDb), new ReadingListRepository(targetDb), parseExport(raw));
+    applyImport(targetDb, target, new SettingsRepository(targetDb), new ReadingListRepository(targetDb), parseExport(raw));
 
     expect(target.list()[0]).toMatchObject({
       title: 'Le Lotus bleu',
@@ -177,6 +178,7 @@ describe('applyImport', () => {
     settingsRepo.set('readingMode', 'continuous');
 
     applyImport(
+      db,
       libraryRepo,
       settingsRepo,
       readingListRepo,
@@ -200,7 +202,7 @@ describe('applyImport', () => {
     // The target already knows one.cbz, under its own id.
     const local = target.touch('/comics/one.cbz', 'One', 20, 22, 1);
     const targetLists = new ReadingListRepository(targetDb);
-    applyImport(target, new SettingsRepository(targetDb), targetLists, parseExport(raw));
+    applyImport(targetDb, target, new SettingsRepository(targetDb), targetLists, parseExport(raw));
 
     const [list] = targetLists.list();
     const twoId = target.list().find((entry) => entry.path === '/comics/two.cbz')?.id;
@@ -213,6 +215,7 @@ describe('applyImport', () => {
     if (local.status !== 'ok' || shared.status !== 'ok') throw new Error('create failed');
 
     applyImport(
+      db,
       libraryRepo,
       settingsRepo,
       readingListRepo,
@@ -245,8 +248,31 @@ describe('applyImport', () => {
     );
     expect(parsed.readingLists).toHaveLength(1);
 
-    applyImport(libraryRepo, settingsRepo, readingListRepo, parsed);
+    applyImport(db, libraryRepo, settingsRepo, readingListRepo, parsed);
 
     expect(readingListRepo.get('l1')?.entryIds).toEqual([libraryRepo.list()[0].id]);
+  });
+
+  it('writes nothing when an error interrupts the import', () => {
+    libraryRepo.touch('/comics/local.cbz', 'Local', 5, 5, 10);
+    settingsRepo.set('language', 'fr');
+    const parsed = parseExport(
+      JSON.stringify({
+        version: 1,
+        library: [{ path: '/comics/new.cbz', title: 'New', pageCount: 3 }],
+        readingLists: [{ id: 'l1', name: 'Pile', paths: ['/comics/new.cbz'] }],
+        settings: { language: 'en' },
+      }),
+    );
+    // The failure comes after the library and the reading lists were written.
+    vi.spyOn(settingsRepo, 'set').mockImplementation(() => {
+      throw new Error('disk full');
+    });
+
+    expect(() => applyImport(db, libraryRepo, settingsRepo, readingListRepo, parsed)).toThrow('disk full');
+
+    expect(libraryRepo.list().map((entry) => entry.path)).toEqual(['/comics/local.cbz']);
+    expect(readingListRepo.list()).toEqual([]);
+    expect(db.isTransaction).toBe(false);
   });
 });

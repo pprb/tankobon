@@ -7,6 +7,7 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import type { Credit, CreditInput, CreditRole, LibraryEntry, MetadataUpdate } from '../../shared/library';
 import { PeopleRepository } from './people-repository';
+import { withTransaction } from './transaction';
 
 interface LibraryRow {
   id: string;
@@ -217,6 +218,10 @@ export class LibraryRepository {
    * metadata, credits included: they're part of what the user is restoring.
    */
   upsert(entry: LibraryEntry): 'created' | 'updated' {
+    return withTransaction(this.db, () => this.writeEntry(entry));
+  }
+
+  private writeEntry(entry: LibraryEntry): 'created' | 'updated' {
     const existing = this.db.prepare('SELECT id FROM library WHERE path = ?').get(entry.path) as
       | { id: string }
       | undefined;
@@ -349,14 +354,16 @@ export class LibraryRepository {
    * kept, for the future author pages.
    */
   private setCredits(id: string, credits: CreditInput[]): void {
-    this.db.prepare('DELETE FROM credits WHERE library_id = ?').run(id);
-    const insert = this.db.prepare(
-      'INSERT OR IGNORE INTO credits (library_id, person_id, role, position) VALUES (?, ?, ?, ?)',
-    );
-    credits.forEach((credit, position) => {
-      if (credit.lastName.trim() === '') return;
-      const person = this.people.findOrCreate(credit);
-      insert.run(id, person.id, credit.role, position);
+    withTransaction(this.db, () => {
+      this.db.prepare('DELETE FROM credits WHERE library_id = ?').run(id);
+      const insert = this.db.prepare(
+        'INSERT OR IGNORE INTO credits (library_id, person_id, role, position) VALUES (?, ?, ?, ?)',
+      );
+      credits.forEach((credit, position) => {
+        if (credit.lastName.trim() === '') return;
+        const person = this.people.findOrCreate(credit);
+        insert.run(id, person.id, credit.role, position);
+      });
     });
   }
 
@@ -365,9 +372,11 @@ export class LibraryRepository {
    * file on disk is left untouched.
    */
   remove(id: string): void {
-    this.db.prepare('DELETE FROM credits WHERE library_id = ?').run(id);
-    this.db.prepare('DELETE FROM reading_list_items WHERE library_id = ?').run(id);
-    this.db.prepare('DELETE FROM library WHERE id = ?').run(id);
+    withTransaction(this.db, () => {
+      this.db.prepare('DELETE FROM credits WHERE library_id = ?').run(id);
+      this.db.prepare('DELETE FROM reading_list_items WHERE library_id = ?').run(id);
+      this.db.prepare('DELETE FROM library WHERE id = ?').run(id);
+    });
   }
 
   /**

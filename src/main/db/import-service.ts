@@ -3,6 +3,7 @@
  * @module
  */
 import { randomUUID } from 'node:crypto';
+import type { DatabaseSync } from 'node:sqlite';
 
 import { isSupportedLanguage, t } from '../../shared/i18n';
 import { CREDIT_ROLES, type CreditInput, type CreditRole, type LibraryEntry } from '../../shared/library';
@@ -11,6 +12,7 @@ import type { ExportedData, ExportedReadingList } from './export-service';
 import type { LibraryRepository } from './library-repository';
 import type { ReadingListRepository } from './reading-list-repository';
 import type { SettingsRepository } from './settings-repository';
+import { withTransaction } from './transaction';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -147,8 +149,22 @@ export function parseExport(raw: string): ExportedData {
  * Reading lists are matched by id, the snapshot winning too (their order included: the snapshot's
  * lists come first, in its order); their books are found by path, and a path that matches no
  * library entry is dropped.
+ *
+ * All or nothing: the whole merge runs in one transaction, so an error midway leaves the database
+ * as it was, and 2 000 books take a fraction of the time of one commit per statement.
+ * `db` must be the database the three repositories were built on.
  */
 export function applyImport(
+  db: DatabaseSync,
+  libraryRepo: LibraryRepository,
+  settingsRepo: SettingsRepository,
+  readingListRepo: ReadingListRepository,
+  data: ExportedData,
+): { added: number; updated: number } {
+  return withTransaction(db, () => mergeSnapshot(libraryRepo, settingsRepo, readingListRepo, data));
+}
+
+function mergeSnapshot(
   libraryRepo: LibraryRepository,
   settingsRepo: SettingsRepository,
   readingListRepo: ReadingListRepository,
