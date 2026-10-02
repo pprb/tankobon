@@ -137,7 +137,9 @@ function LibraryPage() {
                   draggable
                   onDragStart={(event) => {
                     event.dataTransfer.setData(LIBRARY_ENTRY_DRAG_TYPE, encodeDraggedEntry(entry));
-                    event.dataTransfer.effectAllowed = 'copy';
+                    // 'move', like the app's other drags, so the OS shows the same pointer (not the
+                    // copy one with a "+"), even though the book stays in the library.
+                    event.dataTransfer.effectAllowed = 'move';
                   }}
                   className="flex min-w-0 flex-1 cursor-grab items-center gap-3 active:cursor-grabbing"
                   title="Glisser vers une liste de lecture du panneau latéral"
