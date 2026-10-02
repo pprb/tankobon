@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { BookText, Bug, Check, Code, Copy, Tag, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { SettingsSection } from '@/components/settings-section';
 import { Button } from '@/components/ui/button';
@@ -10,14 +11,16 @@ export const Route = createFileRoute('/settings/about')({
   component: AboutSettingsPage,
 });
 
-const LINKS: { link: AppLink; label: string; icon: LucideIcon }[] = [
-  { link: 'documentation', label: 'Documentation', icon: BookText },
-  { link: 'repository', label: 'Code source (GitHub)', icon: Code },
-  { link: 'releases', label: 'Versions publiées', icon: Tag },
-  { link: 'issues', label: 'Signaler un problème', icon: Bug },
+/** Each link's label is the `settings:about.<link>` translation. */
+const LINKS: { link: AppLink; icon: LucideIcon }[] = [
+  { link: 'documentation', icon: BookText },
+  { link: 'repository', icon: Code },
+  { link: 'releases', icon: Tag },
+  { link: 'issues', icon: Bug },
 ];
 
 function AboutSettingsPage() {
+  const { t } = useTranslation('settings', { keyPrefix: 'about' });
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -39,7 +42,7 @@ function AboutSettingsPage() {
 
   return (
     <>
-      <SettingsSection title="Version">
+      <SettingsSection title={t('version')}>
         {info && (
           <>
             <p className="text-sm">
@@ -54,7 +57,7 @@ function AboutSettingsPage() {
               <dd>{info.node}</dd>
               <dt className="text-muted-foreground">V8</dt>
               <dd>{info.v8}</dd>
-              <dt className="text-muted-foreground">Système</dt>
+              <dt className="text-muted-foreground">{t('system')}</dt>
               <dd>
                 {info.platform} {info.arch}
               </dd>
@@ -62,23 +65,23 @@ function AboutSettingsPage() {
             <div>
               <Button variant="outline" size="sm" onClick={() => void copy()}>
                 {copied ? <Check /> : <Copy />}
-                {copied ? 'Copié' : 'Copier les informations'}
+                {copied ? t('copied') : t('copy')}
               </Button>
             </div>
           </>
         )}
       </SettingsSection>
 
-      <SettingsSection title="Liens">
+      <SettingsSection title={t('links')}>
         <div className="flex flex-wrap gap-2">
-          {LINKS.map(({ link, label, icon: Icon }) => (
+          {LINKS.map(({ link, icon: Icon }) => (
             <Button key={link} variant="outline" onClick={() => void window.tankobon.app.openLink(link)}>
               <Icon />
-              {label}
+              {t(link)}
             </Button>
           ))}
         </div>
-        <p className="text-sm text-muted-foreground">Les liens s'ouvrent dans le navigateur.</p>
+        <p className="text-sm text-muted-foreground">{t('linksHint')}</p>
       </SettingsSection>
     </>
   );

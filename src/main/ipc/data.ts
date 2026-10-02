@@ -2,11 +2,13 @@ import { BrowserWindow, dialog, ipcMain } from 'electron';
 import { readFile, writeFile } from 'node:fs/promises';
 
 import type { ClearLibraryResult, ImportResult } from '../../shared/data';
+import { t } from '../../shared/i18n';
 import { buildExport, exportFileName } from '../db/export-service';
 import { applyImport, parseExport } from '../db/import-service';
 import type { LibraryRepository } from '../db/library-repository';
 import type { ReadingListRepository } from '../db/reading-list-repository';
 import type { SettingsRepository } from '../db/settings-repository';
+import { applyMainLanguage } from '../language';
 import type { ThumbnailCache } from '../services/thumbnail-cache';
 
 // Channel names are shared with preload.ts: keep them in sync.
@@ -25,7 +27,7 @@ export function registerDataIpc(
   ipcMain.handle(DATA_CHANNELS.export, async (event) => {
     const window = BrowserWindow.fromWebContents(event.sender);
     const options: Electron.SaveDialogOptions = {
-      title: 'Exporter les données',
+      title: t('dialogs:exportData'),
       defaultPath: exportFileName(new Date()),
       filters: [{ name: 'JSON', extensions: ['json'] }],
     };
@@ -44,7 +46,7 @@ export function registerDataIpc(
   ipcMain.handle(DATA_CHANNELS.import, async (event): Promise<ImportResult> => {
     const window = BrowserWindow.fromWebContents(event.sender);
     const options: Electron.OpenDialogOptions = {
-      title: 'Importer des données',
+      title: t('dialogs:importData'),
       properties: ['openFile'],
       filters: [{ name: 'JSON', extensions: ['json'] }],
     };
@@ -58,6 +60,8 @@ export function registerDataIpc(
     try {
       const data = parseExport(await readFile(filePaths[0], 'utf-8'));
       const counts = applyImport(libraryRepo, settingsRepo, readingListRepo, data);
+      // The settings were replaced, the language with them.
+      applyMainLanguage(settingsRepo.getAll().language);
       // Thumbnails aren't part of an export: rebuild the cache in the background, without making
       // the import wait for every archive to be opened.
       void thumbnails.rebuild(libraryRepo.list().map((entry) => entry.path));

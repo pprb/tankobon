@@ -52,7 +52,7 @@ export function googleBooksCandidate(volume: GoogleBooksVolume): MetadataCandida
   };
 }
 
-/** Searches Google Books, with an API key if the user set one. Throws a French message on failure. */
+/** Searches Google Books, with an API key if the user set one. Throws a translated message on failure. */
 export class GoogleBooksClient {
   constructor(
     private readonly apiKey: string,

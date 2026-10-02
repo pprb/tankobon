@@ -1,6 +1,6 @@
 # Features
 
-Tankōbon is a library manager and reader for digital comics, BD and manga. It opens **CBZ**, **CBR** and **PDF** files. The user interface is in French; labels below are quoted as they appear in the app.
+Tankōbon is a library manager and reader for digital comics, BD and manga. It opens **CBZ**, **CBR** and **PDF** files. The user interface is in English and French (see [Language](#language)); labels below are quoted as they appear in the French interface.
 
 The mouse pointer turns into a hand over everything that can be clicked (buttons, links, menus, checkboxes and their labels), and keeps the usual arrow over disabled controls.
 
@@ -14,7 +14,7 @@ The mouse pointer turns into a hand over everything that can be clicked (buttons
 - **Shown in the library**: once filled in, the series, volume, year and language appear under the title, followed by the authors grouped by role.
 - **Sources** (Paramètres › Métadonnées): **Comic Vine**, the reference for US comics, with the roles of each person; it needs a free personal API key, and is skipped without one. **Google Books**, which covers French BD and manga editions but doesn't tell the writer from the artist (everyone found there is an "Auteur"); an API key is optional, without one requests share an anonymous quota that can run out. Each source can be turned off. Only the search text is sent, and only when the user starts a search. **Bédéthèque**, the reference for BD and manga in French, is not searched: its album pages are read only from a pasted link, which needs no setting.
 - **People**: each person credited is stored once (first name, last name, and a nationality field kept for later) and shared by all the books that credit them. A single-word pen name ("Hergé") is stored as a last name.
-- **Rating and tags**: each comic can be rated from 0 to 5 stars (clicking the selected star again clears it) and tagged, with two quick tags ("Lu", "À lire") plus free tags typed in a text field. Rating and tags are only ever changed by the user: reopening a book never resets them.
+- **Rating and tags**: each comic can be rated from 0 to 5 stars (clicking the selected star again clears it) and tagged, with two quick tags ("Lu", "À lire"; "Read", "To read" in English) plus free tags typed in a text field. The quick tags are the same tags whatever the interface language: switching language only changes how they are labelled. Rating and tags are only ever changed by the user: reopening a book never resets them.
 - **Search and filters**: the toolbar searches titles, file paths (so a folder name finds a whole series), series and author names, ignoring accents and case. Tags can be combined (a comic must carry all selected tags), and the rating filter keeps comics rated at least the chosen number of stars.
 
 ## Reading lists
@@ -37,6 +37,10 @@ The mouse pointer turns into a hand over everything that can be clicked (buttons
 - **Background color**: the color behind the pages can be picked from presets or a color picker (Paramètres › Affichage).
 - **Fullscreen**: the header button, `F` or `F11` toggle fullscreen; `Escape` leaves it. In fullscreen the sidebar is hidden and the header only appears when the mouse reaches the top of the screen.
 - **Keyboard** (page-by-page mode): `→`, `Page Down` and `Space` act like the right click zone; `←` and `Page Up` like the left one.
+
+## Language
+
+The interface is available in English and French. By default it follows the operating system's language: the first of the system's preferred languages that the app supports, or English when none is. Paramètres › Affichage › "Langue" forces one of them instead ("Langue du système" goes back to following the system). The change applies at once, including the native dialogs (open a comic, add a folder, export…) and the error messages. The setting is part of the exported settings.
 
 ## Sidebar
 

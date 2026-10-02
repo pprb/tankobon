@@ -1,9 +1,10 @@
 /**
- * The manual edit form of a book ("Modifier la fiche"): its initial values, their validation and
+ * The manual edit form of a book ("Edit details"): its initial values, their validation and
  * the update they produce (pure, no DOM). Unlike a lookup, nothing comes from the network: every
  * field is typed by the user.
  * @module
  */
+import { t } from '@/shared/i18n';
 import type { CreditInput, LibraryEntry, MetadataUpdate } from '@/shared/library';
 
 /** One credit row of the form. */
@@ -26,7 +27,7 @@ export interface BookForm {
 /** The form fields that can be invalid. */
 export type BookFormField = 'title' | 'releaseDate';
 
-/** French error messages, by field, for the fields that are invalid; empty when the form can be saved. */
+/** Error messages (in the current language), by field, for the fields that are invalid; empty when the form can be saved. */
 export type BookFormErrors = Partial<Record<BookFormField, string>> & {
   /** Errors of the credit rows, by row key. */
   credits?: Record<string, string>;
@@ -102,16 +103,16 @@ function isBlankRow(row: CreditRow): boolean {
 export function validateForm(form: BookForm): BookFormErrors {
   const errors: BookFormErrors = {};
   if (form.title.trim() === '') {
-    errors.title = 'Le titre ne peut pas être vide.';
+    errors.title = t('bookEdit:errors.emptyTitle');
   }
   const date = form.releaseDate.trim();
   if (date !== '' && !isValidReleaseDate(date)) {
-    errors.releaseDate = 'Date attendue : AAAA, AAAA-MM ou AAAA-MM-JJ.';
+    errors.releaseDate = t('bookEdit:errors.releaseDate');
   }
   const creditErrors: Record<string, string> = {};
   for (const row of form.credits) {
     if (!isBlankRow(row) && row.lastName.trim() === '') {
-      creditErrors[row.key] = 'Le nom est obligatoire (un pseudonyme va dans le nom).';
+      creditErrors[row.key] = t('bookEdit:errors.lastName');
     }
   }
   if (Object.keys(creditErrors).length > 0) {

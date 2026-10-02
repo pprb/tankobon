@@ -3,9 +3,12 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider, createRouter, createMemoryHistory } from '@tanstack/react-router';
+import { I18nextProvider } from 'react-i18next';
 
+import { applyInterfaceLanguage, loadSystemLanguages } from './hooks/use-settings';
 import './index.css';
 import { routeTree } from './routeTree.gen';
+import { i18n } from './shared/i18n';
 
 // Memory history: the renderer is served from a local file in production,
 // so there is no meaningful URL to sync with.
@@ -26,8 +29,18 @@ if (!container) {
   throw new Error('Missing #root element in index.html');
 }
 
-createRoot(container).render(
-  <StrictMode>
-    <RouterProvider router={router} />
-  </StrictMode>,
-);
+const root = createRoot(container);
+const render = () =>
+  root.render(
+    <StrictMode>
+      <I18nextProvider i18n={i18n}>
+        <RouterProvider router={router} />
+      </I18nextProvider>
+    </StrictMode>,
+  );
+
+// The language is applied before the first render, so the UI never shows up in another one first.
+Promise.all([window.tankobon.settings.getAll(), loadSystemLanguages()])
+  .then(([settings]) => applyInterfaceLanguage(settings.language))
+  .catch(() => applyInterfaceLanguage('system'))
+  .finally(render);

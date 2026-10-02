@@ -1,8 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import { applyLanguage } from '@/shared/i18n';
 
 import { formatFileSize, formatLanguage } from './utils';
 
 describe('formatFileSize', () => {
+  beforeAll(() => applyLanguage('fr'));
+  afterAll(() => applyLanguage('en'));
+
   it('shows bytes for tiny sizes', () => {
     expect(formatFileSize(0)).toBe('0 o');
     expect(formatFileSize(500)).toBe('500 o');
@@ -19,12 +24,24 @@ describe('formatFileSize', () => {
   it('shows gigabytes with one decimal below 10', () => {
     expect(formatFileSize(1_200_000_000)).toBe('1,1 Go');
   });
+
+  it('follows the interface language', () => {
+    applyLanguage('en');
+    expect(formatFileSize(1536)).toBe('1.5 KB');
+    expect(formatFileSize(1_200_000_000)).toBe('1.1 GB');
+    applyLanguage('fr');
+  });
 });
 
 describe('formatLanguage', () => {
-  it('names a language in French', () => {
+  afterAll(() => applyLanguage('en'));
+
+  it('names a language in the interface language', () => {
+    applyLanguage('fr');
     expect(formatLanguage('fr')).toBe('français');
     expect(formatLanguage('en')).toBe('anglais');
+    applyLanguage('en');
+    expect(formatLanguage('fr')).toBe('French');
   });
 
   it('passes null and malformed codes through', () => {

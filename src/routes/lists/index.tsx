@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { BookOpen, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { ReadingListProgress } from '@/components/reading-list-progress';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ export const Route = createFileRoute('/lists/')({
 });
 
 function ReadingListsPage() {
+  const { t } = useTranslation('lists');
   const navigate = useNavigate();
   const [lists, setLists] = useState<ReadingList[] | null>(null);
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
@@ -47,18 +49,15 @@ function ReadingListsPage() {
   };
 
   const remove = async (list: ReadingList) => {
-    if (!window.confirm(`Supprimer la liste « ${list.name} » ? Les livres restent dans la bibliothèque.`)) return;
+    if (!window.confirm(t('confirmDelete', { name: list.name }))) return;
     await window.tankobon.readingLists.remove(list.id);
     notifyReadingListsChanged();
   };
 
   return (
     <div className="flex flex-col gap-4 p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Listes de lecture</h1>
-      <p className="text-muted-foreground">
-        Des piles de livres à lire dans l'ordre, jusqu'à {MAX_READING_LIST_SIZE} par liste. Ajoute des livres depuis
-        la bibliothèque.
-      </p>
+      <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
+      <p className="text-muted-foreground">{t('intro', { max: MAX_READING_LIST_SIZE })}</p>
 
       <form
         className="flex max-w-md items-center gap-2"
@@ -70,19 +69,19 @@ function ReadingListsPage() {
         <input
           value={newName}
           onChange={(event) => setNewName(event.target.value)}
-          placeholder="Nom de la nouvelle liste"
-          aria-label="Nom de la nouvelle liste"
+          placeholder={t('newListName')}
+          aria-label={t('newListName')}
           className="h-9 flex-1 rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
         />
         <Button type="submit" disabled={newName.trim() === ''}>
           <Plus />
-          Créer
+          {t('create')}
         </Button>
       </form>
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {lists === null ? null : lists.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Aucune liste de lecture pour le moment.</p>
+        <p className="text-sm text-muted-foreground">{t('empty')}</p>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {lists.map((list) => {
@@ -102,8 +101,8 @@ function ReadingListsPage() {
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => void remove(list)}
-                    title="Supprimer la liste"
-                    aria-label={`Supprimer la liste ${list.name}`}
+                    title={t('deleteList')}
+                    aria-label={t('deleteListNamed', { name: list.name })}
                   >
                     <Trash2 />
                   </Button>
@@ -112,7 +111,7 @@ function ReadingListsPage() {
                 {next ? (
                   <div className="flex items-center gap-2">
                     <p className="min-w-0 flex-1 truncate text-sm" title={next.title}>
-                      <span className="text-muted-foreground">À suivre : </span>
+                      <span className="text-muted-foreground">{t('upNext')}</span>
                       {next.title}
                     </p>
                     <Button
@@ -120,12 +119,12 @@ function ReadingListsPage() {
                       onClick={() => navigate({ to: '/reader', search: { path: next.path, list: list.id } })}
                     >
                       <BookOpen />
-                      Lire
+                      {t('read')}
                     </Button>
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    {entries.length === 0 ? 'Liste vide.' : 'Liste terminée.'}
+                    {entries.length === 0 ? t('listEmpty') : t('listFinished')}
                   </p>
                 )}
               </li>

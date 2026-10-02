@@ -1,8 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
 
-import { SettingsSection } from '@/components/settings-section';
-import { useSettings } from '@/hooks/use-settings';
+import { SETTINGS_SELECT_CLASS, SettingsSection } from '@/components/settings-section';
+import { systemLanguage, useSettings } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
+import { LANGUAGE_NAMES, SUPPORTED_LANGUAGES, type LanguageSetting } from '@/shared/i18n';
 import { READER_BACKGROUND_PRESETS } from '@/shared/settings';
 
 export const Route = createFileRoute('/settings/appearance')({
@@ -10,17 +12,36 @@ export const Route = createFileRoute('/settings/appearance')({
 });
 
 function AppearanceSettingsPage() {
+  const { t } = useTranslation('settings', { keyPrefix: 'appearance' });
   const { settings, update } = useSettings();
 
   return (
-    <SettingsSection title="Couleur de fond du lecteur" htmlFor="reader-background">
+    <>
+    <SettingsSection title={t('language')} htmlFor="language">
+      <select
+        id="language"
+        className={SETTINGS_SELECT_CLASS}
+        value={settings.language}
+        onChange={(event) => update('language', event.target.value as LanguageSetting)}
+      >
+        <option value="system">{t('languageSystem', { language: LANGUAGE_NAMES[systemLanguage()] })}</option>
+        {SUPPORTED_LANGUAGES.map((language) => (
+          <option key={language} value={language} lang={language}>
+            {LANGUAGE_NAMES[language]}
+          </option>
+        ))}
+      </select>
+      <p className="text-sm text-muted-foreground">{t('languageHint')}</p>
+    </SettingsSection>
+
+    <SettingsSection title={t('readerBackground')} htmlFor="reader-background">
       <div className="flex flex-wrap items-center gap-2">
         {READER_BACKGROUND_PRESETS.map((preset) => (
           <button
             key={preset.value}
             type="button"
-            title={preset.label}
-            aria-label={preset.label}
+            title={t(`backgrounds.${preset.name}`)}
+            aria-label={t(`backgrounds.${preset.name}`)}
             aria-pressed={settings.readerBackground === preset.value}
             onClick={() => update('readerBackground', preset.value)}
             className={cn(
@@ -34,12 +55,13 @@ function AppearanceSettingsPage() {
           id="reader-background"
           type="color"
           className="h-8 w-12 cursor-pointer rounded-md border bg-background"
-          title="Couleur personnalisée"
+          title={t('customColor')}
           value={settings.readerBackground}
           onChange={(event) => update('readerBackground', event.target.value)}
         />
         <span className="text-sm text-muted-foreground">{settings.readerBackground}</span>
       </div>
     </SettingsSection>
+    </>
   );
 }

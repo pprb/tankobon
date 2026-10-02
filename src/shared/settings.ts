@@ -2,9 +2,12 @@
  * Settings types shared between the main process and the renderer (via preload).
  * @module
  */
+import type { LanguageSetting } from './i18n';
 
 /** User preferences, persisted key by key in the `settings` table (see `SettingsRepository`). */
 export interface AppSettings {
+  /** Interface language: one forced by the user, or `system` to follow the OS (English when it isn't supported). */
+  language: LanguageSetting;
   /** Page-turn direction: left-to-right (BD/comics) or right-to-left (manga). */
   readingDirection: 'ltr' | 'rtl';
   /** Whether the sidebar is collapsed to an icon-only rail. */
@@ -32,6 +35,7 @@ export interface AppSettings {
  * needs no database migration.
  */
 export const DEFAULT_SETTINGS: AppSettings = {
+  language: 'system',
   readingDirection: 'ltr',
   sidebarCollapsed: false,
   scrollDirection: 'standard',
@@ -44,11 +48,17 @@ export const DEFAULT_SETTINGS: AppSettings = {
   googleBooksApiKey: '',
 };
 
+/** A reader background preset; its label is the `settings:appearance.backgrounds.<name>` translation. */
+export interface ReaderBackgroundPreset {
+  value: string;
+  name: 'black' | 'darkGrey' | 'grey' | 'sepia' | 'white';
+}
+
 /** Presets offered in the settings page; the color picker accepts anything else. */
-export const READER_BACKGROUND_PRESETS: { value: string; label: string }[] = [
-  { value: '#000000', label: 'Noir' },
-  { value: '#262626', label: 'Gris foncé' },
-  { value: '#808080', label: 'Gris' },
-  { value: '#f4ecd8', label: 'Sépia' },
-  { value: '#ffffff', label: 'Blanc' },
+export const READER_BACKGROUND_PRESETS: ReaderBackgroundPreset[] = [
+  { value: '#000000', name: 'black' },
+  { value: '#262626', name: 'darkGrey' },
+  { value: '#808080', name: 'grey' },
+  { value: '#f4ecd8', name: 'sepia' },
+  { value: '#ffffff', name: 'white' },
 ];

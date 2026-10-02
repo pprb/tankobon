@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { Database, Download, Trash2, Upload } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { SettingsSection } from '@/components/settings-section';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ export const Route = createFileRoute('/settings/data')({
 });
 
 function DataSettingsPage() {
+  const { t } = useTranslation(['settings', 'common']);
   const { reload } = useSettings();
   const [dataStatus, setDataStatus] = useState<{ message: string; error?: boolean } | null>(null);
   const [dbLocation, setDbLocation] = useState<DatabaseLocation | null>(null);
@@ -58,7 +60,7 @@ function DataSettingsPage() {
 
   const exportData = async () => {
     const filePath = await window.tankobon.data.export();
-    setDataStatus(filePath ? { message: `Données exportées vers ${filePath}` } : null);
+    setDataStatus(filePath ? { message: t('data.exported', { filePath }) } : null);
   };
 
   const importData = async () => {
@@ -76,7 +78,7 @@ function DataSettingsPage() {
     // It also replaced the reading lists the sidebar shows.
     notifyReadingListsChanged();
     setDataStatus({
-      message: `${result.added} BD ajoutée(s), ${result.updated} mise(s) à jour et paramètres restaurés depuis ${result.filePath}`,
+      message: t('data.imported', { count: result.added, updated: result.updated, filePath: result.filePath }),
     });
   };
 
@@ -95,9 +97,7 @@ function DataSettingsPage() {
       const result = await window.tankobon.data.clearLibrary();
       // The reading lists are gone too: the sidebar must stop showing them.
       notifyReadingListsChanged();
-      setClearStatus(
-        `Bibliothèque effacée : ${result.entries} BD et ${result.readingLists} liste(s) de lecture retirée(s).`,
-      );
+      setClearStatus(t('data.cleared', { entries: result.entries, count: result.readingLists }));
     } finally {
       setClearing(false);
       setClearCounts(null);
@@ -106,22 +106,18 @@ function DataSettingsPage() {
 
   return (
     <>
-      <SettingsSection title="Import / export">
+      <SettingsSection title={t('data.importExport')}>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={exportData}>
             <Download />
-            Exporter la bibliothèque et les paramètres (JSON)
+            {t('data.export')}
           </Button>
           <Button variant="outline" onClick={importData}>
             <Upload />
-            Importer un export (JSON)
+            {t('data.import')}
           </Button>
         </div>
-        <p className="text-sm text-muted-foreground">
-          L'import fusionne : les BD absentes sont ajoutées, celles déjà présentes (même chemin de
-          fichier) reprennent la progression, la note et les étiquettes du fichier importé, et les
-          paramètres sont remplacés.
-        </p>
+        <p className="text-sm text-muted-foreground">{t('data.importHint')}</p>
         {dataStatus && (
           <p className={cn('text-sm', dataStatus.error ? 'text-destructive' : 'text-muted-foreground')}>
             {dataStatus.message}
@@ -129,51 +125,40 @@ function DataSettingsPage() {
         )}
       </SettingsSection>
 
-      <SettingsSection title="Emplacement de la base de données">
+      <SettingsSection title={t('data.location')}>
         <p className="font-mono text-sm break-all text-muted-foreground">
           {dbLocation ? dbLocation.filePath : '…'}
-          {dbLocation?.isDefault && ' (emplacement par défaut)'}
+          {dbLocation?.isDefault && t('data.defaultLocation')}
         </p>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={chooseDatabaseLocation}>
             <Database />
-            Changer de dossier…
+            {t('data.changeFolder')}
           </Button>
           {dbLocation && !dbLocation.isDefault && (
             <Button variant="outline" onClick={resetDatabaseLocation}>
-              Revenir à l'emplacement par défaut
+              {t('data.resetLocation')}
             </Button>
           )}
         </div>
-        <p className="text-sm text-muted-foreground">
-          Le fichier existant n'est pas déplacé : si le nouveau dossier contient déjà une base
-          Tankōbon, elle est utilisée telle quelle, sinon une base vide y est créée. Exporte tes
-          données avant de changer si tu veux les emmener.
-        </p>
+        <p className="text-sm text-muted-foreground">{t('data.locationHint')}</p>
         {dbError && <p className="text-sm text-destructive">{dbError}</p>}
         {restartNeeded && (
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm text-muted-foreground">
-              Le changement prendra effet au prochain démarrage.
-            </p>
+            <p className="text-sm text-muted-foreground">{t('data.restartNeeded')}</p>
             <Button size="sm" onClick={() => void window.tankobon.database.relaunch()}>
-              Redémarrer maintenant
+              {t('data.restartNow')}
             </Button>
           </div>
         )}
       </SettingsSection>
 
-      <SettingsSection title="Effacer la bibliothèque">
-        <p className="text-sm text-muted-foreground">
-          Retire toutes les BD de la bibliothèque (progression, notes, étiquettes, infos et
-          auteurs) et supprime les listes de lecture et les miniatures. Les fichiers BD sur le
-          disque et les paramètres ne sont pas touchés. Exporte tes données avant si tu veux
-          pouvoir les restaurer.
-        </p>
+      <SettingsSection title={t('data.clear')}>
+        <p className="text-sm text-muted-foreground">{t('data.clearHint')}</p>
         <div>
           <Button variant="destructive" onClick={() => void askClearLibrary()}>
             <Trash2 />
-            Effacer la bibliothèque…
+            {t('data.clearButton')}
           </Button>
         </div>
         {clearStatus && <p className="text-sm text-muted-foreground">{clearStatus}</p>}
@@ -182,24 +167,22 @@ function DataSettingsPage() {
       <Dialog
         open={clearCounts !== null}
         onOpenChange={(open) => !open && !clearing && setClearCounts(null)}
-        title="Effacer la bibliothèque ?"
-        description="Cette action est irréversible."
+        title={t('data.clearConfirmTitle')}
+        description={t('data.clearConfirmDescription')}
         className="max-w-md"
       >
         {clearCounts && (
           <p className="text-sm">
-            {clearCounts.entries} BD et {clearCounts.readingLists} liste(s) de lecture seront
-            retirées, avec leur progression, leurs notes, leurs étiquettes et leurs infos. Les
-            fichiers BD restent sur le disque.
+            {t('data.clearConfirm', { entries: clearCounts.entries, count: clearCounts.readingLists })}
           </p>
         )}
         <div className="flex justify-end gap-2">
           <Button variant="outline" disabled={clearing} onClick={() => setClearCounts(null)}>
-            Annuler
+            {t('common:cancel')}
           </Button>
           <Button variant="destructive" disabled={clearing} onClick={() => void clearLibrary()}>
             <Trash2 />
-            Effacer
+            {t('data.clearAction')}
           </Button>
         </div>
       </Dialog>

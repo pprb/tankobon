@@ -1,6 +1,7 @@
 import { BrowserWindow, app, dialog, ipcMain } from 'electron';
 
 import type { DatabaseLocation, DatabaseLocationResult } from '../../shared/data';
+import { t } from '../../shared/i18n';
 import { databaseLocation } from '../db/database';
 import { checkDirectoryUsable, writeLocationPointer } from '../db/db-location';
 
@@ -24,7 +25,7 @@ export function registerDatabaseIpc(): void {
   ipcMain.handle(DATABASE_CHANNELS.chooseLocation, async (event): Promise<DatabaseLocationResult> => {
     const window = BrowserWindow.fromWebContents(event.sender);
     const options: Electron.OpenDialogOptions = {
-      title: 'Choisir le dossier de la base de données',
+      title: t('dialogs:chooseDatabaseFolder'),
       properties: ['openDirectory', 'createDirectory'],
       defaultPath: databaseLocation().directory,
     };

@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 import { SUPPORTED_COMIC_EXTENSIONS } from '../../shared/comic';
+import { t } from '../../shared/i18n';
 import type { LibraryRepository } from '../db/library-repository';
 import { ComicService } from '../services/comic-service';
 import type { ThumbnailCache } from '../services/thumbnail-cache';
@@ -39,9 +40,9 @@ export function registerComicIpc(libraryRepo: LibraryRepository, thumbnails: Thu
 
   ipcMain.handle(COMIC_CHANNELS.pickFile, async (event) => {
     const options: Electron.OpenDialogOptions = {
-      title: 'Ouvrir une BD',
+      title: t('dialogs:openComic'),
       properties: ['openFile'],
-      filters: [{ name: 'Comics et PDF', extensions: [...SUPPORTED_COMIC_EXTENSIONS] }],
+      filters: [{ name: t('dialogs:comicFiles'), extensions: [...SUPPORTED_COMIC_EXTENSIONS] }],
       defaultPath: await lastOpenedDirectory(libraryRepo),
     };
     const window = BrowserWindow.fromWebContents(event.sender);

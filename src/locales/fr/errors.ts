@@ -1,0 +1,46 @@
+import type en from '../en/errors';
+import type { Translation } from '../types';
+
+const errors: Translation<typeof en> = {
+  archive: {
+    unsupportedFormat: 'Format non supporté : {{extension}}',
+    noExtension: '(sans extension)',
+    unknown: 'Archive inconnue : {{id}}',
+    noImages: 'Aucune image trouvée dans {{path}}',
+    noPages: 'Aucune page trouvée dans {{path}}',
+    pageOutOfRange: 'Page {{index}} hors limites (0-{{last}})',
+    extractFailed: "Impossible d'extraire la page : {{entry}}",
+    closed: 'Archive fermée : {{path}}',
+  },
+  database: {
+    notWritable: "Impossible d'écrire dans {{directory}}.",
+  },
+  import: {
+    notJson: "Fichier illisible : ce n'est pas du JSON valide.",
+    notExport: "Fichier non reconnu : ce n'est pas un export Tankōbon (version 1).",
+  },
+  readingLists: {
+    notFound: 'Liste de lecture introuvable.',
+    emptyName: 'Le nom de la liste ne peut pas être vide.',
+    listsChanged: 'Les listes ont changé entre-temps : réessaie.',
+    listChanged: 'La liste a changé entre-temps : réessaie.',
+    full: 'La liste « {{name}} » est pleine ({{max}} livres au maximum).',
+    entryGone: "Ce livre n'est plus dans la bibliothèque.",
+  },
+  metadata: {
+    emptyQuery: 'Saisis un titre ou une série à rechercher.',
+    noSource: "Aucune source de métadonnées n'est configurée : active-en une dans Paramètres › Métadonnées.",
+    notResponding: '{{source}} : le service ne répond pas.',
+    unreachable: '{{source}} : impossible de joindre le service.',
+    unreadable: '{{source}} : réponse illisible (HTTP {{status}}).',
+    quota: '{{source}} : quota de requêtes dépassé. Réessaie plus tard, ou renseigne une clé API dans les paramètres.',
+    sourceError: '{{source}} : {{message}}',
+    httpError: 'erreur HTTP {{status}}',
+    pageNotFound: "{{source}} : cette page n'existe pas.",
+    invalidKey: '{{source}} : clé API invalide.',
+    notAlbumPage: '{{source}} : cette page ne décrit pas un album.',
+    notAlbumUrl: "{{source}} : ce lien n'est pas celui d'une fiche album (https://www.bedetheque.com/BD-….html).",
+  },
+};
+
+export default errors;

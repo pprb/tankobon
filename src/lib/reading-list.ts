@@ -4,11 +4,29 @@
  * themselves move freely), and the drag and drop of a library book onto a list.
  * @module
  */
+import { t } from '@/shared/i18n';
 import type { LibraryEntry } from '@/shared/library';
 import type { ReadingList, ReadingListResult } from '@/shared/reading-list';
 
-/** The tag that marks a book as read, also one of the library page's quick tags. */
+/**
+ * The tag that marks a book as read, also one of the library page's quick tags. It is stored as
+ * is whatever the interface language (existing libraries and exports carry it); only its label
+ * is translated, see {@link tagLabel}.
+ */
 export const READ_TAG = 'Lu';
+
+/** The library page's other quick tag, stored untranslated like {@link READ_TAG}. */
+export const TO_READ_TAG = 'À lire';
+
+/**
+ * How a tag is shown: the quick tags ({@link READ_TAG}, {@link TO_READ_TAG}) get their label in
+ * the current language, any other tag is the user's own text.
+ */
+export function tagLabel(tag: string): string {
+  if (tag === READ_TAG) return t('library:tags.read');
+  if (tag === TO_READ_TAG) return t('library:tags.toRead');
+  return tag;
+}
 
 /** Whether a book counts as finished: its last page was reached, or it carries the `Lu` tag. */
 export function isFinished(entry: LibraryEntry): boolean {
@@ -112,7 +130,7 @@ export function decodeDraggedEntry(data: string): DraggedEntry | null {
   }
 }
 
-/** The French message shown after a book was dropped on a list, and whether it is an error. */
+/** The message shown after a book was dropped on a list, and whether it is an error. */
 export interface DropFeedback {
   message: string;
   error: boolean;
@@ -126,7 +144,7 @@ export interface DropFeedback {
 export function dropFeedback(list: ReadingList, entry: DraggedEntry, result: ReadingListResult): DropFeedback {
   if (result.status === 'error') return { message: result.message, error: true };
   if (list.entryIds.includes(entry.id)) {
-    return { message: `« ${entry.title} » est déjà dans « ${list.name} ».`, error: false };
+    return { message: t('lists:dropAlreadyIn', { title: entry.title, list: list.name }), error: false };
   }
-  return { message: `« ${entry.title} » ajouté à « ${list.name} ».`, error: false };
+  return { message: t('lists:dropAdded', { title: entry.title, list: list.name }), error: false };
 }

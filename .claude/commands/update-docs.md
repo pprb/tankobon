@@ -3,7 +3,7 @@ description: Find the documentation affected by recent code changes, propose upd
 argument-hint: "[base ref — defaults to the last release tag, else the last commit that touched the docs]"
 ---
 
-Bring the documentation up to date with the code changes since a base point. Work in English (the docs and code comments are in English; UI strings stay in French).
+Bring the documentation up to date with the code changes since a base point. Work in English (the docs and code comments are in English; UI strings live in `src/locales/`, in English and French).
 
 ## 1. Pick the base and read the diff
 

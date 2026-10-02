@@ -3,31 +3,25 @@
  * candidate, and the update its accepted rows produce (pure, no DOM).
  * @module
  */
+import { t } from '@/shared/i18n';
 import type { CreditInput, CreditRole, LibraryEntry, MetadataUpdate } from '@/shared/library';
 import type { MetadataCandidate } from '@/shared/metadata';
 
 /** The library fields a lookup can fill, besides the credits. */
 export type ReviewField = 'title' | 'series' | 'volume' | 'releaseDate' | 'language';
 
-/** French labels of the reviewed fields, in display order. */
-export const REVIEW_FIELD_LABELS: Record<ReviewField, string> = {
-  title: 'Titre',
-  series: 'Série',
-  volume: 'Tome / n°',
-  releaseDate: 'Date de sortie',
-  language: 'Langue',
-};
+/** The reviewed fields, in display order. */
+export const REVIEW_FIELDS: readonly ReviewField[] = ['title', 'series', 'volume', 'releaseDate', 'language'];
 
-/** French labels of the credit roles. */
-export const CREDIT_ROLE_LABELS: Record<CreditRole, string> = {
-  writer: 'Scénario',
-  artist: 'Dessin',
-  colorist: 'Couleurs',
-  inker: 'Encrage',
-  letterer: 'Lettrage',
-  cover: 'Couverture',
-  author: 'Auteur',
-};
+/** A reviewed field's label, in the current language. */
+export function reviewFieldLabel(field: ReviewField): string {
+  return t(`book:fields.${field}`);
+}
+
+/** A credit role's label, in the current language. */
+export function creditRoleLabel(role: CreditRole): string {
+  return t(`book:roles.${role}`);
+}
 
 /** One field row of the dialog: the current value, the (editable) proposed one, and the user's choice. */
 export interface FieldReview {
@@ -66,7 +60,7 @@ function creditKey(credit: CreditInput): string {
  * candidate's ones that aren't on the book already (added by default).
  */
 export function buildReview(entry: LibraryEntry, candidate: MetadataCandidate): MetadataReview {
-  const fields = (Object.keys(REVIEW_FIELD_LABELS) as ReviewField[]).flatMap((field): FieldReview[] => {
+  const fields = REVIEW_FIELDS.flatMap((field): FieldReview[] => {
     const proposed = candidate[field]?.trim();
     if (!proposed) return [];
     const current = currentValue(entry, field);

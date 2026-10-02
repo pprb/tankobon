@@ -14,10 +14,12 @@ import type { MetadataPageResult, MetadataQuery, MetadataSearchResult } from './
 import type { ReadingList, ReadingListOrderResult, ReadingListResult } from './shared/reading-list';
 import type { AppSettings } from './shared/settings';
 
-/** The app itself (versions, project links), as `window.tankobon.app`. */
+/** The app itself (versions, OS languages, project links), as `window.tankobon.app`. */
 export interface AppApi {
   /** Versions of the app, Electron, Chromium, Node.js and V8, and the OS and CPU architecture. */
   getInfo(): Promise<AppInfo>;
+  /** The OS's preferred languages (BCP 47 tags, most preferred first), to resolve the `system` language setting as the main process does. */
+  getSystemLanguages(): Promise<string[]>;
   /** Opens one of the project's pages (repository, documentation…) in the default browser. */
   openLink(link: AppLink): Promise<void>;
 }
@@ -120,7 +122,7 @@ export interface DatabaseApi {
  * generated IPC reference.
  */
 export interface TankobonApi {
-  /** The app itself: versions and project links. */
+  /** The app itself: versions, OS languages and project links. */
   app: AppApi;
   /** Opening and reading comics. */
   comic: ComicApi;
@@ -143,6 +145,7 @@ export interface TankobonApi {
 const api: TankobonApi = {
   app: {
     getInfo: () => ipcRenderer.invoke('app:get-info'),
+    getSystemLanguages: () => ipcRenderer.invoke('app:get-system-languages'),
     openLink: (link) => ipcRenderer.invoke('app:open-link', link),
   },
   comic: {

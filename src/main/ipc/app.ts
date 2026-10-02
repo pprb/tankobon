@@ -5,6 +5,7 @@ import { APP_LINKS, isAppLink, type AppInfo } from '../../shared/app';
 // Channel names are shared with preload.ts: keep them in sync.
 export const APP_CHANNELS = {
   getInfo: 'app:get-info',
+  getSystemLanguages: 'app:get-system-languages',
   openLink: 'app:open-link',
 } as const;
 
@@ -26,6 +27,10 @@ export function registerAppIpc(): void {
       arch: process.arch,
     }),
   );
+
+  // The OS's preferred languages, for the renderer to resolve the `system` language setting
+  // exactly as the main process does (see `applyMainLanguage()`).
+  ipcMain.handle(APP_CHANNELS.getSystemLanguages, (): string[] => app.getPreferredSystemLanguages());
 
   // Only the project's own pages, named by key: the renderer never hands a URL to `openExternal`.
   ipcMain.handle(APP_CHANNELS.openLink, async (_event, link: unknown) => {

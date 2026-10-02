@@ -36,7 +36,7 @@ CI (`.github/workflows/ci.yml`) runs `lint`, `typecheck`, `test` and `docs:build
 
 ## Conventions
 
-- **Language**: code, comments and documentation in English; user-facing UI strings and user-facing error messages in French.
+- **Language**: code, comments and documentation in English. User-facing UI strings and error messages are never hard-coded: they go through i18next (`t()` from `src/shared/i18n.ts`, `useTranslation()` in components), with a key in **both** `src/locales/en/<namespace>.ts` and `src/locales/fr/<namespace>.ts` (the French file is typed against the English one, so a missing key fails `typecheck`). See "Interface language" in `docs/architecture.md`.
 - **Imports**: `@/` aliases `src/` in the renderer; main-process code uses relative imports.
 - **Tests**: colocated `*.test.ts`, Vitest `node` environment (no DOM). Keep testable logic pure and out of components/Electron: pure helpers in `src/lib/`, repositories that take a `DatabaseSync` (tests use `:memory:`), functions that take paths instead of calling `app.getPath`.
 - **IPC errors meant for the user** are returned as `{ status: 'error', message }` members of a result union, not thrown.

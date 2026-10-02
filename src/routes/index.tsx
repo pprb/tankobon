@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { FolderOpen, FolderTree, ListPlus, Pencil, ScanSearch, Search, Star, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { AddToListDialog } from '@/components/add-to-list-dialog';
 import { BookCover } from '@/components/book-cover';
@@ -16,8 +17,8 @@ import {
   type LibraryFilters,
   type RatingFilter,
 } from '@/lib/library-filter';
-import { CREDIT_ROLE_LABELS } from '@/lib/metadata-review';
-import { encodeDraggedEntry, LIBRARY_ENTRY_DRAG_TYPE, READ_TAG } from '@/lib/reading-list';
+import { creditRoleLabel } from '@/lib/metadata-review';
+import { encodeDraggedEntry, LIBRARY_ENTRY_DRAG_TYPE, READ_TAG, tagLabel, TO_READ_TAG } from '@/lib/reading-list';
 import { cn, formatFileSize, formatLanguage } from '@/lib/utils';
 import { CREDIT_ROLES, type LibraryEntry, type ScanProgress } from '@/shared/library';
 import { formatPersonName } from '@/shared/title-parsing';
@@ -27,9 +28,10 @@ export const Route = createFileRoute('/')({
 });
 
 /** Always offered as one-click toggles; any other tag is free-form. */
-const QUICK_TAGS = [READ_TAG, 'À lire'];
+const QUICK_TAGS = [READ_TAG, TO_READ_TAG];
 
 function LibraryPage() {
+  const { t } = useTranslation(['library', 'common']);
   const navigate = useNavigate();
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
   const [filters, setFilters] = useState<LibraryFilters>(EMPTY_FILTERS);
@@ -61,10 +63,10 @@ function LibraryPage() {
       return;
     }
     refresh();
-    const parts = [`${result.added} BD ajoutée(s) depuis ${result.directory}`];
-    if (result.skipped > 0) parts.push(`${result.skipped} déjà présente(s)`);
-    if (result.failed > 0) parts.push(`${result.failed} illisible(s)`);
-    setScanStatus(result.total === 0 ? `Aucune BD trouvée dans ${result.directory}` : parts.join(' · '));
+    const parts = [t('scanAdded', { count: result.added, directory: result.directory })];
+    if (result.skipped > 0) parts.push(t('scanSkipped', { count: result.skipped }));
+    if (result.failed > 0) parts.push(t('scanFailed', { count: result.failed }));
+    setScanStatus(result.total === 0 ? t('scanNoneFound', { directory: result.directory }) : parts.join(' · '));
   };
 
   const addFile = async () => {
@@ -96,16 +98,16 @@ function LibraryPage() {
 
   return (
     <div className="flex flex-col gap-4 p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Bibliothèque</h1>
-      <p className="text-muted-foreground">Gestionnaire et lecteur de BD numériques.</p>
+      <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
+      <p className="text-muted-foreground">{t('intro')}</p>
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={addFile} disabled={scan !== null}>
           <FolderOpen />
-          Ajouter un fichier
+          {t('addFile')}
         </Button>
         <Button variant="outline" onClick={addFolder} disabled={scan !== null}>
           <FolderTree />
-          Ajouter un dossier…
+          {t('addFolder')}
         </Button>
       </div>
 
@@ -123,9 +125,9 @@ function LibraryPage() {
       )}
 
       {entries.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Aucune BD dans la bibliothèque pour le moment.</p>
+        <p className="text-sm text-muted-foreground">{t('empty')}</p>
       ) : visible.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Aucune BD ne correspond à la recherche.</p>
+        <p className="text-sm text-muted-foreground">{t('noMatch')}</p>
       ) : (
         <ul className="flex flex-col divide-y rounded-md border">
           {visible.map((entry) => (
@@ -142,13 +144,13 @@ function LibraryPage() {
                     event.dataTransfer.effectAllowed = 'move';
                   }}
                   className="flex min-w-0 flex-1 cursor-grab items-center gap-3 active:cursor-grabbing"
-                  title="Glisser vers une liste de lecture du panneau latéral"
+                  title={t('dragHint')}
                 >
                   <button
                     type="button"
                     onClick={() => navigate({ to: '/reader', search: { path: entry.path } })}
-                    title="Ouvrir"
-                    aria-label={`Ouvrir ${entry.title}`}
+                    title={t('common:open')}
+                    aria-label={t('openNamed', { title: entry.title })}
                     className="shrink-0 rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                   >
                     <BookCover entryId={entry.id} title={entry.title} className="h-20 w-14" />
@@ -159,8 +161,11 @@ function LibraryPage() {
                     </p>
                     <EntryMetadata entry={entry} />
                     <p className="text-xs text-muted-foreground">
-                      Page {entry.currentPage + 1} / {entry.pageCount} · {entry.fileCount} fichiers ·{' '}
-                      {formatFileSize(entry.fileSize)}
+                      {[
+                        t('common:pageOf', { page: entry.currentPage + 1, total: entry.pageCount }),
+                        t('fileCount', { count: entry.fileCount }),
+                        formatFileSize(entry.fileSize),
+                      ].join(' · ')}
                     </p>
                   </div>
                 </div>
@@ -169,8 +174,8 @@ function LibraryPage() {
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => setEditEntry(entry)}
-                  title="Modifier la fiche (titre, série, auteurs…)"
-                  aria-label="Modifier la fiche"
+                  title={t('editHint')}
+                  aria-label={t('edit')}
                 >
                   <Pencil />
                 </Button>
@@ -178,8 +183,8 @@ function LibraryPage() {
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => setLookupEntry(entry)}
-                  title="Rechercher les infos (série, auteurs…)"
-                  aria-label="Rechercher les infos"
+                  title={t('lookupHint')}
+                  aria-label={t('lookup')}
                 >
                   <ScanSearch />
                 </Button>
@@ -187,8 +192,8 @@ function LibraryPage() {
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => setListEntry(entry)}
-                  title="Ajouter à une liste de lecture"
-                  aria-label="Ajouter à une liste de lecture"
+                  title={t('addToList')}
+                  aria-label={t('addToList')}
                 >
                   <ListPlus />
                 </Button>
@@ -197,13 +202,14 @@ function LibraryPage() {
                   size="sm"
                   onClick={() => navigate({ to: '/reader', search: { path: entry.path } })}
                 >
-                  Ouvrir
+                  {t('common:open')}
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => remove(entry.id)}
-                  title="Retirer de la bibliothèque"
+                  title={t('remove')}
+                  aria-label={t('remove')}
                 >
                   <Trash2 />
                 </Button>
@@ -225,11 +231,12 @@ function LibraryPage() {
 
 /** Series, volume, date, language and credits found by a metadata lookup; nothing when there are none. */
 function EntryMetadata({ entry }: { entry: LibraryEntry }) {
-  const series = [entry.series, entry.volume && `T. ${entry.volume}`].filter(Boolean).join(' · ');
+  const { t } = useTranslation(['library', 'common']);
+  const series = [entry.series, entry.volume && t('volumeShort', { volume: entry.volume })].filter(Boolean).join(' · ');
   const details = [series, entry.releaseDate?.slice(0, 4), formatLanguage(entry.language)].filter(Boolean);
   const credits = CREDIT_ROLES.flatMap((role) => {
     const names = entry.credits.filter((credit) => credit.role === role).map(formatPersonName);
-    return names.length > 0 ? [`${CREDIT_ROLE_LABELS[role]} : ${names.join(', ')}`] : [];
+    return names.length > 0 ? [t('common:labelValue', { label: creditRoleLabel(role), value: names.join(', ') })] : [];
   });
   if (details.length === 0 && credits.length === 0) return null;
 
@@ -243,15 +250,16 @@ function EntryMetadata({ entry }: { entry: LibraryEntry }) {
 }
 
 function StarRating({ rating, onChange }: { rating: number; onChange: (rating: number) => void }) {
+  const { t } = useTranslation('library');
   return (
-    <div className="flex shrink-0 items-center gap-0.5" title={rating > 0 ? `${rating} / 5` : 'Non noté'}>
+    <div className="flex shrink-0 items-center gap-0.5" title={rating > 0 ? t('rating', { rating }) : t('notRated')}>
       {[1, 2, 3, 4, 5].map((value) => (
         <button
           key={value}
           type="button"
           // Clicking the star that already sets the current rating clears it.
           onClick={() => onChange(value === rating ? 0 : value)}
-          aria-label={`Noter ${value} étoile${value > 1 ? 's' : ''}`}
+          aria-label={t('rate', { count: value })}
           className="text-muted-foreground hover:text-yellow-500"
         >
           <Star className={cn('size-4', value <= rating && 'fill-yellow-400 text-yellow-500')} />
@@ -262,6 +270,7 @@ function StarRating({ rating, onChange }: { rating: number; onChange: (rating: n
 }
 
 function TagEditor({ entry, onToggle }: { entry: LibraryEntry; onToggle: (tag: string) => void }) {
+  const { t } = useTranslation('library');
   const [newTag, setNewTag] = useState('');
   const customTags = entry.tags.filter((tag) => !QUICK_TAGS.includes(tag));
 
@@ -287,7 +296,7 @@ function TagEditor({ entry, onToggle }: { entry: LibraryEntry; onToggle: (tag: s
               : 'text-muted-foreground hover:bg-accent',
           )}
         >
-          {tag}
+          {tagLabel(tag)}
         </button>
       ))}
       {customTags.map((tag) => (
@@ -296,7 +305,7 @@ function TagEditor({ entry, onToggle }: { entry: LibraryEntry; onToggle: (tag: s
           className="flex items-center gap-1 rounded-full border border-primary bg-primary/10 px-2 py-0.5 text-xs text-primary"
         >
           {tag}
-          <button type="button" onClick={() => onToggle(tag)} aria-label={`Retirer l'étiquette ${tag}`}>
+          <button type="button" onClick={() => onToggle(tag)} aria-label={t('removeTag', { tag })}>
             <X className="size-3" />
           </button>
         </span>
@@ -310,7 +319,7 @@ function TagEditor({ entry, onToggle }: { entry: LibraryEntry; onToggle: (tag: s
             addCustomTag();
           }
         }}
-        placeholder="+ étiquette"
+        placeholder={t('newTag')}
         className="w-24 rounded-full border border-dashed bg-transparent px-2 py-0.5 text-xs outline-none focus:border-solid focus:border-primary"
       />
     </div>
@@ -320,16 +329,17 @@ function TagEditor({ entry, onToggle }: { entry: LibraryEntry; onToggle: (tag: s
 function ScanProgressBar({ progress }: { progress: ScanProgress }) {
   // The walk reports no total yet, so the bar stays empty until the first file is opened.
   const scanning = progress.phase === 'scanning';
+  const { t } = useTranslation('library');
 
   return (
     <div className="flex flex-col gap-1 rounded-md border p-3">
       <div className="flex items-center justify-between gap-3 text-sm">
-        <span>{scanning ? 'Recherche des BD…' : `${progress.processed} / ${progress.total}`}</span>
+        <span>{scanning ? t('scanning') : `${progress.processed} / ${progress.total}`}</span>
         <span className="min-w-0 truncate text-xs text-muted-foreground" title={progress.currentFile}>
           {progress.currentFile}
         </span>
       </div>
-      <Progress value={progress.processed} max={progress.total} label="Progression de l'analyse" />
+      <Progress value={progress.processed} max={progress.total} label={t('scanProgress')} />
     </div>
   );
 }
@@ -347,6 +357,7 @@ function LibraryToolbar({
   shown: number;
   total: number;
 }) {
+  const { t } = useTranslation('library');
   const active = hasActiveFilters(filters);
 
   const toggleTag = (tag: string) =>
@@ -364,8 +375,8 @@ function LibraryToolbar({
             value={filters.search}
             onChange={(event) => onChange({ ...filters, search: event.target.value })}
             type="search"
-            placeholder="Rechercher un album, une série, un auteur…"
-            aria-label="Rechercher un album"
+            placeholder={t('searchPlaceholder')}
+            aria-label={t('searchLabel')}
             className="h-9 w-full rounded-md border bg-background pr-3 pl-8 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
         </div>
@@ -378,7 +389,7 @@ function LibraryToolbar({
         {active && (
           <Button variant="ghost" size="sm" onClick={() => onChange(EMPTY_FILTERS)}>
             <X />
-            Réinitialiser
+            {t('reset')}
           </Button>
         )}
       </div>
@@ -400,7 +411,7 @@ function LibraryToolbar({
                     : 'text-muted-foreground hover:bg-accent',
                 )}
               >
-                {tag}
+                {tagLabel(tag)}
               </button>
             );
           })}
@@ -408,9 +419,7 @@ function LibraryToolbar({
       )}
 
       {active && (
-        <p className="text-xs text-muted-foreground">
-          {shown} BD sur {total}
-        </p>
+        <p className="text-xs text-muted-foreground">{t('shownOf', { shown, total })}</p>
       )}
     </div>
   );
@@ -424,9 +433,10 @@ function RatingFilterPicker({
   rating: RatingFilter;
   onChange: (rating: RatingFilter) => void;
 }) {
+  const { t } = useTranslation('library');
   return (
     <div className="flex items-center gap-1 rounded-md border px-2 py-1">
-      <span className="text-xs text-muted-foreground">Note</span>
+      <span className="text-xs text-muted-foreground">{t('ratingFilter')}</span>
       {[1, 2, 3, 4, 5].map((value) => (
         <button
           key={value}
@@ -434,8 +444,8 @@ function RatingFilterPicker({
           // Clicking the star that already sets the current minimum clears the filter.
           onClick={() => onChange(value === rating ? 'all' : value)}
           aria-pressed={rating !== 'all' && value <= rating}
-          title={`Au moins ${value} étoile${value > 1 ? 's' : ''}`}
-          aria-label={`Au moins ${value} étoile${value > 1 ? 's' : ''}`}
+          title={t('atLeast', { count: value })}
+          aria-label={t('atLeast', { count: value })}
           className="text-muted-foreground hover:text-yellow-500"
         >
           <Star className={cn('size-4', rating !== 'all' && value <= rating && 'fill-yellow-400 text-yellow-500')} />

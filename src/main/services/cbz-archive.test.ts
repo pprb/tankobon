@@ -2,9 +2,13 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { crc32 } from 'node:zlib';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { applyLanguage } from '../../shared/i18n';
 import { CbzArchive } from './cbz-archive';
+
+// The user-facing messages are checked in French; English is the interface's default.
+beforeAll(() => applyLanguage('fr'));
 
 /** Builds a minimal zip (STORED entries only) without any extra dependency. */
 function buildZip(entries: Record<string, Buffer>): Buffer {

@@ -2,6 +2,7 @@
  * Metadata lookup across the configured public APIs.
  * @module
  */
+import { t } from '../../shared/i18n';
 import type { MetadataCandidate, MetadataPageResult, MetadataQuery, MetadataSearchResult } from '../../shared/metadata';
 import type { AppSettings } from '../../shared/settings';
 import { fetchBedethequeAlbum } from './bedetheque';
@@ -44,7 +45,7 @@ export async function searchMetadata(
 ): Promise<MetadataSearchResult> {
   const text = query.text.trim();
   if (!text) {
-    return { status: 'error', message: 'Saisis un titre ou une série à rechercher.' };
+    return { status: 'error', message: t('errors:metadata.emptyQuery') };
   }
   const volume = query.volume?.trim() || null;
 
@@ -58,7 +59,7 @@ export async function searchMetadata(
   if (clients.length === 0) {
     return {
       status: 'error',
-      message: "Aucune source de métadonnées n'est configurée : active-en une dans Paramètres › Métadonnées.",
+      message: t('errors:metadata.noSource'),
     };
   }
 

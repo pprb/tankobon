@@ -12,6 +12,7 @@ import {
   ZoomIn,
 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { useComic } from '@/hooks/use-comic';
@@ -57,42 +58,34 @@ export const Route = createFileRoute('/reader')({
 /** `'fit'` scales the page to the available area; a number is a fraction of its actual pixel size. */
 type Zoom = 'fit' | number;
 
-const ZOOM_OPTIONS: { value: Zoom; label: string }[] = [
-  { value: 'fit', label: 'Ajuster à la fenêtre' },
-  { value: 0.5, label: '50 %' },
-  { value: 0.75, label: '75 %' },
-  { value: 0.9, label: '90 %' },
-  { value: 1, label: 'Taille réelle (100 %)' },
-  { value: 1.1, label: '110 %' },
-  { value: 1.25, label: '125 %' },
-  { value: 1.5, label: '150 %' },
-  { value: 2, label: '200 %' },
-];
+const ZOOM_OPTIONS: Zoom[] = ['fit', 0.5, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 2];
 
 /** Progress % and estimated remaining reading time, shared by both reader modes. */
 function ReadingProgress({ percent, remainingMinutes }: { percent: number; remainingMinutes: number | null }) {
+  const { t } = useTranslation('reader');
   return (
     <span
       className="tabular-nums text-white/60"
       title={
         remainingMinutes !== null
-          ? `Temps de lecture restant estimé : ${formatRemainingTime(remainingMinutes)}`
-          : 'Avancement dans le livre'
+          ? t('remainingTime', { time: formatRemainingTime(remainingMinutes) })
+          : t('bookProgress')
       }
     >
-      {Math.round(percent)} %{remainingMinutes !== null && <> · ~{formatRemainingTime(remainingMinutes)}</>}
+      {t('percent', { percent: Math.round(percent) })}{remainingMinutes !== null && <> · ~{formatRemainingTime(remainingMinutes)}</>}
     </span>
   );
 }
 
 /** Fullscreen toggle button, shared by both reader modes. */
 function FullscreenButton({ fullscreen, toggle }: { fullscreen: boolean; toggle: () => void }) {
+  const { t } = useTranslation('reader');
   return (
     <Button
       variant="ghost"
       size="icon-sm"
       onClick={toggle}
-      title={fullscreen ? 'Quitter le plein écran (Échap ou F)' : 'Plein écran (F)'}
+      title={fullscreen ? t('exitFullscreen') : t('enterFullscreen')}
     >
       {fullscreen ? <Minimize /> : <Maximize />}
     </Button>
@@ -105,14 +98,15 @@ function FullscreenButton({ fullscreen, toggle }: { fullscreen: boolean; toggle:
  */
 function NextInListButton({ nextInList }: { nextInList: NextInList | null }) {
   const navigate = useNavigate();
+  const { t } = useTranslation('reader');
   if (!nextInList) return null;
   const { listId, listName, next } = nextInList;
 
   if (!next) {
     return (
-      <span className="flex items-center gap-1 text-white/60" title={`Liste « ${listName} »`}>
+      <span className="flex items-center gap-1 text-white/60" title={t('listNamed', { name: listName })}>
         <CheckCheck className="size-4" />
-        Liste terminée
+        {t('listFinished')}
       </span>
     );
   }
@@ -121,11 +115,11 @@ function NextInListButton({ nextInList }: { nextInList: NextInList | null }) {
       variant="secondary"
       size="sm"
       onClick={() => navigate({ to: '/reader', search: { path: next.path, list: listId } })}
-      title={`Livre suivant de la liste « ${listName} »`}
+      title={t('nextInList', { name: listName })}
       className="max-w-64"
     >
       <SkipForward />
-      <span className="truncate">Suivant : {next.title}</span>
+      <span className="truncate">{t('nextBook', { title: next.title })}</span>
     </Button>
   );
 }
@@ -174,6 +168,7 @@ function useReaderFullscreen(comicOpen: boolean) {
 
 function ReaderPage() {
   const { path, list } = Route.useSearch();
+  const { t } = useTranslation('reader');
   const { comic, page, pageUrl, error, loading, pickAndOpen, openFile, close, next, prev } = useComic();
   const { settings } = useSettings();
   const { fullscreen, toggle: toggleFullscreen } = useReaderFullscreen(comic !== null);
@@ -196,11 +191,11 @@ function ReaderPage() {
   if (!comic) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Lecteur</h1>
-        <p className="text-muted-foreground">Ouvre un fichier CBZ ou CBR pour commencer la lecture.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
+        <p className="text-muted-foreground">{t('intro')}</p>
         <Button onClick={pickAndOpen} disabled={loading}>
           <FolderOpen />
-          Ouvrir un fichier
+          {t('openFile')}
         </Button>
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
@@ -274,6 +269,7 @@ function SinglePageReader({
   toggleFullscreen,
   nextInList,
 }: SinglePageReaderProps) {
+  const { t } = useTranslation(['reader', 'common']);
   const [zoom, setZoom] = useState<Zoom>('fit');
   const [upscaleEnabled, setUpscaleEnabled] = useState(false);
   const [naturalSizeState, setNaturalSizeState] = useState<{ src: string; size: Size } | null>(null);
@@ -417,15 +413,19 @@ function SinglePageReader({
         {isLast && <NextInListButton nextInList={nextInList} />}
         <label className="flex items-center gap-1.5 text-white/60">
           <ZoomIn className="size-4" />
-          <span className="sr-only">Zoom</span>
+          <span className="sr-only">{t('zoom')}</span>
           <select
             value={String(zoom)}
             onChange={(event) => setZoom(event.target.value === 'fit' ? 'fit' : Number(event.target.value))}
             className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white"
           >
             {ZOOM_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value} className="text-foreground">
-                {option.label}
+              <option key={option} value={option} className="text-foreground">
+                {option === 'fit'
+                  ? t('zoomFit')
+                  : option === 1
+                    ? t('zoomActual')
+                    : t('zoomPercent', { percent: Math.round(option * 100) })}
               </option>
             ))}
           </select>
@@ -436,8 +436,7 @@ function SinglePageReader({
             upscaleError ? 'text-destructive' : needsUpscale ? 'text-white/60' : 'text-white/30',
           )}
           title={
-            upscaleError ??
-            "Améliore la netteté de l'image agrandie grâce à un modèle d'IA local (aucune donnée envoyée en ligne)"
+            upscaleError ?? t('upscaleHint')
           }
         >
           <input
@@ -449,19 +448,19 @@ function SinglePageReader({
           {isUpscaling ? (
             <span className="flex items-center gap-1">
               <Loader2 className="size-3.5 animate-spin" />
-              Amélioration…
+              {t('upscaling')}
             </span>
           ) : upscaleError ? (
-            'Amélioration indisponible'
+            t('upscaleUnavailable')
           ) : (
-            'Améliorer (IA)'
+            t('upscale')
           )}
         </label>
-        <Button variant="ghost" size="icon-sm" onClick={pickAndOpen} title="Ouvrir un autre fichier">
+        <Button variant="ghost" size="icon-sm" onClick={pickAndOpen} title={t('openAnother')}>
           <FolderOpen />
         </Button>
         <FullscreenButton fullscreen={fullscreen} toggle={toggleFullscreen} />
-        <Button variant="ghost" size="icon-sm" onClick={close} title="Fermer">
+        <Button variant="ghost" size="icon-sm" onClick={close} title={t('close')}>
           <X />
         </Button>
       </ReaderHeader>
@@ -476,7 +475,7 @@ function SinglePageReader({
         {pageUrl && (
           <img
             src={displayUrl ?? undefined}
-            alt={`Page ${page + 1}`}
+            alt={t('pageAlt', { page: page + 1 })}
             draggable={false}
             className={isFit ? 'h-full w-full object-contain' : 'max-w-none'}
             style={
@@ -488,14 +487,14 @@ function SinglePageReader({
             }
           />
         )}
-        {loading && !pageUrl && <p className="text-neutral-500">Chargement…</p>}
+        {loading && !pageUrl && <p className="text-neutral-500">{t('common:loading')}</p>}
         {error && <p className="absolute bottom-4 text-sm text-destructive">{error}</p>}
 
         <button
           type="button"
           onClick={retreat}
           disabled={isPrevDisabled}
-          aria-label="Page précédente"
+          aria-label={t('previousPage')}
           className="absolute inset-y-0 left-0 w-1/4 cursor-w-resize text-neutral-500 opacity-0 transition hover:opacity-100 disabled:hidden"
         >
           <ChevronLeft className="mx-4 size-8" />
@@ -504,7 +503,7 @@ function SinglePageReader({
           type="button"
           onClick={advance}
           disabled={isNextDisabled}
-          aria-label="Page suivante"
+          aria-label={t('nextPage')}
           className="absolute inset-y-0 right-0 flex w-1/4 cursor-e-resize justify-end text-neutral-500 opacity-0 transition hover:opacity-100 disabled:hidden"
         >
           <ChevronRight className="mx-4 size-8 self-center" />
@@ -537,6 +536,7 @@ function ContinuousReader({
   background,
   nextInList,
 }: ContinuousReaderProps) {
+  const { t } = useTranslation('reader');
   const [visiblePage, setVisiblePage] = useState(comic.resumePage);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -573,11 +573,11 @@ function ContinuousReader({
         </span>
         <ReadingProgress percent={percent} remainingMinutes={remainingMinutes} />
         {visiblePage === comic.pageCount - 1 && <NextInListButton nextInList={nextInList} />}
-        <Button variant="ghost" size="icon-sm" onClick={pickAndOpen} title="Ouvrir un autre fichier">
+        <Button variant="ghost" size="icon-sm" onClick={pickAndOpen} title={t('openAnother')}>
           <FolderOpen />
         </Button>
         <FullscreenButton fullscreen={fullscreen} toggle={toggleFullscreen} />
-        <Button variant="ghost" size="icon-sm" onClick={close} title="Fermer">
+        <Button variant="ghost" size="icon-sm" onClick={close} title={t('close')}>
           <X />
         </Button>
       </ReaderHeader>
@@ -645,6 +645,7 @@ interface ContinuousPageProps {
 }
 
 function ContinuousPage({ comicId, index, onActive }: ContinuousPageProps) {
+  const { t } = useTranslation('reader');
   const ref = useRef<HTMLDivElement>(null);
   const [shouldLoad, setShouldLoad] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
@@ -697,7 +698,7 @@ function ContinuousPage({ comicId, index, onActive }: ContinuousPageProps) {
   return (
     <div ref={ref} className="w-full max-w-full">
       {url ? (
-        <img src={url} alt={`Page ${index + 1}`} draggable={false} className="block w-full" />
+        <img src={url} alt={t('pageAlt', { page: index + 1 })} draggable={false} className="block w-full" />
       ) : (
         <div className="flex h-[60vh] w-full items-center justify-center text-neutral-500">
           <Loader2 className="size-6 animate-spin" />
