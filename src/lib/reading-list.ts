@@ -1,11 +1,11 @@
 /**
  * Pure reading-list logic for the renderer: which books count as finished, the list's progress,
- * the next book to read, and the reordering rules (finished books stay where they are; the lists
- * themselves move freely).
+ * the next book to read, the reordering rules (finished books stay where they are; the lists
+ * themselves move freely), and the drag and drop of a library book onto a list.
  * @module
  */
 import type { LibraryEntry } from '@/shared/library';
-import type { ReadingList } from '@/shared/reading-list';
+import type { ReadingList, ReadingListResult } from '@/shared/reading-list';
 
 /** The tag that marks a book as read, also one of the library page's quick tags. */
 export const READ_TAG = 'Lu';
@@ -77,4 +77,56 @@ export function moveItem<T>(items: readonly T[], from: number, to: number): T[] 
   const [moved] = result.splice(from, 1);
   result.splice(to, 0, moved);
   return result;
+}
+
+/**
+ * The drag-and-drop data type of a library book dragged from the library page onto a reading
+ * list of the sidebar. A custom type, so the sidebar tells a book from one of its own lists being
+ * reordered, and from files dragged in from outside the app.
+ */
+export const LIBRARY_ENTRY_DRAG_TYPE = 'application/x-tankobon-entry';
+
+/** What a dragged library book carries: its id, and its title for the confirmation message. */
+export interface DraggedEntry {
+  id: string;
+  title: string;
+}
+
+/** Encodes a dragged book for `DataTransfer.setData()` under {@link LIBRARY_ENTRY_DRAG_TYPE}. */
+export function encodeDraggedEntry(entry: DraggedEntry): string {
+  return JSON.stringify({ id: entry.id, title: entry.title });
+}
+
+/**
+ * Decodes what {@link encodeDraggedEntry} wrote; null for anything else (the data comes from a
+ * drag, which another app could have started with the same type).
+ */
+export function decodeDraggedEntry(data: string): DraggedEntry | null {
+  try {
+    const parsed: unknown = JSON.parse(data);
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const { id, title } = parsed as Record<string, unknown>;
+    return typeof id === 'string' && id !== '' && typeof title === 'string' ? { id, title } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The French message shown after a book was dropped on a list, and whether it is an error. */
+export interface DropFeedback {
+  message: string;
+  error: boolean;
+}
+
+/**
+ * The message for a book dropped on `list` (as it was before the drop), given what
+ * `readingLists.addEntry()` answered: added, already there (the repository accepts it as a no-op),
+ * or refused with its own message (full list, book gone).
+ */
+export function dropFeedback(list: ReadingList, entry: DraggedEntry, result: ReadingListResult): DropFeedback {
+  if (result.status === 'error') return { message: result.message, error: true };
+  if (list.entryIds.includes(entry.id)) {
+    return { message: `« ${entry.title} » est déjà dans « ${list.name} ».`, error: false };
+  }
+  return { message: `« ${entry.title} » ajouté à « ${list.name} ».`, error: false };
 }
