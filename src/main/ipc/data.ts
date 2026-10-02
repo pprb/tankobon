@@ -5,6 +5,7 @@ import type { ImportResult } from '../../shared/data';
 import { buildExport } from '../db/export-service';
 import { applyImport, parseExport } from '../db/import-service';
 import type { LibraryRepository } from '../db/library-repository';
+import type { ReadingListRepository } from '../db/reading-list-repository';
 import type { SettingsRepository } from '../db/settings-repository';
 
 // Channel names are shared with preload.ts: keep them in sync.
@@ -13,7 +14,11 @@ export const DATA_CHANNELS = {
   import: 'data:import',
 } as const;
 
-export function registerDataIpc(libraryRepo: LibraryRepository, settingsRepo: SettingsRepository): void {
+export function registerDataIpc(
+  libraryRepo: LibraryRepository,
+  settingsRepo: SettingsRepository,
+  readingListRepo: ReadingListRepository,
+): void {
   ipcMain.handle(DATA_CHANNELS.export, async (event) => {
     const window = BrowserWindow.fromWebContents(event.sender);
     const options: Electron.SaveDialogOptions = {
@@ -28,7 +33,7 @@ export function registerDataIpc(libraryRepo: LibraryRepository, settingsRepo: Se
       return null;
     }
 
-    const data = buildExport(libraryRepo, settingsRepo);
+    const data = buildExport(libraryRepo, settingsRepo, readingListRepo);
     await writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
     return filePath;
   });
@@ -49,7 +54,7 @@ export function registerDataIpc(libraryRepo: LibraryRepository, settingsRepo: Se
 
     try {
       const data = parseExport(await readFile(filePaths[0], 'utf-8'));
-      return { status: 'imported', filePath: filePaths[0], ...applyImport(libraryRepo, settingsRepo, data) };
+      return { status: 'imported', filePath: filePaths[0], ...applyImport(libraryRepo, settingsRepo, readingListRepo, data) };
     } catch (error) {
       return { status: 'error', message: error instanceof Error ? error.message : String(error) };
     }

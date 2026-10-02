@@ -1,5 +1,5 @@
 import { Link, Outlet, createRootRoute, useRouterState } from '@tanstack/react-router';
-import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, Library, Settings } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, Library, ListOrdered, Settings } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ export const Route = createRootRoute({
 
 const nav = [
   { to: '/', label: 'Bibliothèque', icon: Library },
+  { to: '/lists', label: 'Listes de lecture', icon: ListOrdered },
   { to: '/reader', label: 'Lecteur', icon: BookOpen },
 ] as const;
 
