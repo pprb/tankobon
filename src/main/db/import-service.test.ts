@@ -194,6 +194,30 @@ describe('applyImport', () => {
     expect(list).toMatchObject({ id: created.list.id, name: 'Pile', entryIds: [twoId, local.id] });
   });
 
+  it("applies the snapshot's order of the reading lists, local-only lists last", () => {
+    const local = readingListRepo.create('Locale');
+    const shared = readingListRepo.create('Partagée');
+    if (local.status !== 'ok' || shared.status !== 'ok') throw new Error('create failed');
+
+    applyImport(
+      libraryRepo,
+      settingsRepo,
+      readingListRepo,
+      parseExport(
+        JSON.stringify({
+          version: 1,
+          library: [],
+          readingLists: [
+            { id: 'new', name: 'Nouvelle', createdAt: '2024-01-01', paths: [] },
+            { id: shared.list.id, name: 'Partagée', createdAt: shared.list.createdAt, paths: [] },
+          ],
+        }),
+      ),
+    );
+
+    expect(readingListRepo.list().map((list) => list.name)).toEqual(['Nouvelle', 'Partagée', 'Locale']);
+  });
+
   it('drops broken reading lists and paths missing from the library', () => {
     const parsed = parseExport(
       JSON.stringify({

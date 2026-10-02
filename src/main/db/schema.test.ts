@@ -33,7 +33,7 @@ describe('migrate', () => {
     expect(columnNames(db, 'settings')).toEqual(['key', 'value']);
     expect(columnNames(db, 'people')).toEqual(['id', 'first_name', 'last_name', 'nationality']);
     expect(columnNames(db, 'credits')).toEqual(['library_id', 'person_id', 'role', 'position']);
-    expect(columnNames(db, 'reading_lists')).toEqual(['id', 'name', 'created_at']);
+    expect(columnNames(db, 'reading_lists')).toEqual(['id', 'name', 'created_at', 'position']);
     expect(columnNames(db, 'reading_list_items')).toEqual(['list_id', 'library_id', 'position']);
   });
 

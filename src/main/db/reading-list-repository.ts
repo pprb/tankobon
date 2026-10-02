@@ -5,7 +5,12 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 
-import { MAX_READING_LIST_SIZE, type ReadingList, type ReadingListResult } from '../../shared/reading-list';
+import {
+  MAX_READING_LIST_SIZE,
+  type ReadingList,
+  type ReadingListOrderResult,
+  type ReadingListResult,
+} from '../../shared/reading-list';
 
 interface ReadingListRow {
   id: string;
@@ -22,10 +27,10 @@ const NOT_FOUND: ReadingListResult = { status: 'error', message: 'Liste de lectu
 export class ReadingListRepository {
   constructor(private readonly db: DatabaseSync) {}
 
-  /** Every list, oldest first. */
+  /** Every list, in the order the user gave them (new lists last). */
   list(): ReadingList[] {
     const rows = this.db
-      .prepare('SELECT * FROM reading_lists ORDER BY created_at, name')
+      .prepare('SELECT * FROM reading_lists ORDER BY position, created_at, name')
       .all() as unknown as ReadingListRow[];
     const items = new Map<string, string[]>();
     const itemRows = this.db
@@ -57,16 +62,14 @@ export class ReadingListRepository {
     return list ? { status: 'ok', list } : NOT_FOUND;
   }
 
-  /** Creates an empty list. The name is trimmed and must not be empty. */
+  /** Creates an empty list, after the existing ones. The name is trimmed and must not be empty. */
   create(name: string): ReadingListResult {
     const trimmed = name.trim();
     if (trimmed === '') {
       return { status: 'error', message: 'Le nom de la liste ne peut pas être vide.' };
     }
     const id = randomUUID();
-    this.db
-      .prepare('INSERT INTO reading_lists (id, name, created_at) VALUES (?, ?, ?)')
-      .run(id, trimmed, new Date().toISOString());
+    this.insert(id, trimmed, new Date().toISOString());
     return this.ok(id);
   }
 
@@ -78,6 +81,21 @@ export class ReadingListRepository {
     }
     this.db.prepare('UPDATE reading_lists SET name = ? WHERE id = ?').run(trimmed, id);
     return this.ok(id);
+  }
+
+  /**
+   * Stores a new order for the lists themselves (the order of {@link list}). `listIds` must hold
+   * exactly the current lists: a stale order (a list was created or deleted in the meantime) is
+   * refused, like {@link reorder}'s.
+   */
+  reorderLists(listIds: string[]): ReadingListOrderResult {
+    const current = new Set(this.list().map((list) => list.id));
+    if (listIds.length !== current.size || new Set(listIds).size !== current.size || !listIds.every((id) => current.has(id))) {
+      return { status: 'error', message: 'Les listes ont changé entre-temps : réessaie.' };
+    }
+    const write = this.db.prepare('UPDATE reading_lists SET position = ? WHERE id = ?');
+    listIds.forEach((id, position) => write.run(position, id));
+    return { status: 'ok', lists: this.list() };
   }
 
   /** Deletes a list; the books it held stay in the library. */
@@ -156,19 +174,28 @@ export class ReadingListRepository {
    * Writes a whole list, matching an existing one by id (list ids are random UUIDs, so unlike
    * library ids they identify the same list across machines) — used by the JSON import. The
    * snapshot wins: name and entries are replaced. Entries beyond `MAX_READING_LIST_SIZE` are dropped.
+   * An existing list keeps its place, a new one goes last; the import then applies the snapshot's
+   * order with {@link reorderLists}.
    */
   upsert(list: ReadingList): 'created' | 'updated' {
     const exists = this.db.prepare('SELECT 1 FROM reading_lists WHERE id = ?').get(list.id) !== undefined;
     if (exists) {
       this.db.prepare('UPDATE reading_lists SET name = ?, created_at = ? WHERE id = ?').run(list.name, list.createdAt, list.id);
     } else {
-      this.db
-        .prepare('INSERT INTO reading_lists (id, name, created_at) VALUES (?, ?, ?)')
-        .run(list.id, list.name, list.createdAt);
+      this.insert(list.id, list.name, list.createdAt);
     }
     this.db.prepare('DELETE FROM reading_list_items WHERE list_id = ?').run(list.id);
     this.writePositions(list.id, [...new Set(list.entryIds)].slice(0, MAX_READING_LIST_SIZE));
     return exists ? 'updated' : 'created';
+  }
+
+  private insert(id: string, name: string, createdAt: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO reading_lists (id, name, created_at, position)
+         SELECT ?, ?, ?, COALESCE(MAX(position) + 1, 0) FROM reading_lists`,
+      )
+      .run(id, name, createdAt);
   }
 
   private writePositions(id: string, entryIds: string[]): void {

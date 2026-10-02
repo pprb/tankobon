@@ -10,7 +10,7 @@ import type { ComicInfo, ComicPage } from './shared/comic';
 import type { ClearLibraryResult, DatabaseLocation, DatabaseLocationResult, ImportResult } from './shared/data';
 import type { LibraryEntry, MetadataUpdate, ScanProgress, ScanResult } from './shared/library';
 import type { MetadataPageResult, MetadataQuery, MetadataSearchResult } from './shared/metadata';
-import type { ReadingList, ReadingListResult } from './shared/reading-list';
+import type { ReadingList, ReadingListOrderResult, ReadingListResult } from './shared/reading-list';
 import type { AppSettings } from './shared/settings';
 
 /** Versions of the runtimes the app is running on, as `window.tankobon.versions`. */
@@ -59,7 +59,7 @@ export interface LibraryApi {
 
 /** Reading lists (ordered piles of library entries), as `window.tankobon.readingLists`. */
 export interface ReadingListApi {
-  /** Every reading list, oldest first, each with its library entry ids in reading order. */
+  /** Every reading list, in the user's order (new lists last), each with its library entry ids in reading order. */
   list(): Promise<ReadingList[]>;
   /** Creates an empty reading list; refused when the name is empty. */
   create(name: string): Promise<ReadingListResult>;
@@ -73,6 +73,8 @@ export interface ReadingListApi {
   removeEntry(id: string, libraryId: string): Promise<ReadingListResult>;
   /** Stores a new order for a reading list; `entryIds` must hold exactly the list's current entries. */
   reorder(id: string, entryIds: string[]): Promise<ReadingListResult>;
+  /** Stores a new order for the reading lists themselves; `listIds` must hold exactly the current lists. */
+  reorderLists(listIds: string[]): Promise<ReadingListOrderResult>;
 }
 
 /** Book information lookups in public APIs, as `window.tankobon.metadata`. */
@@ -176,6 +178,7 @@ const api: TankobonApi = {
     addEntry: (id, libraryId) => ipcRenderer.invoke('reading-lists:add-entry', id, libraryId),
     removeEntry: (id, libraryId) => ipcRenderer.invoke('reading-lists:remove-entry', id, libraryId),
     reorder: (id, entryIds) => ipcRenderer.invoke('reading-lists:reorder', id, entryIds),
+    reorderLists: (listIds) => ipcRenderer.invoke('reading-lists:reorder-lists', listIds),
   },
   settings: {
     getAll: () => ipcRenderer.invoke('settings:get-all'),

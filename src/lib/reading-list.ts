@@ -1,6 +1,7 @@
 /**
  * Pure reading-list logic for the renderer: which books count as finished, the list's progress,
- * the next book to read, and the reordering rule (finished books stay where they are).
+ * the next book to read, and the reordering rules (finished books stay where they are; the lists
+ * themselves move freely).
  * @module
  */
 import type { LibraryEntry } from '@/shared/library';
@@ -62,5 +63,18 @@ export function moveUnfinished(order: string[], finished: ReadonlySet<string>, f
   slots.forEach((index, rank) => {
     result[index] = unfinished[rank];
   });
+  return result;
+}
+
+/**
+ * Moves the item at index `from` to index `to`, shifting the ones in between (how the sidebar
+ * reorders the lists themselves, by drag and drop). Returns null when the move is a no-op or out
+ * of range.
+ */
+export function moveItem<T>(items: readonly T[], from: number, to: number): T[] | null {
+  if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return null;
+  const result = [...items];
+  const [moved] = result.splice(from, 1);
+  result.splice(to, 0, moved);
   return result;
 }
