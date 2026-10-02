@@ -245,7 +245,7 @@ function ReadingListsNav({ collapsed }: { collapsed: boolean }) {
                   setOver(index);
                 } else if (isBookDrag(event)) {
                   event.preventDefault();
-                  event.dataTransfer.dropEffect = 'copy';
+                  event.dataTransfer.dropEffect = 'move';
                   setBookOver(list.id);
                 }
               }}
