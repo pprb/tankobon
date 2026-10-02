@@ -649,9 +649,12 @@ function ContinuousPage({ comicId, index, onActive }: ContinuousPageProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [shouldLoad, setShouldLoad] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
-  // Two observers: one preloads well before the page is visible, the other (tighter
-  // threshold) tracks which page actually counts as "current" for resuming later.
+  // Two observers: one preloads well before the page is visible, the other tracks which
+  // page actually counts as "current" for resuming later: the one crossing the middle of
+  // the viewport. A visibility threshold wouldn't do, since a page taller than twice the
+  // viewport (a portrait page on a landscape screen) is never 50 % visible.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -665,7 +668,7 @@ function ContinuousPage({ comicId, index, onActive }: ContinuousPageProps) {
       ([entry]) => {
         if (entry.isIntersecting) onActive(index);
       },
-      { threshold: 0.5 },
+      { rootMargin: '-50% 0px -50% 0px' },
     );
     loadObserver.observe(el);
     activeObserver.observe(el);
@@ -687,7 +690,7 @@ function ContinuousPage({ comicId, index, onActive }: ContinuousPageProps) {
         setUrl(objectUrl);
       })
       .catch(() => {
-        /* leaves the placeholder in place */
+        if (!cancelled) setFailed(true);
       });
     return () => {
       cancelled = true;
@@ -701,7 +704,7 @@ function ContinuousPage({ comicId, index, onActive }: ContinuousPageProps) {
         <img src={url} alt={t('pageAlt', { page: index + 1 })} draggable={false} className="block w-full" />
       ) : (
         <div className="flex h-[60vh] w-full items-center justify-center text-neutral-500">
-          <Loader2 className="size-6 animate-spin" />
+          {failed ? <span className="text-sm">{t('pageUnreadable')}</span> : <Loader2 className="size-6 animate-spin" />}
         </div>
       )}
     </div>
