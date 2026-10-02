@@ -2,7 +2,7 @@ import { BrowserWindow, dialog, ipcMain } from 'electron';
 import { readFile, writeFile } from 'node:fs/promises';
 
 import type { ClearLibraryResult, ImportResult } from '../../shared/data';
-import { buildExport } from '../db/export-service';
+import { buildExport, exportFileName } from '../db/export-service';
 import { applyImport, parseExport } from '../db/import-service';
 import type { LibraryRepository } from '../db/library-repository';
 import type { ReadingListRepository } from '../db/reading-list-repository';
@@ -26,7 +26,7 @@ export function registerDataIpc(
     const window = BrowserWindow.fromWebContents(event.sender);
     const options: Electron.SaveDialogOptions = {
       title: 'Exporter les données',
-      defaultPath: `tankobon-export-${new Date().toISOString().slice(0, 10)}.json`,
+      defaultPath: exportFileName(new Date()),
       filters: [{ name: 'JSON', extensions: ['json'] }],
     };
     const { canceled, filePath } = window

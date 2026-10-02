@@ -51,3 +51,14 @@ export function buildExport(
     settings: settingsRepo.getAll(),
   };
 }
+
+/**
+ * Default file name offered by the export's save dialog: `tankobon-export-YYYY-MM-DD-HHhMM.json`,
+ * in local time so that it matches the user's clock, with the time so that several exports of the
+ * same day don't overwrite one another. No `:`, which Windows refuses in file names.
+ */
+export function exportFileName(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  return `tankobon-export-${day}-${pad(date.getHours())}h${pad(date.getMinutes())}.json`;
+}
