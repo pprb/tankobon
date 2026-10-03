@@ -6,6 +6,7 @@
     "src/preload.ts",
     "src/main/db/*.ts",
     "src/main/services/*.ts",
+    "src/main/decoder/protocol.ts",
     "src/lib/*.ts",
     "src/hooks/*.ts"
   ],

@@ -1,0 +1,59 @@
+/**
+ * Messages exchanged between the main process and the decoder process (see ADR 0009).
+ * @module
+ */
+import type { ArchiveInfo, ComicPage } from '../../shared/comic';
+import type { Language } from '../../shared/i18n';
+
+/** What `inspect` learns about an archive: enough to register it in the library. */
+export interface ArchiveSummary {
+  /** Page count (image entries only). */
+  pageCount: number;
+  /** Total entries in the archive (not just image pages). */
+  fileCount: number;
+}
+
+/**
+ * The calls the decoder process answers, as the main process sees them (the arguments, and what the
+ * call resolves to). Everything that opens an archive, decodes an image or touches the thumbnail
+ * cache goes through here.
+ */
+export interface DecoderMethods {
+  /** Opens a comic and keeps it open, under the returned handle, until `close`. */
+  open(filePath: string): ArchiveInfo;
+  /** Reads a page of an archive opened with `open`. */
+  readPage(id: string, index: number): ComicPage;
+  /** Closes an archive opened with `open`. */
+  close(id: string): void;
+  /** Opens a file just long enough to count its pages, caching its cover on the way. */
+  inspect(filePath: string): ArchiveSummary;
+  /** A book's cover thumbnail, generated first when missing (from the open archive `archiveId`, if any). */
+  thumbnail(filePath: string, archiveId?: string): Uint8Array<ArrayBuffer> | null;
+  /** Deletes a book's thumbnail. */
+  removeThumbnail(filePath: string): void;
+  /** Deletes every thumbnail that isn't one of `filePaths`'. */
+  pruneThumbnails(filePaths: string[]): void;
+  /** Brings the thumbnails in line with `filePaths` (after a JSON import). */
+  rebuildThumbnails(filePaths: string[]): void;
+}
+
+/** Name of a `DecoderMethods` call. */
+export type DecoderMethod = keyof DecoderMethods;
+
+/** A call, main → decoder. `id` pairs it with its `DecoderResponse`. */
+export type DecoderRequest = {
+  [M in DecoderMethod]: { type: 'request'; id: number; method: M; args: Parameters<DecoderMethods[M]> };
+}[DecoderMethod];
+
+/** Settings the decoder needs; sent first on every (re)start, and `language` again whenever it changes. */
+export type DecoderControl =
+  | { type: 'init'; thumbnailsDirectory: string; language: Language }
+  | { type: 'language'; language: Language };
+
+/** What the main process sends: a call or a control message. */
+export type DecoderInbound = DecoderRequest | DecoderControl;
+
+/** The answer to a `DecoderRequest`; a failure carries the (already translated) message. */
+export type DecoderResponse =
+  | { type: 'response'; id: number; ok: true; result: unknown }
+  | { type: 'response'; id: number; ok: false; message: string };

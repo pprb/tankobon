@@ -1,9 +1,12 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { collectComicFiles, isSupportedComicFile } from './library-scanner';
+import { LibraryRepository } from '../db/library-repository';
+import { migrate } from '../db/schema';
+import { collectComicFiles, isSupportedComicFile, scanIntoLibrary } from './library-scanner';
 
 const roots: string[] = [];
 
@@ -63,5 +66,34 @@ describe('collectComicFiles', () => {
 
   it('returns an empty list rather than throwing for a missing directory', async () => {
     expect(await collectComicFiles(path.join(tmpdir(), 'tankobon-does-not-exist'))).toEqual([]);
+  });
+});
+
+describe('scanIntoLibrary', () => {
+  it('registers what `inspect` reports, skips known files and counts a failing file apart', async () => {
+    const root = await tree(['a.cbz', 'b.cbz', 'c.cbz']);
+    const db = new DatabaseSync(':memory:');
+    migrate(db);
+    const repo = new LibraryRepository(db);
+    repo.register(path.join(root, 'a.cbz'), 'a', 1, 1, 1);
+    const inspected: string[] = [];
+
+    const summary = await scanIntoLibrary(
+      repo,
+      root,
+      () => undefined,
+      async (filePath) => {
+        inspected.push(path.basename(filePath));
+        if (filePath.endsWith('c.cbz')) {
+          throw new Error('crashed');
+        }
+        return { pageCount: 12, fileCount: 13 };
+      },
+    );
+
+    expect(summary).toEqual({ added: 1, skipped: 1, failed: 1, total: 3 });
+    // The known file is never opened.
+    expect(inspected).toEqual(['b.cbz', 'c.cbz']);
+    expect(repo.list().find((entry) => entry.title === 'b')).toMatchObject({ pageCount: 12, fileCount: 13 });
   });
 });

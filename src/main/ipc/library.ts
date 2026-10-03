@@ -2,9 +2,9 @@ import { BrowserWindow, dialog, ipcMain } from 'electron';
 
 import { t } from '../../shared/i18n';
 import type { MetadataUpdate, ScanResult } from '../../shared/library';
+import type { DecoderClient } from '../decoder/decoder-client';
 import type { LibraryRepository } from '../db/library-repository';
 import { scanIntoLibrary } from '../services/library-scanner';
-import type { ThumbnailCache } from '../services/thumbnail-cache';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const LIBRARY_CHANNELS = {
@@ -20,7 +20,7 @@ export const LIBRARY_CHANNELS = {
   thumbnail: 'library:thumbnail',
 } as const;
 
-export function registerLibraryIpc(repo: LibraryRepository, thumbnails: ThumbnailCache): void {
+export function registerLibraryIpc(repo: LibraryRepository, decoder: DecoderClient): void {
   ipcMain.handle(LIBRARY_CHANNELS.list, () => repo.list());
 
   ipcMain.handle(LIBRARY_CHANNELS.addFolder, async (event): Promise<ScanResult> => {
@@ -46,7 +46,7 @@ export function registerLibraryIpc(repo: LibraryRepository, thumbnails: Thumbnai
           event.sender.send(LIBRARY_CHANNELS.scanProgress, progress);
         }
       },
-      (archive) => thumbnails.storeFromArchive(archive),
+      (filePath) => decoder.inspect(filePath),
     );
     return { status: 'ok', directory, ...summary };
   });
@@ -55,7 +55,7 @@ export function registerLibraryIpc(repo: LibraryRepository, thumbnails: Thumbnai
     const entry = repo.get(id);
     repo.remove(id);
     if (entry) {
-      await thumbnails.remove(entry.path);
+      await decoder.removeThumbnail(entry.path).catch(() => undefined);
     }
   });
 
@@ -73,7 +73,7 @@ export function registerLibraryIpc(repo: LibraryRepository, thumbnails: Thumbnai
   // whose rebuild hasn't reached them yet.
   ipcMain.handle(LIBRARY_CHANNELS.thumbnail, (_event, id: string) => {
     const entry = repo.get(id);
-    return entry ? thumbnails.ensure(entry.path) : null;
+    return entry ? decoder.thumbnail(entry.path).catch(() => null) : null;
   });
 
   ipcMain.handle(LIBRARY_CHANNELS.updateMetadata, (_event, id: string, update: MetadataUpdate) =>
