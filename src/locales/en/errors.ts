@@ -11,6 +11,7 @@ export default {
     extractFailed: 'Could not extract the page: {{entry}}',
     closed: 'Archive closed: {{path}}',
     entryTooLarge: 'Page too large to be read: {{entry}}',
+    imageTooLarge: 'Image too large to be displayed: {{entry}} ({{width}} × {{height}} px)',
   },
   database: {
     notWritable: 'Cannot write to {{directory}}.',
