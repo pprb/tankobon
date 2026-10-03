@@ -68,6 +68,17 @@ describe('CbzArchive', () => {
 
   afterEach(() => rm(dir, { recursive: true, force: true }));
 
+  it('refuses a page whose declared size is above the ceiling', async () => {
+    const zip = buildZip({ '001.jpg': Buffer.alloc(100, 1) });
+    // Forge the central directory's uncompressed size (offset 24 of its entry) at 300 MB.
+    zip.writeUInt32LE(300 * 1024 * 1024, zip.indexOf(Buffer.from([0x50, 0x4b, 0x01, 0x02])) + 24);
+    const big = join(dir, 'big.cbz');
+    await writeFile(big, zip);
+    const archive = await CbzArchive.open(big);
+    await expect(archive.readPage(0)).rejects.toThrow('trop volumineuse');
+    await archive.close();
+  });
+
   it('lists sorted pages and counts every file', async () => {
     const archive = await CbzArchive.open(file);
     expect(archive.pages).toEqual(['001.jpg', '002.jpg']);

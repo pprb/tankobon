@@ -11,6 +11,7 @@ const errors: Translation<typeof en> = {
     pageOutOfRange: 'Page {{index}} hors limites (0-{{last}})',
     extractFailed: "Impossible d'extraire la page : {{entry}}",
     closed: 'Archive fermée : {{path}}',
+    entryTooLarge: "Page trop volumineuse pour être lue : {{entry}}",
   },
   database: {
     notWritable: "Impossible d'écrire dans {{directory}}.",

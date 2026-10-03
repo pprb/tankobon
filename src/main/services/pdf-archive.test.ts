@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { PdfArchive } from './pdf-archive';
+import { MAX_PAGE_PIXELS, PdfArchive, pageRenderScale } from './pdf-archive';
 
 /** Builds a minimal but valid single-page PDF (one Helvetica text run), no external tooling needed. */
 function buildTestPdf(pageTexts: string[]): string {
@@ -85,5 +85,21 @@ describe('PdfArchive', () => {
     } finally {
       await archive.close();
     }
+  });
+});
+
+describe('pageRenderScale', () => {
+  it('keeps the ~200 DPI scale for a normal page', () => {
+    expect(pageRenderScale(595, 842)).toBeCloseTo(200 / 72);
+  });
+
+  it('lowers the scale so a huge page stays within the pixel ceiling', () => {
+    const scale = pageRenderScale(4000, 4000);
+    expect(scale).toBeLessThan(200 / 72);
+    expect(4000 * scale * 4000 * scale).toBeLessThanOrEqual(MAX_PAGE_PIXELS * 1.0001);
+  });
+
+  it('falls back to the default scale for a degenerate page', () => {
+    expect(pageRenderScale(0, 0)).toBeCloseTo(200 / 72);
   });
 });
