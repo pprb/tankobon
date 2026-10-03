@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, Check, GripVertical, Pencil, Trash2, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ReadingListProgress } from '@/components/reading-list-progress';
 import { Button } from '@/components/ui/button';
+import { useListsWithLibrary } from '@/hooks/use-lists-with-library';
 import { notifyReadingListsChanged } from '@/hooks/use-reading-lists';
 import { isFinished, listEntries, listProgress, moveUnfinished, nextToRead, READ_TAG, tagLabel } from '@/lib/reading-list';
 import { cn } from '@/lib/utils';
@@ -22,25 +23,17 @@ function ReadingListPage() {
   const { listId } = Route.useParams();
   const { t } = useTranslation(['lists', 'common']);
   const navigate = useNavigate();
+  const { lists, library: loadedLibrary, reload: refresh, setLists } = useListsWithLibrary();
   // undefined while loading, null once the list turns out not to exist.
-  const [list, setList] = useState<ReadingList | null | undefined>(undefined);
-  const [library, setLibrary] = useState<LibraryEntry[]>([]);
+  const list = lists === null ? undefined : (lists.find((l) => l.id === listId) ?? null);
+  const library = useMemo(() => loadedLibrary ?? [], [loadedLibrary]);
+  const setList = useCallback(
+    (updated: ReadingList) => setLists((previous) => previous && previous.map((l) => (l.id === updated.id ? updated : l))),
+    [setLists],
+  );
   const [error, setError] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [dragged, setDragged] = useState<number | null>(null);
-
-  const refresh = useCallback(() => {
-    void Promise.all([window.tankobon.readingLists.list(), window.tankobon.library.list()]).then(
-      ([lists, fetchedLibrary]) => {
-        setList(lists.find((l) => l.id === listId) ?? null);
-        setLibrary(fetchedLibrary);
-      },
-    );
-  }, [listId]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
 
   const entries = useMemo(() => (list ? listEntries(list, library) : []), [list, library]);
   const finished = useMemo(() => new Set(entries.filter(isFinished).map((entry) => entry.id)), [entries]);
