@@ -29,7 +29,7 @@ The "À propos" section gets the app's version (`app.getVersion()`, main process
 
 The `app:get-system-languages` channel returns the OS's preferred languages, so the renderer resolves the `system` language setting against the same list as the main process (see [Interface language](#interface-language)).
 
-Errors that the user should see come back as a `{ status: 'error', message }` member of a result union (`ImportResult`, `DatabaseLocationResult`, `MetadataSearchResult`, `ReadingListResult`) rather than as a thrown error: an `ipcMain.handle` rejection reaches the renderer wrapped in "Error invoking remote method …".
+Errors that the user should see come back as a `{ status: 'error', message }` member of a result union (`ImportResult`, `ExportResult`, `ClearLibraryResult`, `DatabaseLocationResult`, `MetadataSearchResult`, `ReadingListResult`) rather than as a thrown error: an `ipcMain.handle` rejection reaches the renderer wrapped in "Error invoking remote method …".
 
 `ArchiveInfo` is what `ComicService` knows about an opened archive before it's matched to a library entry; the `comic:open` handler (`src/main/ipc/comic.ts`) merges it with the library entry to produce the `ComicInfo` sent to the renderer.
 

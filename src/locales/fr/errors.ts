@@ -16,6 +16,10 @@ const errors: Translation<typeof en> = {
   database: {
     notWritable: "Impossible d'écrire dans {{directory}}.",
   },
+  data: {
+    exportFailed: "Impossible d'écrire l'export : {{message}}",
+    clearFailed: 'Impossible de vider la bibliothèque : {{message}}',
+  },
   import: {
     notJson: "Fichier illisible : ce n'est pas du JSON valide.",
     notExport: "Fichier non reconnu : ce n'est pas un export Tankōbon (version 1).",
