@@ -2,6 +2,7 @@
 // as a rejected IPC call.
 export default {
   archive: {
+    unknownBook: 'This book is not in the library: pick the file again.',
     unsupportedFormat: 'Unsupported format: {{extension}}',
     noExtension: '(no extension)',
     unknown: 'Unknown archive: {{id}}',
@@ -11,6 +12,9 @@ export default {
     extractFailed: 'Could not extract the page: {{entry}}',
     closed: 'Archive closed: {{path}}',
     entryTooLarge: 'Page too large to be read: {{entry}}',
+  },
+  ipc: {
+    invalidArguments: 'Invalid arguments for {{channel}}.',
   },
   database: {
     notWritable: 'Cannot write to {{directory}}.',

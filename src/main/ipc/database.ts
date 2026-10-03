@@ -1,9 +1,11 @@
-import { BrowserWindow, app, dialog, ipcMain } from 'electron';
+import { BrowserWindow, app, dialog } from 'electron';
 
 import type { DatabaseLocation, DatabaseLocationResult } from '../../shared/data';
 import { t } from '../../shared/i18n';
+import { tuple } from '../../shared/validation';
 import { databaseLocation } from '../db/database';
 import { checkDirectoryUsable, writeLocationPointer } from '../db/db-location';
+import { handle } from './handle';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const DATABASE_CHANNELS = {
@@ -20,9 +22,9 @@ export const DATABASE_CHANNELS = {
  * has to keep that database rather than overwrite it.
  */
 export function registerDatabaseIpc(): void {
-  ipcMain.handle(DATABASE_CHANNELS.getLocation, (): DatabaseLocation => databaseLocation());
+  handle(DATABASE_CHANNELS.getLocation, tuple(), (): DatabaseLocation => databaseLocation());
 
-  ipcMain.handle(DATABASE_CHANNELS.chooseLocation, async (event): Promise<DatabaseLocationResult> => {
+  handle(DATABASE_CHANNELS.chooseLocation, tuple(), async (event): Promise<DatabaseLocationResult> => {
     const window = BrowserWindow.fromWebContents(event.sender);
     const options: Electron.OpenDialogOptions = {
       title: t('dialogs:chooseDatabaseFolder'),
@@ -46,12 +48,12 @@ export function registerDatabaseIpc(): void {
     return { status: 'changed', location: databaseLocation() };
   });
 
-  ipcMain.handle(DATABASE_CHANNELS.resetLocation, (): DatabaseLocation => {
+  handle(DATABASE_CHANNELS.resetLocation, tuple(), (): DatabaseLocation => {
     writeLocationPointer(app.getPath('userData'), null);
     return databaseLocation();
   });
 
-  ipcMain.handle(DATABASE_CHANNELS.relaunch, () => {
+  handle(DATABASE_CHANNELS.relaunch, tuple(), () => {
     app.relaunch();
     // `quit` (not `exit`) so main.ts's `will-quit` still closes the database cleanly.
     app.quit();

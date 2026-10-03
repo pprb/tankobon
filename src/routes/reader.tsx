@@ -41,15 +41,15 @@ function fitSize(container: Size, natural: Size): Size {
 }
 
 interface ReaderSearch {
-  /** Absolute path of a comic to open automatically, e.g. from the library page. */
-  path?: string;
+  /** Library entry id, or file-dialog token, of a comic to open automatically, e.g. from the library page. */
+  book?: string;
   /** Id of the reading list the comic was opened from: its next book is offered on the last page. */
   list?: string;
 }
 
 export const Route = createFileRoute('/reader')({
   validateSearch: (search: Record<string, unknown>): ReaderSearch => ({
-    path: typeof search.path === 'string' ? search.path : undefined,
+    book: typeof search.book === 'string' ? search.book : undefined,
     list: typeof search.list === 'string' ? search.list : undefined,
   }),
   component: ReaderPage,
@@ -114,7 +114,7 @@ function NextInListButton({ nextInList }: { nextInList: NextInList | null }) {
     <Button
       variant="secondary"
       size="sm"
-      onClick={() => navigate({ to: '/reader', search: { path: next.path, list: listId } })}
+      onClick={() => navigate({ to: '/reader', search: { book: next.id, list: listId } })}
       title={t('nextInList', { name: listName })}
       className="max-w-64"
     >
@@ -167,7 +167,7 @@ function useReaderFullscreen(comicOpen: boolean) {
 }
 
 function ReaderPage() {
-  const { path, list } = Route.useSearch();
+  const { book, list } = Route.useSearch();
   const { t } = useTranslation('reader');
   const { comic, page, pageUrl, error, loading, pickAndOpen, openFile, close, next, prev } = useComic();
   const { settings } = useSettings();
@@ -175,8 +175,8 @@ function ReaderPage() {
   const nextInList = useNextInList(list, comic?.libraryId);
 
   useEffect(() => {
-    if (path) void openFile(path);
-  }, [path, openFile]);
+    if (book) void openFile(book);
+  }, [book, openFile]);
 
   // Continuous mode doesn't drive `page`/`goTo` (that would also re-trigger useComic's
   // own single-page fetch for no reason); it persists progress directly instead.

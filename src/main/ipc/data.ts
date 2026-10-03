@@ -1,9 +1,10 @@
-import { BrowserWindow, dialog, ipcMain } from 'electron';
+import { BrowserWindow, dialog } from 'electron';
 import { readFile, writeFile } from 'node:fs/promises';
 import type { DatabaseSync } from 'node:sqlite';
 
 import type { ClearLibraryResult, ImportResult } from '../../shared/data';
 import { t } from '../../shared/i18n';
+import { tuple } from '../../shared/validation';
 import { buildExport, exportFileName } from '../db/export-service';
 import { applyImport, parseExport } from '../db/import-service';
 import type { LibraryRepository } from '../db/library-repository';
@@ -11,6 +12,7 @@ import type { ReadingListRepository } from '../db/reading-list-repository';
 import type { SettingsRepository } from '../db/settings-repository';
 import { applyMainLanguage } from '../language';
 import type { ThumbnailCache } from '../services/thumbnail-cache';
+import { handle } from './handle';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const DATA_CHANNELS = {
@@ -26,7 +28,7 @@ export function registerDataIpc(
   readingListRepo: ReadingListRepository,
   thumbnails: ThumbnailCache,
 ): void {
-  ipcMain.handle(DATA_CHANNELS.export, async (event) => {
+  handle(DATA_CHANNELS.export, tuple(), async (event) => {
     const window = BrowserWindow.fromWebContents(event.sender);
     const options: Electron.SaveDialogOptions = {
       title: t('dialogs:exportData'),
@@ -45,7 +47,7 @@ export function registerDataIpc(
     return filePath;
   });
 
-  ipcMain.handle(DATA_CHANNELS.import, async (event): Promise<ImportResult> => {
+  handle(DATA_CHANNELS.import, tuple(), async (event): Promise<ImportResult> => {
     const window = BrowserWindow.fromWebContents(event.sender);
     const options: Electron.OpenDialogOptions = {
       title: t('dialogs:importData'),
@@ -69,11 +71,14 @@ export function registerDataIpc(
       void thumbnails.rebuild(libraryRepo.list().map((entry) => entry.path));
       return { status: 'imported', filePath: filePaths[0], ...counts };
     } catch (error) {
-      return { status: 'error', message: error instanceof Error ? error.message : String(error) };
+      return {
+        status: 'error',
+        message: error instanceof Error ? error.message : String(error),
+      };
     }
   });
 
-  ipcMain.handle(DATA_CHANNELS.clearLibrary, async (): Promise<ClearLibraryResult> => {
+  handle(DATA_CHANNELS.clearLibrary, tuple(), async (): Promise<ClearLibraryResult> => {
     const readingLists = readingListRepo.clear();
     const entries = libraryRepo.clear();
     // Every thumbnail now belongs to a book that is no longer in the library.
