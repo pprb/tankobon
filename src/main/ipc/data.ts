@@ -1,5 +1,6 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron';
 import { readFile, writeFile } from 'node:fs/promises';
+import type { DatabaseSync } from 'node:sqlite';
 
 import type { ClearLibraryResult, ImportResult } from '../../shared/data';
 import { t } from '../../shared/i18n';
@@ -19,6 +20,7 @@ export const DATA_CHANNELS = {
 } as const;
 
 export function registerDataIpc(
+  db: DatabaseSync,
   libraryRepo: LibraryRepository,
   settingsRepo: SettingsRepository,
   readingListRepo: ReadingListRepository,
@@ -59,7 +61,7 @@ export function registerDataIpc(
 
     try {
       const data = parseExport(await readFile(filePaths[0], 'utf-8'));
-      const counts = applyImport(libraryRepo, settingsRepo, readingListRepo, data);
+      const counts = applyImport(db, libraryRepo, settingsRepo, readingListRepo, data);
       // The settings were replaced, the language with them.
       applyMainLanguage(settingsRepo.getAll().language);
       // Thumbnails aren't part of an export: rebuild the cache in the background, without making

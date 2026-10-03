@@ -78,7 +78,7 @@ app.whenReady().then(() => {
   registerLibraryIpc(libraryRepo, thumbnails);
   registerReadingListIpc(readingListRepo);
   registerSettingsIpc(settingsRepo);
-  registerDataIpc(libraryRepo, settingsRepo, readingListRepo, thumbnails);
+  registerDataIpc(db, libraryRepo, settingsRepo, readingListRepo, thumbnails);
   registerComicIpc(libraryRepo, thumbnails);
   registerDatabaseIpc();
   registerMetadataIpc(settingsRepo);

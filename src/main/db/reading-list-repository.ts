@@ -12,6 +12,12 @@ import {
   type ReadingListOrderResult,
   type ReadingListResult,
 } from '../../shared/reading-list';
+import { withTransaction } from './transaction';
+
+/** Whether `ids` holds exactly the members of `current`: same size, no duplicate, nothing foreign. */
+function isSameSet(ids: string[], current: Set<string>): boolean {
+  return ids.length === current.size && new Set(ids).size === current.size && ids.every((id) => current.has(id));
+}
 
 interface ReadingListRow {
   id: string;
@@ -92,18 +98,20 @@ export class ReadingListRepository {
    */
   reorderLists(listIds: string[]): ReadingListOrderResult {
     const current = new Set(this.list().map((list) => list.id));
-    if (listIds.length !== current.size || new Set(listIds).size !== current.size || !listIds.every((id) => current.has(id))) {
+    if (!isSameSet(listIds, current)) {
       return { status: 'error', message: t('errors:readingLists.listsChanged') };
     }
     const write = this.db.prepare('UPDATE reading_lists SET position = ? WHERE id = ?');
-    listIds.forEach((id, position) => write.run(position, id));
+    withTransaction(this.db, () => listIds.forEach((id, position) => write.run(position, id)));
     return { status: 'ok', lists: this.list() };
   }
 
   /** Deletes a list; the books it held stay in the library. */
   remove(id: string): void {
-    this.db.prepare('DELETE FROM reading_list_items WHERE list_id = ?').run(id);
-    this.db.prepare('DELETE FROM reading_lists WHERE id = ?').run(id);
+    withTransaction(this.db, () => {
+      this.db.prepare('DELETE FROM reading_list_items WHERE list_id = ?').run(id);
+      this.db.prepare('DELETE FROM reading_lists WHERE id = ?').run(id);
+    });
   }
 
   /** Deletes every list; the books they held stay in the library. Returns how many were deleted. */
@@ -149,8 +157,10 @@ export class ReadingListRepository {
     if (!this.get(id)) {
       return notFound();
     }
-    this.db.prepare('DELETE FROM reading_list_items WHERE list_id = ? AND library_id = ?').run(id, libraryId);
-    this.writePositions(id, this.entryIdsOf(id));
+    withTransaction(this.db, () => {
+      this.db.prepare('DELETE FROM reading_list_items WHERE list_id = ? AND library_id = ?').run(id, libraryId);
+      this.writePositions(id, this.entryIdsOf(id));
+    });
     return this.ok(id);
   }
 
@@ -165,7 +175,7 @@ export class ReadingListRepository {
       return notFound();
     }
     const current = new Set(list.entryIds);
-    if (entryIds.length !== current.size || new Set(entryIds).size !== current.size || !entryIds.every((e) => current.has(e))) {
+    if (!isSameSet(entryIds, current)) {
       return { status: 'error', message: t('errors:readingLists.listChanged') };
     }
     this.writePositions(id, entryIds);
@@ -180,6 +190,10 @@ export class ReadingListRepository {
    * order with {@link reorderLists}.
    */
   upsert(list: ReadingList): 'created' | 'updated' {
+    return withTransaction(this.db, () => this.writeList(list));
+  }
+
+  private writeList(list: ReadingList): 'created' | 'updated' {
     const exists = this.db.prepare('SELECT 1 FROM reading_lists WHERE id = ?').get(list.id) !== undefined;
     if (exists) {
       this.db.prepare('UPDATE reading_lists SET name = ?, created_at = ? WHERE id = ?').run(list.name, list.createdAt, list.id);
@@ -204,6 +218,6 @@ export class ReadingListRepository {
     const write = this.db.prepare(
       'INSERT OR REPLACE INTO reading_list_items (list_id, library_id, position) VALUES (?, ?, ?)',
     );
-    entryIds.forEach((libraryId, position) => write.run(id, libraryId, position));
+    withTransaction(this.db, () => entryIds.forEach((libraryId, position) => write.run(id, libraryId, position)));
   }
 }
