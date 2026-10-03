@@ -1,0 +1,68 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  DEFAULT_SETTINGS,
+  MAX_PAGE_SPACING,
+  SETTING_VALIDATORS,
+  isSettingKey,
+  isValidSetting,
+  pickApiKeys,
+  toPublicSettings,
+} from './settings';
+
+describe('SETTING_VALIDATORS', () => {
+  it('accepts the default of every setting', () => {
+    for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof typeof DEFAULT_SETTINGS)[]) {
+      expect(isValidSetting(key, DEFAULT_SETTINGS[key]), key).toBe(true);
+    }
+  });
+
+  it('refuses values outside a setting’s domain', () => {
+    expect(isValidSetting('readingMode', 'webtoon')).toBe(false);
+    expect(isValidSetting('readingDirection', 'up')).toBe(false);
+    expect(isValidSetting('pageSpacing', -400)).toBe(false);
+    expect(isValidSetting('pageSpacing', MAX_PAGE_SPACING + 1)).toBe(false);
+    expect(isValidSetting('pageSpacing', Number.NaN)).toBe(false);
+    expect(isValidSetting('readerBackground', 'red')).toBe(false);
+    expect(isValidSetting('language', 'klingon')).toBe(false);
+    expect(isValidSetting('sidebarCollapsed', 'yes')).toBe(false);
+    expect(isValidSetting('comicVineApiKey', null)).toBe(false);
+  });
+
+  it('accepts in-range values', () => {
+    expect(isValidSetting('readingMode', 'continuous')).toBe(true);
+    expect(isValidSetting('pageSpacing', 0)).toBe(true);
+    expect(isValidSetting('readerBackground', '#F4ECD8')).toBe(true);
+    expect(isValidSetting('language', 'fr')).toBe(true);
+    expect(isValidSetting('language', 'system')).toBe(true);
+  });
+
+  it('has one validator per setting', () => {
+    expect(Object.keys(SETTING_VALIDATORS).sort()).toEqual(Object.keys(DEFAULT_SETTINGS).sort());
+  });
+});
+
+describe('isSettingKey', () => {
+  it('only accepts own setting names', () => {
+    expect(isSettingKey('pageSpacing')).toBe(true);
+    expect(isSettingKey('nope')).toBe(false);
+    expect(isSettingKey('toString')).toBe(false);
+    expect(isSettingKey('__proto__')).toBe(false);
+    expect(isSettingKey(42)).toBe(false);
+  });
+});
+
+describe('API keys', () => {
+  const settings = { ...DEFAULT_SETTINGS, comicVineApiKey: 'secret', googleBooksApiKey: 'other' };
+
+  it('are left out of the public settings', () => {
+    const publicSettings = toPublicSettings(settings);
+    expect(publicSettings).not.toHaveProperty('comicVineApiKey');
+    expect(publicSettings).not.toHaveProperty('googleBooksApiKey');
+    expect(publicSettings.readingMode).toBe('single');
+  });
+
+  it('are returned on their own by pickApiKeys', () => {
+    expect(pickApiKeys(settings)).toEqual({ comicVineApiKey: 'secret', googleBooksApiKey: 'other' });
+  });
+});

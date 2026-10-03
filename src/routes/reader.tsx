@@ -24,7 +24,7 @@ import { useSettings } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
 import { createWheelPager } from '@/lib/wheel-pager';
 import type { ComicInfo } from '@/shared/comic';
-import type { AppSettings } from '@/shared/settings';
+import type { PublicSettings } from '@/shared/settings';
 
 interface Size {
   width: number;
@@ -248,7 +248,7 @@ interface SinglePageReaderProps {
   close: () => void;
   next: () => void;
   prev: () => void;
-  settings: AppSettings;
+  settings: PublicSettings;
   fullscreen: boolean;
   toggleFullscreen: () => void;
   nextInList: NextInList | null;

@@ -2,7 +2,7 @@
  * Settings types shared between the main process and the renderer (via preload).
  * @module
  */
-import type { LanguageSetting } from './i18n';
+import { isSupportedLanguage, type LanguageSetting } from './i18n';
 
 /** User preferences, persisted key by key in the `settings` table (see `SettingsRepository`). */
 export interface AppSettings {
@@ -62,3 +62,72 @@ export const READER_BACKGROUND_PRESETS: ReaderBackgroundPreset[] = [
   { value: '#f4ecd8', name: 'sepia' },
   { value: '#ffffff', name: 'white' },
 ];
+
+/** Largest `pageSpacing` accepted, in pixels. */
+export const MAX_PAGE_SPACING = 1000;
+
+/** One type guard per key of {@link AppSettings}. */
+export type SettingValidators = { [K in keyof AppSettings]: (value: unknown) => value is AppSettings[K] };
+
+const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
+const isString = (value: unknown): value is string => typeof value === 'string';
+
+/**
+ * One type guard per setting, the single definition of what a stored value may be. The main process
+ * checks every `settings:set` call and every imported settings object against it, so neither a
+ * compromised renderer nor a hand-edited export can store `readingMode: "webtoon"` or
+ * `pageSpacing: -400`. A new setting needs an entry here (the type forces it).
+ */
+export const SETTING_VALIDATORS: SettingValidators = {
+  language: (value): value is LanguageSetting => value === 'system' || (isString(value) && isSupportedLanguage(value)),
+  readingDirection: (value): value is AppSettings['readingDirection'] => value === 'ltr' || value === 'rtl',
+  sidebarCollapsed: isBoolean,
+  scrollDirection: (value): value is AppSettings['scrollDirection'] => value === 'standard' || value === 'inverted',
+  readingMode: (value): value is AppSettings['readingMode'] => value === 'single' || value === 'continuous',
+  pageSpacing: (value): value is number =>
+    typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= MAX_PAGE_SPACING,
+  readerBackground: (value): value is string => isString(value) && /^#[0-9a-fA-F]{6}$/.test(value),
+  comicVineEnabled: isBoolean,
+  comicVineApiKey: isString,
+  googleBooksEnabled: isBoolean,
+  googleBooksApiKey: isString,
+};
+
+/** Whether `key` names a setting of {@link AppSettings}. */
+export function isSettingKey(key: unknown): key is keyof AppSettings {
+  return typeof key === 'string' && Object.hasOwn(SETTING_VALIDATORS, key);
+}
+
+/** Whether `value` is acceptable for the setting `key` (see {@link SETTING_VALIDATORS}). */
+export function isValidSetting<K extends keyof AppSettings>(key: K, value: unknown): value is AppSettings[K] {
+  return SETTING_VALIDATORS[key](value);
+}
+
+/** The settings holding a secret: never sent to the views that don't need them (see {@link PublicSettings}). */
+export const API_KEY_SETTINGS = ['comicVineApiKey', 'googleBooksApiKey'] as const;
+
+/** Key of a secret setting. */
+export type ApiKeySetting = (typeof API_KEY_SETTINGS)[number];
+
+/** Whether `key` is one of the {@link API_KEY_SETTINGS}. */
+export function isApiKeySetting(key: keyof AppSettings): key is ApiKeySetting {
+  return (API_KEY_SETTINGS as readonly string[]).includes(key);
+}
+
+/** What `settings:get-all` returns: every setting except the API keys. */
+export type PublicSettings = Omit<AppSettings, ApiKeySetting>;
+
+/** The API keys, as returned by the dedicated `settings:get-api-keys` channel. */
+export type ApiKeys = Pick<AppSettings, ApiKeySetting>;
+
+/** `settings` without its API keys. */
+export function toPublicSettings(settings: AppSettings): PublicSettings {
+  const publicSettings: Partial<AppSettings> = { ...settings };
+  for (const key of API_KEY_SETTINGS) delete publicSettings[key];
+  return publicSettings as PublicSettings;
+}
+
+/** The API keys of `settings`. */
+export function pickApiKeys(settings: AppSettings): ApiKeys {
+  return { comicVineApiKey: settings.comicVineApiKey, googleBooksApiKey: settings.googleBooksApiKey };
+}
