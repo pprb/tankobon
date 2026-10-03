@@ -6,6 +6,7 @@ import StreamZip from 'node-stream-zip';
 
 import type { ComicPage } from '../../shared/comic';
 import { t } from '../../shared/i18n';
+import { checkedPage } from './image-size';
 import { imageMimeType, isPageEntry, sortPages, type ComicArchive } from './comic-archive';
 
 /** Largest page entry read into memory (200 MB, uncompressed size declared by the archive). */
@@ -64,7 +65,7 @@ export class CbzArchive implements ComicArchive {
     try {
       const data = await read;
       // Copy into a fresh ArrayBuffer: Buffers may be views on a shared pool.
-      return { data: new Uint8Array(data), mimeType: imageMimeType(entryName)! };
+      return checkedPage({ data: new Uint8Array(data), mimeType: imageMimeType(entryName)! }, entryName);
     } finally {
       this.pendingReads.delete(read);
     }

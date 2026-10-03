@@ -12,6 +12,7 @@ const errors: Translation<typeof en> = {
     extractFailed: "Impossible d'extraire la page : {{entry}}",
     closed: 'Archive fermée : {{path}}',
     entryTooLarge: "Page trop volumineuse pour être lue : {{entry}}",
+    imageTooLarge: "Image trop grande pour être affichée : {{entry}} ({{width}} × {{height}} px)",
   },
   database: {
     notWritable: "Impossible d'écrire dans {{directory}}.",
