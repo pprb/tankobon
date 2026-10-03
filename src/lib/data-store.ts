@@ -15,10 +15,26 @@ export type DataSlice = 'library' | 'readingLists' | 'settings';
 
 /** The part of `window.tankobon` the store reads from; a fake in tests. */
 export interface DataSource {
-  library: { list(): Promise<LibraryEntry[]> };
-  readingLists: { list(): Promise<ReadingList[]> };
-  settings: { getAll(): Promise<AppSettings> };
-  data: { onChanged(listener: (change: DataChange) => void): () => void };
+  /** The library. */
+  library: {
+    /** Every entry, most recently opened first. */
+    list(): Promise<LibraryEntry[]>;
+  };
+  /** The reading lists. */
+  readingLists: {
+    /** Every list, in the user's order. */
+    list(): Promise<ReadingList[]>;
+  };
+  /** The settings. */
+  settings: {
+    /** Every setting. */
+    getAll(): Promise<AppSettings>;
+  };
+  /** The main process's change notifications. */
+  data: {
+    /** Subscribes to `data:changed`; returns the unsubscribe function. */
+    onChanged(listener: (change: DataChange) => void): () => void;
+  };
 }
 
 /**
@@ -103,16 +119,19 @@ export class DataStore {
     for (const listener of [...this.listeners[slice]]) listener();
   }
 
+  /** Fetches the whole library again. */
   async reloadLibrary(): Promise<void> {
     this.library = await this.source.library.list();
     this.emit('library');
   }
 
+  /** Fetches the reading lists again. */
   async reloadReadingLists(): Promise<void> {
     this.readingLists = await this.source.readingLists.list();
     this.emit('readingLists');
   }
 
+  /** Fetches the settings again. */
   async reloadSettings(): Promise<void> {
     this.settings = await this.source.settings.getAll();
     this.emit('settings');
