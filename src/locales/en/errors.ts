@@ -17,6 +17,10 @@ export default {
   database: {
     notWritable: 'Cannot write to {{directory}}.',
   },
+  data: {
+    exportFailed: 'Could not write the export: {{message}}',
+    clearFailed: 'Could not clear the library: {{message}}',
+  },
   import: {
     notJson: 'Unreadable file: this is not valid JSON.',
     notExport: 'Unrecognised file: this is not a Tankōbon export (version 1).',

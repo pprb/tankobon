@@ -1,5 +1,5 @@
 /**
- * Data-management types (database location, JSON import) shared between the main process and the
+ * Data-management types (database location, JSON export and import) shared between the main process and the
  * renderer (via preload).
  * @module
  */
@@ -30,10 +30,22 @@ export type ImportResult =
   | { status: 'imported'; filePath: string; added: number; updated: number }
   | { status: 'error'; message: string };
 
-/** What `data:clear-library` deleted: library entries and reading lists. */
-export interface ClearLibraryResult {
-  /** Number of library entries removed. */
-  entries: number;
-  /** Number of reading lists deleted. */
-  readingLists: number;
-}
+/** Outcome of writing a JSON export. Same rationale as `ImportResult`. */
+export type ExportResult =
+  | { status: 'cancelled' }
+  | { status: 'exported'; filePath: string }
+  | { status: 'error'; message: string };
+
+/**
+ * Outcome of `data:clear-library`: what it deleted (library entries and reading lists), or why it
+ * failed. Same rationale as `ImportResult`.
+ */
+export type ClearLibraryResult =
+  | {
+      status: 'cleared';
+      /** Number of library entries removed. */
+      entries: number;
+      /** Number of reading lists deleted. */
+      readingLists: number;
+    }
+  | { status: 'error'; message: string };
