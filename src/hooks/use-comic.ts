@@ -45,7 +45,12 @@ export function useComic() {
   const openFile = useCallback(async (filePath: string) => {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
-      const comic = await window.tankobon.comic.open(filePath);
+      const result = await window.tankobon.comic.open(filePath);
+      if (result.status === 'error') {
+        setState((s) => ({ ...s, loading: false, error: result.message }));
+        return;
+      }
+      const { comic } = result;
       revokeCurrentUrl();
       setState({ comic, page: comic.resumePage, pageUrl: null, error: null, loading: true });
     } catch (error) {
