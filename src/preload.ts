@@ -7,7 +7,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 import type { AppInfo, AppLink } from './shared/app';
-import type { ComicInfo, ComicPage } from './shared/comic';
+import type { ComicPage, OpenComicResult } from './shared/comic';
 import type {
   ClearLibraryResult,
   DatabaseLocation,
@@ -34,8 +34,11 @@ export interface AppApi {
 export interface ComicApi {
   /** Opens a native file picker; resolves to the chosen path, or null if cancelled. */
   pickFile(): Promise<string | null>;
-  /** Opens a comic and registers it in the library (or refreshes its entry); resolves with its saved page. */
-  open(filePath: string): Promise<ComicInfo>;
+  /** Opens a comic and registers it in the library (or refreshes its entry); resolves with its saved page.
+   * A file that can't be opened (moved, deleted, corrupted, unsupported) resolves to an error result
+   * with a message in the interface language, rather than rejecting.
+   */
+  open(filePath: string): Promise<OpenComicResult>;
   /** Reads one page (0-based) of a comic opened with `open`, as image bytes. */
   readPage(id: string, index: number): Promise<ComicPage>;
   /** Closes a comic opened with `open`, releasing its archive in the main process. */

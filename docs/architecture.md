@@ -29,9 +29,9 @@ The "À propos" section gets the app's version (`app.getVersion()`, main process
 
 The `app:get-system-languages` channel returns the OS's preferred languages, so the renderer resolves the `system` language setting against the same list as the main process (see [Interface language](#interface-language)).
 
-Errors that the user should see come back as a `{ status: 'error', message }` member of a result union (`ImportResult`, `ExportResult`, `ClearLibraryResult`, `DatabaseLocationResult`, `MetadataSearchResult`, `ReadingListResult`) rather than as a thrown error: an `ipcMain.handle` rejection reaches the renderer wrapped in "Error invoking remote method …".
+Errors that the user should see come back as a `{ status: 'error', message }` member of a result union (`OpenComicResult`, `ImportResult`, `ExportResult`, `ClearLibraryResult`, `DatabaseLocationResult`, `MetadataSearchResult`, `ReadingListResult`) rather than as a thrown error: an `ipcMain.handle` rejection reaches the renderer wrapped in "Error invoking remote method …".
 
-`ArchiveInfo` is what `ComicService` knows about an opened archive before it's matched to a library entry; the `comic:open` handler (`src/main/ipc/comic.ts`) merges it with the library entry to produce the `ComicInfo` sent to the renderer.
+`ArchiveInfo` is what `ComicService` knows about an opened archive before it's matched to a library entry; the `comic:open` handler (`src/main/ipc/comic.ts`) merges it with the library entry to produce the `ComicInfo` sent to the renderer. A file that can't be opened (moved, deleted, corrupted, unsupported) comes back as an `OpenComicResult` error, translated by `openErrorMessage()` (`src/main/services/open-error.ts`: a dedicated message for `ENOENT`, otherwise the underlying reason), which `useComic()` shows in the reader.
 
 ## Interface language
 
@@ -202,6 +202,8 @@ Scanned files go through `register()`, never `touch()` (see the table above), an
 ### Reader (`src/routes/reader.tsx`)
 
 `AppSettings.readingMode` picks `SinglePageReader` or `ContinuousReader`. They are separate components, each owning its hooks, so switching modes mounts/unmounts cleanly instead of sharing refs and effects.
+
+**Opening and closing.** `useComic` owns the archive's lifetime. `openFile()` isn't cancellable, so each call takes a request number and the hook keeps a mounted flag: a `comic:open` that answers after the reader was left, or after a newer open started, closes the archive it just got (`comic.close(id)`) instead of leaving it in `ComicService` until the app quits (a CBR stays in memory, a CBZ leaks a file descriptor). `useComic({ loadPages: false })` skips the single-page fetch; the reader passes it in continuous mode, which loads its own pages, so the resume page isn't rendered twice (costly for PDFs).
 
 **Reading direction.** `AppSettings.readingDirection` (`ltr`/`rtl`) swaps the two actions bound to the physical controls: `advance` is `next` in LTR and `prev` in RTL, `retreat` the opposite. `useComic`'s `next()`/`prev()` always mean page index ±1. In single-page mode `advance` is bound to `→`, `PageDown`, `Space` and the right click zone; `retreat` to `←`, `PageUp` and the left zone.
 

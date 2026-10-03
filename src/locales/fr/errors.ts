@@ -12,6 +12,8 @@ const errors: Translation<typeof en> = {
     extractFailed: "Impossible d'extraire la page : {{entry}}",
     closed: 'Archive fermée : {{path}}',
     entryTooLarge: "Page trop volumineuse pour être lue : {{entry}}",
+    fileNotFound: 'Fichier introuvable : il a été déplacé ou supprimé.',
+    openFailed: "Impossible d'ouvrir ce fichier : {{message}}",
   },
   database: {
     notWritable: "Impossible d'écrire dans {{directory}}.",
