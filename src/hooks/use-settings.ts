@@ -38,27 +38,40 @@ export function applyInterfaceLanguage(setting: LanguageSetting): void {
   document.documentElement.lang = language;
 }
 
-/** Owns the app settings: loads them from the database once, persists changes. */
+const changes = new EventTarget();
+const CHANGED = 'changed';
+
+/**
+ * Tells every mounted {@link useSettings} to re-read the database. Call it after something wrote
+ * settings behind the hooks' back (the data import), so no view keeps a stale copy, such as the
+ * sidebar's `sidebarCollapsed`.
+ */
+export function notifySettingsChanged() {
+  changes.dispatchEvent(new Event(CHANGED));
+}
+
+/**
+ * Owns the app settings: loads them from the database on mount and on every
+ * {@link notifySettingsChanged}, persists changes.
+ */
 export function useSettings() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
 
-  /** Re-reads the database — needed after an import replaces the stored settings behind our back. */
-  const reload = useCallback(
-    () =>
-      window.tankobon.settings.getAll().then((loaded) => {
-        setSettings(loaded);
-        applyInterfaceLanguage(loaded.language);
-      }),
-    [],
-  );
-
   useEffect(() => {
     let cancelled = false;
-    void window.tankobon.settings.getAll().then((loaded) => {
-      if (!cancelled) setSettings(loaded);
-    });
+    const load = (applyLang: boolean) => {
+      void window.tankobon.settings.getAll().then((loaded) => {
+        if (cancelled) return;
+        setSettings(loaded);
+        if (applyLang) applyInterfaceLanguage(loaded.language);
+      });
+    };
+    load(false);
+    const onChanged = () => load(true);
+    changes.addEventListener(CHANGED, onChanged);
     return () => {
       cancelled = true;
+      changes.removeEventListener(CHANGED, onChanged);
     };
   }, []);
 
@@ -72,6 +85,5 @@ export function useSettings() {
     settings,
     /** Updates one setting in the UI immediately and persists it in the background. */
     update,
-    reload,
   };
 }
