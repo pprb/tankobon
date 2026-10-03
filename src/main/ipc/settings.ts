@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 
 import type { AppSettings } from '../../shared/settings';
+import type { NotifyDataChange } from './data-changes';
 import type { SettingsRepository } from '../db/settings-repository';
 import { applyMainLanguage } from '../language';
 
@@ -10,7 +11,7 @@ export const SETTINGS_CHANNELS = {
   set: 'settings:set',
 } as const;
 
-export function registerSettingsIpc(repo: SettingsRepository): void {
+export function registerSettingsIpc(repo: SettingsRepository, notify: NotifyDataChange): void {
   ipcMain.handle(SETTINGS_CHANNELS.getAll, () => repo.getAll());
 
   ipcMain.handle(
@@ -18,6 +19,7 @@ export function registerSettingsIpc(repo: SettingsRepository): void {
     (_event, key: keyof AppSettings, value: AppSettings[keyof AppSettings]) => {
       repo.set(key, value);
       if (key === 'language') applyMainLanguage(String(value));
+      notify({ scope: 'settings', values: { [key]: value } });
     },
   );
 }

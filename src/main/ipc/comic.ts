@@ -4,6 +4,7 @@ import { dirname } from 'node:path';
 
 import { SUPPORTED_COMIC_EXTENSIONS } from '../../shared/comic';
 import { t } from '../../shared/i18n';
+import type { NotifyDataChange } from './data-changes';
 import type { LibraryRepository } from '../db/library-repository';
 import { ComicService } from '../services/comic-service';
 import type { ThumbnailCache } from '../services/thumbnail-cache';
@@ -35,7 +36,11 @@ async function lastOpenedDirectory(libraryRepo: LibraryRepository): Promise<stri
   }
 }
 
-export function registerComicIpc(libraryRepo: LibraryRepository, thumbnails: ThumbnailCache): void {
+export function registerComicIpc(
+  libraryRepo: LibraryRepository,
+  thumbnails: ThumbnailCache,
+  notify: NotifyDataChange,
+): void {
   const service = new ComicService();
 
   ipcMain.handle(COMIC_CHANNELS.pickFile, async (event) => {
@@ -56,6 +61,8 @@ export function registerComicIpc(libraryRepo: LibraryRepository, thumbnails: Thu
     const comic = await service.open(filePath);
     const { size } = await stat(comic.path);
     const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
+    // Opening bumps `lastOpenedAt` (and may refresh the title and page count).
+    notify({ scope: 'library', upserted: [entry] });
     // In the background, from the archive just opened: opening the book must not wait for its cover.
     if (comic.pageCount > 0) {
       void thumbnails.ensure(comic.path, () => service.readPage(comic.id, 0));

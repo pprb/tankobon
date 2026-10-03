@@ -6,6 +6,7 @@ import type { ClearLibraryResult, ImportResult } from '../../shared/data';
 import { t } from '../../shared/i18n';
 import { buildExport, exportFileName } from '../db/export-service';
 import { applyImport, parseExport } from '../db/import-service';
+import type { NotifyDataChange } from './data-changes';
 import type { LibraryRepository } from '../db/library-repository';
 import type { ReadingListRepository } from '../db/reading-list-repository';
 import type { SettingsRepository } from '../db/settings-repository';
@@ -25,6 +26,7 @@ export function registerDataIpc(
   settingsRepo: SettingsRepository,
   readingListRepo: ReadingListRepository,
   thumbnails: ThumbnailCache,
+  notify: NotifyDataChange,
 ): void {
   ipcMain.handle(DATA_CHANNELS.export, async (event) => {
     const window = BrowserWindow.fromWebContents(event.sender);
@@ -64,6 +66,9 @@ export function registerDataIpc(
       const counts = applyImport(db, libraryRepo, settingsRepo, readingListRepo, data);
       // The settings were replaced, the language with them.
       applyMainLanguage(settingsRepo.getAll().language);
+      notify({ scope: 'library' });
+      notify({ scope: 'readingLists' });
+      notify({ scope: 'settings' });
       // Thumbnails aren't part of an export: rebuild the cache in the background, without making
       // the import wait for every archive to be opened.
       void thumbnails.rebuild(libraryRepo.list().map((entry) => entry.path));
@@ -76,6 +81,8 @@ export function registerDataIpc(
   ipcMain.handle(DATA_CHANNELS.clearLibrary, async (): Promise<ClearLibraryResult> => {
     const readingLists = readingListRepo.clear();
     const entries = libraryRepo.clear();
+    notify({ scope: 'library' });
+    notify({ scope: 'readingLists' });
     // Every thumbnail now belongs to a book that is no longer in the library.
     await thumbnails.prune([]);
     return { entries, readingLists };
