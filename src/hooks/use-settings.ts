@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { applyLanguage, type Language, type LanguageSetting, resolveLanguage } from '@/shared/i18n';
-import { DEFAULT_SETTINGS, type AppSettings } from '@/shared/settings';
+import { DEFAULT_SETTINGS, isApiKeySetting, toPublicSettings, type AppSettings, type PublicSettings } from '@/shared/settings';
 
 /** The OS's preferred languages, from the main process (see {@link loadSystemLanguages}). */
 let systemLanguages: readonly string[] = navigator.languages;
@@ -40,7 +40,7 @@ export function applyInterfaceLanguage(setting: LanguageSetting): void {
 
 /** Owns the app settings: loads them from the database once, persists changes. */
 export function useSettings() {
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<PublicSettings>(() => toPublicSettings(DEFAULT_SETTINGS));
 
   /** Re-reads the database — needed after an import replaces the stored settings behind our back. */
   const reload = useCallback(
@@ -63,7 +63,7 @@ export function useSettings() {
   }, []);
 
   const update = useCallback(<K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-    setSettings((s) => ({ ...s, [key]: value }));
+    if (!isApiKeySetting(key)) setSettings((s) => ({ ...s, [key]: value }));
     if (key === 'language') applyInterfaceLanguage(value as LanguageSetting);
     void window.tankobon.settings.set(key, value);
   }, []);

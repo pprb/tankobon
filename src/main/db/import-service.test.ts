@@ -63,6 +63,17 @@ describe('parseExport', () => {
     });
   });
 
+  it('refuses out-of-range setting values, keeping the defaults', () => {
+    const parsed = parseExport(
+      JSON.stringify({
+        version: 1,
+        library: [],
+        settings: { readingMode: 'webtoon', pageSpacing: -400, readerBackground: 'url(x)', readingDirection: 'rtl' },
+      }),
+    );
+    expect(parsed.settings).toEqual({ ...DEFAULT_SETTINGS, readingDirection: 'rtl' });
+  });
+
   it('ignores unknown settings keys and values of the wrong type', () => {
     const parsed = parseExport(
       JSON.stringify({
