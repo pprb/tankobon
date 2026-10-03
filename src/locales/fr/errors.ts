@@ -13,6 +13,9 @@ const errors: Translation<typeof en> = {
     closed: 'Archive fermée : {{path}}',
     entryTooLarge: "Page trop volumineuse pour être lue : {{entry}}",
   },
+  decoder: {
+    crashed: "Fichier illisible : le décodeur s'est arrêté de façon inattendue.",
+  },
   database: {
     notWritable: "Impossible d'écrire dans {{directory}}.",
   },

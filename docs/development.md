@@ -42,11 +42,11 @@ npx vitest run -t "clamps the current page"
 |---|---|
 | Renderer (`src/routes/`, `src/components/`, `src/hooks/`, `src/lib/`…) | Hot-replaced by Vite (HMR), the page keeps its state when it can. Same with `npm start`. |
 | Preload (`src/preload.ts`) | Rebuilt, then the window reloads. Same with `npm start`. |
-| Main process (`src/main.ts`, `src/main/`, `src/shared/`) | Rebuilt, then the whole app restarts (the window closes and reopens). Only in development mode; with `npm start`, type `rs` in the terminal. |
+| Main process and decoder process (`src/main.ts`, `src/main/`, `src/shared/`) | Rebuilt, then the whole app restarts (the window closes and reopens). Only in development mode; with `npm start`, type `rs` in the terminal. |
 
 DevTools open (detached) only in development mode; with `npm start` they stay closed but can still be opened from the *View* menu or with `Ctrl+Shift+I`.
 
-How it's wired: `forge.config.ts` recognizes `npm run dev` from `npm_lifecycle_event` and sets `TANKOBON_DEV=1`, which the Electron app inherits from Forge's process; `src/main.ts` opens DevTools when it is set and the app isn't packaged. The restart is a `postStart` hook watching `.vite/build/main.cjs` and calling Forge's own restart (the one `rs` triggers). The Vite plugin's `hotRestart` option is not used: in Forge 8.0 it has no effect, its watch builds running in a subprocess that never receives it.
+How it's wired: `forge.config.ts` recognizes `npm run dev` from `npm_lifecycle_event` and sets `TANKOBON_DEV=1`, which the Electron app inherits from Forge's process; `src/main.ts` opens DevTools when it is set and the app isn't packaged. The restart is a `postStart` hook watching `.vite/build/main.cjs` and `decoder-worker.cjs` and calling Forge's own restart (the one `rs` triggers). The Vite plugin's `hotRestart` option is not used: in Forge 8.0 it has no effect, its watch builds running in a subprocess that never receives it.
 
 A restart kills the app without going through `will-quit`, so the database isn't closed cleanly; SQLite handles that, but a long write (a folder scan) is interrupted.
 

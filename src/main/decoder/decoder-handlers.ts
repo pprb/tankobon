@@ -1,0 +1,38 @@
+/**
+ * What the decoder process does for each `DecoderMethods` call. Free of Electron, so it runs under Vitest.
+ * @module
+ */
+import { ComicService, openArchive } from '../services/comic-service';
+import { ThumbnailCache } from '../services/thumbnail-cache';
+import type { DecoderMethods } from './protocol';
+
+/** One implementation per `DecoderMethods` call, each resolving to what the call returns. */
+export type DecoderHandlers = {
+  [M in keyof DecoderMethods]: (...args: Parameters<DecoderMethods[M]>) => Promise<ReturnType<DecoderMethods[M]>>;
+};
+
+/** Builds the handlers around one `ComicService` (the open archives) and one `ThumbnailCache`. */
+export function createDecoderHandlers(thumbnailsDirectory: string): DecoderHandlers {
+  const service = new ComicService();
+  const thumbnails = new ThumbnailCache(thumbnailsDirectory);
+  return {
+    open: (filePath) => service.open(filePath),
+    readPage: (id, index) => service.readPage(id, index),
+    close: (id) => service.close(id),
+    async inspect(filePath) {
+      const archive = await openArchive(filePath);
+      try {
+        // A book without a cover only goes without a thumbnail: not a reason to refuse it.
+        await thumbnails.storeFromArchive(archive).catch(() => undefined);
+        return { pageCount: archive.pages.length, fileCount: archive.fileCount };
+      } finally {
+        await archive.close();
+      }
+    },
+    thumbnail: (filePath, archiveId) =>
+      thumbnails.ensure(filePath, archiveId ? () => service.readPage(archiveId, 0) : undefined),
+    removeThumbnail: (filePath) => thumbnails.remove(filePath),
+    pruneThumbnails: (filePaths) => thumbnails.prune(filePaths),
+    rebuildThumbnails: (filePaths) => thumbnails.rebuild(filePaths),
+  };
+}

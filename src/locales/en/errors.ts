@@ -12,6 +12,9 @@ export default {
     closed: 'Archive closed: {{path}}',
     entryTooLarge: 'Page too large to be read: {{entry}}',
   },
+  decoder: {
+    crashed: 'The file could not be read: the decoder stopped unexpectedly.',
+  },
   database: {
     notWritable: 'Cannot write to {{directory}}.',
   },
