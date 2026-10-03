@@ -66,7 +66,10 @@ export function useImageUpscaler(src: string | null, enabled: boolean): ImageUps
       return;
     }
 
-    let cancelled = false;
+    // Aborting stops the inference itself (checked between tiles), not just the display of its
+    // result, so quickly turning pages doesn't queue one full inference per page left behind.
+    const controller = new AbortController();
+    const { signal } = controller;
     setUpscaledUrl(null);
     setIsUpscaling(true);
     setError(null);
@@ -75,23 +78,25 @@ export function useImageUpscaler(src: string | null, enabled: boolean): ImageUps
     image.src = src;
     Promise.all([image.decode(), getUpscaler()])
       // Tile the image so large comic pages don't blow up GPU/CPU memory in one pass.
-      .then(([, upscaler]) => upscaler.upscale(image, { patchSize: 64, padding: 4 }))
+      .then(([, upscaler]) => upscaler.upscale(image, { patchSize: 64, padding: 4, signal }))
       .then((dataUrl) => {
-        if (cancelled) return;
+        if (signal.aborted) return;
         cachePut(src, dataUrl);
         setUpscaledUrl(dataUrl);
       })
       .catch((err: unknown) => {
+        // An aborted run rejects too: that's the page being left, not a failure.
+        if (signal.aborted) return;
         // Best-effort enhancement: fall back to the original image on failure.
         console.error('Image upscaling failed:', err);
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+        setError(err instanceof Error ? err.message : String(err));
       })
       .finally(() => {
-        if (!cancelled) setIsUpscaling(false);
+        if (!signal.aborted) setIsUpscaling(false);
       });
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [src, enabled]);
 
