@@ -1,52 +1,15 @@
 /**
- * The reading lists as React state, kept in sync across the views that show them.
+ * The reading lists as React state, shared by every view and kept current by the main process.
  * @module
  */
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
+import { appData } from '@/lib/app-data';
 import type { ReadingList } from '@/shared/reading-list';
 
-const changes = new EventTarget();
-const CHANGED = 'changed';
+const subscribe = (listener: () => void) => appData.subscribe('readingLists', listener);
 
-/**
- * Tells every mounted {@link useReadingLists} to reload. Call it after creating, renaming or
- * deleting a list (reordering them, importing data), so the sidebar doesn't keep showing stale names.
- */
-export function notifyReadingListsChanged() {
-  changes.dispatchEvent(new Event(CHANGED));
-}
-
-/**
- * Calls `listener` on every {@link notifyReadingListsChanged}, for views that load the lists
- * along with something else. Returns the unsubscribe function.
- */
-export function onReadingListsChanged(listener: () => void): () => void {
-  changes.addEventListener(CHANGED, listener);
-  return () => changes.removeEventListener(CHANGED, listener);
-}
-
-/**
- * Loads the reading lists (in the user's order), and reloads them on {@link notifyReadingListsChanged}.
- * `null` until the first load.
- */
+/** The reading lists, in the user's order; `null` until the first load. */
 export function useReadingLists(): ReadingList[] | null {
-  const [lists, setLists] = useState<ReadingList[] | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = () => {
-      void window.tankobon.readingLists.list().then((loaded) => {
-        if (!cancelled) setLists(loaded);
-      });
-    };
-    load();
-    changes.addEventListener(CHANGED, load);
-    return () => {
-      cancelled = true;
-      changes.removeEventListener(CHANGED, load);
-    };
-  }, []);
-
-  return lists;
+  return useSyncExternalStore(subscribe, appData.getReadingLists);
 }

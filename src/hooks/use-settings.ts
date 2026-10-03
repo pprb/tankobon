@@ -2,10 +2,11 @@
  * App settings as React state.
  * @module
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
+import { appData } from '@/lib/app-data';
 import { applyLanguage, type Language, type LanguageSetting, resolveLanguage } from '@/shared/i18n';
-import { DEFAULT_SETTINGS, type AppSettings } from '@/shared/settings';
+import type { AppSettings } from '@/shared/settings';
 
 /** The OS's preferred languages, from the main process (see {@link loadSystemLanguages}). */
 let systemLanguages: readonly string[] = navigator.languages;
@@ -38,40 +39,33 @@ export function applyInterfaceLanguage(setting: LanguageSetting): void {
   document.documentElement.lang = language;
 }
 
-/** Owns the app settings: loads them from the database once, persists changes. */
+/**
+ * Keeps the interface language on the `language` setting from now on, whoever changes it (the
+ * picker, a data import). The first application is the caller's, before the first render.
+ */
+export function keepInterfaceLanguageInSync(): void {
+  let applied = appData.getSettings().language;
+  appData.subscribe('settings', () => {
+    const { language } = appData.getSettings();
+    if (language === applied) return;
+    applied = language;
+    applyInterfaceLanguage(language);
+  });
+}
+
+const subscribe = (listener: () => void) => appData.subscribe('settings', listener);
+
+/** The app settings, shared by every component, and the function that changes one. */
 export function useSettings() {
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
-
-  /** Re-reads the database — needed after an import replaces the stored settings behind our back. */
-  const reload = useCallback(
-    () =>
-      window.tankobon.settings.getAll().then((loaded) => {
-        setSettings(loaded);
-        applyInterfaceLanguage(loaded.language);
-      }),
-    [],
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-    void window.tankobon.settings.getAll().then((loaded) => {
-      if (!cancelled) setSettings(loaded);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const settings = useSyncExternalStore(subscribe, appData.getSettings);
 
   const update = useCallback(<K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-    setSettings((s) => ({ ...s, [key]: value }));
-    if (key === 'language') applyInterfaceLanguage(value as LanguageSetting);
-    void window.tankobon.settings.set(key, value);
+    void appData.updateSetting(key, value, () => window.tankobon.settings.set(key, value));
   }, []);
 
   return {
     settings,
-    /** Updates one setting in the UI immediately and persists it in the background. */
+    /** Updates one setting in every view immediately and persists it in the background. */
     update,
-    reload,
   };
 }

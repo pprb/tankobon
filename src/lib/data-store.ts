@@ -1,0 +1,190 @@
+/**
+ * The renderer's single copy of the data the main process owns: library, reading lists and
+ * settings (pure, no DOM, so it is unit-tested). Views read it through hooks
+ * (`useSyncExternalStore`) and never fetch these themselves; the main process's `data:changed`
+ * push keeps it current, whoever made the write.
+ * @module
+ */
+import type { DataChange, LibraryChange } from '@/shared/data-changes';
+import type { LibraryEntry } from '@/shared/library';
+import type { ReadingList } from '@/shared/reading-list';
+import { DEFAULT_SETTINGS, type AppSettings } from '@/shared/settings';
+
+/** The slices of the store, each with its own subscribers: a progress update doesn't wake the settings' readers. */
+export type DataSlice = 'library' | 'readingLists' | 'settings';
+
+/** The part of `window.tankobon` the store reads from; a fake in tests. */
+export interface DataSource {
+  library: { list(): Promise<LibraryEntry[]> };
+  readingLists: { list(): Promise<ReadingList[]> };
+  settings: { getAll(): Promise<AppSettings> };
+  data: { onChanged(listener: (change: DataChange) => void): () => void };
+}
+
+/**
+ * Applies a {@link LibraryChange} that names entries to the library, keeping it ordered by
+ * `lastOpenedAt`, most recent first, like `library:list`. An entry already there is replaced in
+ * place unless its `lastOpenedAt` changed (the book was just opened), in which case it moves to
+ * where that date puts it; a new one goes where its date puts it too. Returns `entries` itself
+ * when nothing changed.
+ */
+export function applyLibraryChange(entries: LibraryEntry[], change: LibraryChange): LibraryEntry[] {
+  let result = entries;
+  if (change.removed?.length) {
+    const removed = new Set(change.removed);
+    result = result.filter((entry) => !removed.has(entry.id));
+  }
+  for (const entry of change.upserted ?? []) {
+    const index = result.findIndex((existing) => existing.id === entry.id);
+    if (index !== -1 && result[index].lastOpenedAt === entry.lastOpenedAt) {
+      result = result === entries ? [...result] : result;
+      result[index] = entry;
+      continue;
+    }
+    const without = index === -1 ? result : result.filter((_, i) => i !== index);
+    // ISO timestamps sort as text.
+    const at = without.findIndex((existing) => existing.lastOpenedAt <= entry.lastOpenedAt);
+    result = [...without.slice(0, at === -1 ? without.length : at), entry, ...without.slice(at === -1 ? without.length : at)];
+  }
+  return result;
+}
+
+/**
+ * Holds the data and notifies subscribers per slice. `null` library or reading lists mean "not
+ * loaded yet"; the settings are {@link DEFAULT_SETTINGS} until loaded (see {@link DataStore.ready}).
+ */
+export class DataStore {
+  private library: LibraryEntry[] | null = null;
+  private readingLists: ReadingList[] | null = null;
+  private settings: AppSettings = DEFAULT_SETTINGS;
+  private readonly listeners: Record<DataSlice, Set<() => void>> = {
+    library: new Set(),
+    readingLists: new Set(),
+    settings: new Set(),
+  };
+  /**
+   * Writes this renderer made that the main process hasn't answered yet, by key (`entry:<id>`,
+   * `setting:<key>`). The `data:changed` echo of such a write is ignored: it carries the value as
+   * of the write, which a later optimistic change (a slider being dragged, stars clicked in a
+   * row) has already replaced.
+   */
+  private readonly pending = new Map<string, number>();
+  private started = false;
+
+  constructor(private readonly source: DataSource) {}
+
+  /** Resolves once the settings are loaded, so the first render can already use the language. */
+  ready: Promise<void> = Promise.resolve();
+
+  /** Loads everything and starts listening to `data:changed`. Calling it again does nothing. */
+  start(): void {
+    if (this.started) return;
+    this.started = true;
+    this.source.data.onChanged((change) => this.apply(change));
+    this.ready = this.reloadSettings().catch(() => undefined);
+    void this.reloadLibrary();
+    void this.reloadReadingLists();
+  }
+
+  /** The library, most recently opened first; `null` until loaded. The array is replaced, never mutated. */
+  getLibrary = (): LibraryEntry[] | null => this.library;
+  /** The reading lists in the user's order; `null` until loaded. */
+  getReadingLists = (): ReadingList[] | null => this.readingLists;
+  /** The settings. */
+  getSettings = (): AppSettings => this.settings;
+
+  /** Calls `listener` after each change of `slice`; returns the unsubscribe function. */
+  subscribe(slice: DataSlice, listener: () => void): () => void {
+    this.listeners[slice].add(listener);
+    return () => this.listeners[slice].delete(listener);
+  }
+
+  private emit(slice: DataSlice): void {
+    for (const listener of [...this.listeners[slice]]) listener();
+  }
+
+  async reloadLibrary(): Promise<void> {
+    this.library = await this.source.library.list();
+    this.emit('library');
+  }
+
+  async reloadReadingLists(): Promise<void> {
+    this.readingLists = await this.source.readingLists.list();
+    this.emit('readingLists');
+  }
+
+  async reloadSettings(): Promise<void> {
+    this.settings = await this.source.settings.getAll();
+    this.emit('settings');
+  }
+
+  /** Applies a `data:changed` event from the main process. */
+  apply(change: DataChange): void {
+    switch (change.scope) {
+      case 'library': {
+        if (!change.upserted && !change.removed) {
+          void this.reloadLibrary();
+          return;
+        }
+        if (!this.library) return; // The first load will bring the final state.
+        const upserted = change.upserted?.filter((entry) => !this.pending.has(`entry:${entry.id}`));
+        this.library = applyLibraryChange(this.library, { ...change, upserted });
+        this.emit('library');
+        return;
+      }
+      case 'readingLists':
+        void this.reloadReadingLists();
+        return;
+      case 'settings': {
+        if (!change.values) {
+          void this.reloadSettings();
+          return;
+        }
+        const values = Object.fromEntries(
+          Object.entries(change.values).filter(([key]) => !this.pending.has(`setting:${key}`)),
+        );
+        if (Object.keys(values).length === 0) return;
+        this.settings = { ...this.settings, ...values };
+        this.emit('settings');
+        return;
+      }
+    }
+  }
+
+  /** Runs `write` with `key` marked pending (see `pending`), whatever its outcome. */
+  private async guarded<T>(key: string, write: () => Promise<T>): Promise<T> {
+    this.pending.set(key, (this.pending.get(key) ?? 0) + 1);
+    try {
+      return await write();
+    } finally {
+      const left = (this.pending.get(key) ?? 1) - 1;
+      if (left > 0) this.pending.set(key, left);
+      else this.pending.delete(key);
+    }
+  }
+
+  /** Shows `patch` on an entry at once, then runs `persist`; the main process's echo confirms it. */
+  async patchEntry(id: string, patch: Partial<LibraryEntry>, persist: () => Promise<unknown>): Promise<void> {
+    if (this.library) {
+      this.library = this.library.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry));
+      this.emit('library');
+    }
+    await this.guarded(`entry:${id}`, persist);
+  }
+
+  /** Replaces an entry with a newer state of itself, e.g. what a metadata dialog just saved. */
+  upsertEntry(entry: LibraryEntry): void {
+    this.apply({ scope: 'library', upserted: [entry] });
+  }
+
+  /** Shows a setting's new value at once, then runs `persist`. */
+  async updateSetting<K extends keyof AppSettings>(
+    key: K,
+    value: AppSettings[K],
+    persist: () => Promise<unknown>,
+  ): Promise<void> {
+    this.settings = { ...this.settings, [key]: value };
+    this.emit('settings');
+    await this.guarded(`setting:${key}`, persist);
+  }
+}
