@@ -1,9 +1,10 @@
-import { BrowserWindow, dialog, ipcMain } from 'electron';
+import { ipcMain } from 'electron';
 
 import { t } from '../../shared/i18n';
 import type { MetadataUpdate, ScanResult } from '../../shared/library';
 import type { LibraryRepository } from '../db/library-repository';
 import { scanIntoLibrary } from '../services/library-scanner';
+import { openDialogFor } from './dialogs';
 import type { ThumbnailCache } from '../services/thumbnail-cache';
 
 // Channel names are shared with preload.ts: keep them in sync.
@@ -28,10 +29,7 @@ export function registerLibraryIpc(repo: LibraryRepository, thumbnails: Thumbnai
       title: t('dialogs:addFolder'),
       properties: ['openDirectory'],
     };
-    const window = BrowserWindow.fromWebContents(event.sender);
-    const { canceled, filePaths } = window
-      ? await dialog.showOpenDialog(window, options)
-      : await dialog.showOpenDialog(options);
+    const { canceled, filePaths } = await openDialogFor(event, options);
     if (canceled || filePaths.length === 0) {
       return { status: 'cancelled' };
     }

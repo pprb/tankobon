@@ -1,4 +1,4 @@
-import { BrowserWindow, app, dialog, ipcMain } from 'electron';
+import { app, ipcMain } from 'electron';
 import { stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
@@ -7,6 +7,7 @@ import { t } from '../../shared/i18n';
 import type { LibraryRepository } from '../db/library-repository';
 import { ComicService } from '../services/comic-service';
 import type { ThumbnailCache } from '../services/thumbnail-cache';
+import { openDialogFor } from './dialogs';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const COMIC_CHANNELS = {
@@ -45,10 +46,7 @@ export function registerComicIpc(libraryRepo: LibraryRepository, thumbnails: Thu
       filters: [{ name: t('dialogs:comicFiles'), extensions: [...SUPPORTED_COMIC_EXTENSIONS] }],
       defaultPath: await lastOpenedDirectory(libraryRepo),
     };
-    const window = BrowserWindow.fromWebContents(event.sender);
-    const { canceled, filePaths } = window
-      ? await dialog.showOpenDialog(window, options)
-      : await dialog.showOpenDialog(options);
+    const { canceled, filePaths } = await openDialogFor(event, options);
     return canceled ? null : filePaths[0];
   });
 
