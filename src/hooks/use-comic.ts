@@ -64,8 +64,14 @@ export function useComic({ loadPages = true }: UseComicOptions = {}) {
     const request = ++openRequest.current;
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
-      const comic = await window.tankobon.comic.open(filePath);
-      if (!mounted.current || request !== openRequest.current) {
+      const result = await window.tankobon.comic.open(filePath);
+      const stale = !mounted.current || request !== openRequest.current;
+      if (result.status === 'error') {
+        if (!stale) setState((s) => ({ ...s, loading: false, error: result.message }));
+        return;
+      }
+      const { comic } = result;
+      if (stale) {
         // The reader was left or another open started meanwhile: nobody will use this archive.
         void window.tankobon.comic.close(comic.id);
         return;
