@@ -1,18 +1,12 @@
 import { Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { notifyReadingListsChanged } from '@/hooks/use-reading-lists';
+import { useReadingLists } from '@/hooks/use-reading-lists';
 import type { LibraryEntry } from '@/shared/library';
 import { MAX_READING_LIST_SIZE, type ReadingList, type ReadingListResult } from '@/shared/reading-list';
-
-/** Puts a changed list back in place, or a new one last: the same order as `readingLists.list()`. */
-const withList = (lists: ReadingList[], changed: ReadingList) =>
-  lists.some((list) => list.id === changed.id)
-    ? lists.map((list) => (list.id === changed.id ? changed : list))
-    : [...lists, changed];
 
 /**
  * Puts a library entry in reading lists, or takes it out: one checkbox per list, plus a field
@@ -20,13 +14,9 @@ const withList = (lists: ReadingList[], changed: ReadingList) =>
  */
 export function AddToListDialog({ entry, onClose }: { entry: LibraryEntry; onClose: () => void }) {
   const { t } = useTranslation(['lists', 'common']);
-  const [lists, setLists] = useState<ReadingList[] | null>(null);
+  const lists = useReadingLists();
   const [newName, setNewName] = useState('');
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    void window.tankobon.readingLists.list().then(setLists);
-  }, []);
 
   const apply = (result: ReadingListResult): ReadingList | null => {
     if (result.status === 'error') {
@@ -34,7 +24,6 @@ export function AddToListDialog({ entry, onClose }: { entry: LibraryEntry; onClo
       return null;
     }
     setError(null);
-    setLists((prev) => withList(prev ?? [], result.list));
     return result.list;
   };
 
@@ -49,7 +38,6 @@ export function AddToListDialog({ entry, onClose }: { entry: LibraryEntry; onClo
   const create = async () => {
     const created = apply(await window.tankobon.readingLists.create(newName));
     if (created) {
-      notifyReadingListsChanged();
       setNewName('');
       apply(await window.tankobon.readingLists.addEntry(created.id, entry.id));
     }

@@ -6,8 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { SettingsSection } from '@/components/settings-section';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { notifyReadingListsChanged } from '@/hooks/use-reading-lists';
-import { useSettings } from '@/hooks/use-settings';
+import { useLibrary } from '@/hooks/use-library';
+import { useReadingLists } from '@/hooks/use-reading-lists';
 import { cn } from '@/lib/utils';
 import type { DatabaseLocation } from '@/shared/data';
 
@@ -17,7 +17,8 @@ export const Route = createFileRoute('/settings/data')({
 
 function DataSettingsPage() {
   const { t } = useTranslation(['settings', 'common']);
-  const { reload } = useSettings();
+  const library = useLibrary();
+  const readingLists = useReadingLists();
   const [dataStatus, setDataStatus] = useState<{ message: string; error?: boolean } | null>(null);
   const [dbLocation, setDbLocation] = useState<DatabaseLocation | null>(null);
   // A location change only takes effect on the next start, so the app has to offer a restart.
@@ -73,30 +74,20 @@ function DataSettingsPage() {
       setDataStatus({ message: result.message, error: true });
       return;
     }
-    // The import wrote settings straight to the database; pull them back into the form.
-    await reload();
-    // It also replaced the reading lists the sidebar shows.
-    notifyReadingListsChanged();
     setDataStatus({
       message: t('data.imported', { count: result.added, updated: result.updated, filePath: result.filePath }),
     });
   };
 
-  const askClearLibrary = async () => {
-    const [entries, readingLists] = await Promise.all([
-      window.tankobon.library.list(),
-      window.tankobon.readingLists.list(),
-    ]);
+  const askClearLibrary = () => {
     setClearStatus(null);
-    setClearCounts({ entries: entries.length, readingLists: readingLists.length });
+    setClearCounts({ entries: library?.length ?? 0, readingLists: readingLists?.length ?? 0 });
   };
 
   const clearLibrary = async () => {
     setClearing(true);
     try {
       const result = await window.tankobon.data.clearLibrary();
-      // The reading lists are gone too: the sidebar must stop showing them.
-      notifyReadingListsChanged();
       setClearStatus(t('data.cleared', { entries: result.entries, count: result.readingLists }));
     } finally {
       setClearing(false);
@@ -156,7 +147,7 @@ function DataSettingsPage() {
       <SettingsSection title={t('data.clear')}>
         <p className="text-sm text-muted-foreground">{t('data.clearHint')}</p>
         <div>
-          <Button variant="destructive" onClick={() => void askClearLibrary()}>
+          <Button variant="destructive" onClick={askClearLibrary}>
             <Trash2 />
             {t('data.clearButton')}
           </Button>
