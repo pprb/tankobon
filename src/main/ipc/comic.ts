@@ -1,12 +1,15 @@
-import { BrowserWindow, app, dialog, ipcMain } from 'electron';
+import { BrowserWindow, app, dialog } from 'electron';
 import { stat } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { dirname } from 'node:path';
 
 import { SUPPORTED_COMIC_EXTENSIONS } from '../../shared/comic';
 import { t } from '../../shared/i18n';
+import { isId, isIndex, tuple } from '../../shared/validation';
 import type { LibraryRepository } from '../db/library-repository';
 import { ComicService } from '../services/comic-service';
 import type { ThumbnailCache } from '../services/thumbnail-cache';
+import { handle } from './handle';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const COMIC_CHANNELS = {
@@ -37,22 +40,40 @@ async function lastOpenedDirectory(libraryRepo: LibraryRepository): Promise<stri
 
 export function registerComicIpc(libraryRepo: LibraryRepository, thumbnails: ThumbnailCache): void {
   const service = new ComicService();
+  // Paths the user picked in the file dialog, by the opaque token `comic:pick-file` returned: the
+  // renderer never names a path, only a token or a library id (ADR 0009).
+  const pickedPaths = new Map<string, string>();
 
-  ipcMain.handle(COMIC_CHANNELS.pickFile, async (event) => {
+  handle(COMIC_CHANNELS.pickFile, tuple(), async (event) => {
     const options: Electron.OpenDialogOptions = {
       title: t('dialogs:openComic'),
       properties: ['openFile'],
-      filters: [{ name: t('dialogs:comicFiles'), extensions: [...SUPPORTED_COMIC_EXTENSIONS] }],
+      filters: [
+        {
+          name: t('dialogs:comicFiles'),
+          extensions: [...SUPPORTED_COMIC_EXTENSIONS],
+        },
+      ],
       defaultPath: await lastOpenedDirectory(libraryRepo),
     };
     const window = BrowserWindow.fromWebContents(event.sender);
     const { canceled, filePaths } = window
       ? await dialog.showOpenDialog(window, options)
       : await dialog.showOpenDialog(options);
-    return canceled ? null : filePaths[0];
+    if (canceled || filePaths.length === 0) {
+      return null;
+    }
+    const token = randomUUID();
+    pickedPaths.set(token, filePaths[0]);
+    return token;
   });
 
-  ipcMain.handle(COMIC_CHANNELS.open, async (_event, filePath: string) => {
+  handle(COMIC_CHANNELS.open, tuple(isId), async (_event, ref) => {
+    // A dialog token, else a library entry id: any other string is refused, never read as a path.
+    const filePath = pickedPaths.get(ref) ?? libraryRepo.get(ref)?.path;
+    if (!filePath) {
+      throw new Error(t('errors:archive.unknownBook'));
+    }
     const comic = await service.open(filePath);
     const { size } = await stat(comic.path);
     const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
@@ -61,14 +82,17 @@ export function registerComicIpc(libraryRepo: LibraryRepository, thumbnails: Thu
       void thumbnails.ensure(comic.path, () => service.readPage(comic.id, 0));
     }
     // The library title wins over the file name: the user may have set one from a metadata lookup.
-    return { ...comic, title: entry.title, libraryId: entry.id, resumePage: entry.currentPage };
+    return {
+      ...comic,
+      title: entry.title,
+      libraryId: entry.id,
+      resumePage: entry.currentPage,
+    };
   });
 
-  ipcMain.handle(COMIC_CHANNELS.readPage, (_event, id: string, index: number) =>
-    service.readPage(id, index),
-  );
+  handle(COMIC_CHANNELS.readPage, tuple(isId, isIndex), (_event, id, index) => service.readPage(id, index));
 
-  ipcMain.handle(COMIC_CHANNELS.close, (_event, id: string) => service.close(id));
+  handle(COMIC_CHANNELS.close, tuple(isId), (_event, id) => service.close(id));
 
   app.on('will-quit', () => {
     void service.closeAll();

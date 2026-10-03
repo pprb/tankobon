@@ -3,6 +3,7 @@ import type { Translation } from '../types';
 
 const errors: Translation<typeof en> = {
   archive: {
+    unknownBook: 'Ce livre n’est pas dans la bibliothèque : choisissez à nouveau le fichier.',
     unsupportedFormat: 'Format non supporté : {{extension}}',
     noExtension: '(sans extension)',
     unknown: 'Archive inconnue : {{id}}',
@@ -12,6 +13,9 @@ const errors: Translation<typeof en> = {
     extractFailed: "Impossible d'extraire la page : {{entry}}",
     closed: 'Archive fermée : {{path}}',
     entryTooLarge: "Page trop volumineuse pour être lue : {{entry}}",
+  },
+  ipc: {
+    invalidArguments: 'Arguments invalides pour {{channel}}.',
   },
   database: {
     notWritable: "Impossible d'écrire dans {{directory}}.",

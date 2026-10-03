@@ -5,9 +5,10 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 
-import { isSupportedLanguage, t } from '../../shared/i18n';
+import { t } from '../../shared/i18n';
 import { CREDIT_ROLES, type CreditInput, type CreditRole, type LibraryEntry } from '../../shared/library';
 import { DEFAULT_SETTINGS, type AppSettings } from '../../shared/settings';
+import { isSettingValue } from '../../shared/validation';
 import type { ExportedData, ExportedReadingList } from './export-service';
 import type { LibraryRepository } from './library-repository';
 import type { ReadingListRepository } from './reading-list-repository';
@@ -96,9 +97,10 @@ function toReadingLists(value: unknown): ExportedReadingList[] {
 }
 
 /**
- * Keeps only the settings keys the app knows about, and only when the stored value has the
- * type the default has — an old or hand-edited export can't inject unknown keys or wrong types.
- * A `language` the app doesn't support goes back to `system`.
+ * Keeps only the settings keys the app knows about, and only when the value passes
+ * `isSettingValue()` (the type of the default, and a value the app understands) — an old or
+ * hand-edited export can't inject unknown keys or wrong values. A `language` the app doesn't
+ * support stays `system`, like any other invalid value stays at its default.
  */
 function toSettings(value: unknown): AppSettings {
   if (!isRecord(value)) {
@@ -107,12 +109,9 @@ function toSettings(value: unknown): AppSettings {
   const settings = { ...DEFAULT_SETTINGS };
   for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof AppSettings)[]) {
     const imported = value[key];
-    if (typeof imported === typeof DEFAULT_SETTINGS[key]) {
+    if (isSettingValue(key, imported)) {
       (settings[key] as unknown) = imported;
     }
-  }
-  if (settings.language !== 'system' && !isSupportedLanguage(settings.language)) {
-    settings.language = 'system';
   }
   return settings;
 }

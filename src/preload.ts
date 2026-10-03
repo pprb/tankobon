@@ -26,10 +26,10 @@ export interface AppApi {
 
 /** Opening and reading comics, as `window.tankobon.comic`. */
 export interface ComicApi {
-  /** Opens a native file picker; resolves to the chosen path, or null if cancelled. */
+  /** Opens a native file picker; resolves to an opaque token for the chosen file (to pass to `open`), or null if cancelled. The renderer never learns the path. */
   pickFile(): Promise<string | null>;
-  /** Opens a comic and registers it in the library (or refreshes its entry); resolves with its saved page. */
-  open(filePath: string): Promise<ComicInfo>;
+  /** Opens a comic and registers it in the library (or refreshes its entry); resolves with its saved page. `ref` is a library entry id or a token from `pickFile`, never a path; rejects for anything else. */
+  open(ref: string): Promise<ComicInfo>;
   /** Reads one page (0-based) of a comic opened with `open`, as image bytes. */
   readPage(id: string, index: number): Promise<ComicPage>;
   /** Closes a comic opened with `open`, releasing its archive in the main process. */
@@ -150,7 +150,7 @@ const api: TankobonApi = {
   },
   comic: {
     pickFile: () => ipcRenderer.invoke('comic:pick-file'),
-    open: (filePath) => ipcRenderer.invoke('comic:open', filePath),
+    open: (ref) => ipcRenderer.invoke('comic:open', ref),
     readPage: (id, index) => ipcRenderer.invoke('comic:read-page', id, index),
     close: (id) => ipcRenderer.invoke('comic:close', id),
   },
