@@ -25,7 +25,7 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: build-${{ inputs.tag || github.ref_name }}
@@ -74,6 +74,9 @@ jobs:
     name: Attach to the release
     needs: make
     runs-on: ubuntu-latest
+    # The only job that writes: `make` runs third-party install scripts with a read-only token.
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v8
         with:
