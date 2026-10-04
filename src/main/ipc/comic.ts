@@ -2,10 +2,11 @@ import { BrowserWindow, app, dialog, ipcMain } from 'electron';
 import { stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-import { SUPPORTED_COMIC_EXTENSIONS } from '../../shared/comic';
+import { SUPPORTED_COMIC_EXTENSIONS, type OpenComicResult } from '../../shared/comic';
 import { t } from '../../shared/i18n';
 import type { LibraryRepository } from '../db/library-repository';
 import { ComicService } from '../services/comic-service';
+import { openErrorMessage } from '../services/open-error';
 import type { ThumbnailCache } from '../services/thumbnail-cache';
 import { MAX_PATH_LENGTH, IpcArgumentError, expectInteger, expectNonEmptyString } from './validate';
 
@@ -60,20 +61,27 @@ export function registerComicIpc(libraryRepo: LibraryRepository, thumbnails: Thu
     return lastPickedPath;
   });
 
-  ipcMain.handle(COMIC_CHANNELS.open, async (_event, rawPath: unknown) => {
+  ipcMain.handle(COMIC_CHANNELS.open, async (_event, rawPath: unknown): Promise<OpenComicResult> => {
     const filePath = expectNonEmptyString(rawPath, 'filePath', MAX_PATH_LENGTH);
     if (filePath !== lastPickedPath && !libraryRepo.hasPath(filePath)) {
       throw new IpcArgumentError('filePath', 'a path from the library or the last file picked');
     }
-    const comic = await service.open(filePath);
-    const { size } = await stat(comic.path);
-    const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
-    // In the background, from the archive just opened: opening the book must not wait for its cover.
-    if (comic.pageCount > 0) {
-      void thumbnails.ensure(comic.path, () => service.readPage(comic.id, 0));
+    try {
+      const comic = await service.open(filePath);
+      const { size } = await stat(comic.path);
+      const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
+      // In the background, from the archive just opened: opening the book must not wait for its cover.
+      if (comic.pageCount > 0) {
+        void thumbnails.ensure(comic.path, () => service.readPage(comic.id, 0));
+      }
+      // The library title wins over the file name: the user may have set one from a metadata lookup.
+      return {
+        status: 'ok',
+        comic: { ...comic, title: entry.title, libraryId: entry.id, resumePage: entry.currentPage },
+      };
+    } catch (error) {
+      return { status: 'error', message: openErrorMessage(error) };
     }
-    // The library title wins over the file name: the user may have set one from a metadata lookup.
-    return { ...comic, title: entry.title, libraryId: entry.id, resumePage: entry.currentPage };
   });
 
   ipcMain.handle(COMIC_CHANNELS.readPage, (_event, id: unknown, index: unknown) =>

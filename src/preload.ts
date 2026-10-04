@@ -7,8 +7,14 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 import type { AppInfo, AppLink } from './shared/app';
-import type { ComicInfo, ComicPage } from './shared/comic';
-import type { ClearLibraryResult, DatabaseLocation, DatabaseLocationResult, ImportResult } from './shared/data';
+import type { ComicPage, OpenComicResult } from './shared/comic';
+import type {
+  ClearLibraryResult,
+  DatabaseLocation,
+  DatabaseLocationResult,
+  ExportResult,
+  ImportResult,
+} from './shared/data';
 import type { LibraryEntry, MetadataUpdate, ScanProgress, ScanResult } from './shared/library';
 import type { MetadataPageResult, MetadataQuery, MetadataSearchResult } from './shared/metadata';
 import type { ReadingList, ReadingListOrderResult, ReadingListResult } from './shared/reading-list';
@@ -28,8 +34,11 @@ export interface AppApi {
 export interface ComicApi {
   /** Opens a native file picker; resolves to the chosen path, or null if cancelled. */
   pickFile(): Promise<string | null>;
-  /** Opens a comic and registers it in the library (or refreshes its entry); resolves with its saved page. */
-  open(filePath: string): Promise<ComicInfo>;
+  /** Opens a comic and registers it in the library (or refreshes its entry); resolves with its saved page.
+   * A file that can't be opened (moved, deleted, corrupted, unsupported) resolves to an error result
+   * with a message in the interface language, rather than rejecting.
+   */
+  open(filePath: string): Promise<OpenComicResult>;
   /** Reads one page (0-based) of a comic opened with `open`, as image bytes. */
   readPage(id: string, index: number): Promise<ComicPage>;
   /** Closes a comic opened with `open`, releasing its archive in the main process. */
@@ -98,11 +107,11 @@ export interface SettingsApi {
 
 /** JSON export and import of the library and settings, and clearing the library, as `window.tankobon.data`. */
 export interface DataApi {
-  /** Opens a native save dialog and writes a JSON export there; resolves to the chosen path, or null if cancelled. */
-  export(): Promise<string | null>;
+  /** Opens a native save dialog and writes a JSON export there; an error (full or read-only disk…) comes back as a result, not a rejection. */
+  export(): Promise<ExportResult>;
   /** Opens a native file picker and merges the chosen JSON export into the local database. */
   import(): Promise<ImportResult>;
-  /** Empties the library (entries, credits, people) and deletes every reading list and cover thumbnail; the comic files and the settings are left untouched. */
+  /** Empties the library (entries, credits, people) and deletes every reading list and cover thumbnail; the comic files and the settings are left untouched. A failure comes back as an error result. */
   clearLibrary(): Promise<ClearLibraryResult>;
 }
 

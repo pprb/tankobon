@@ -26,7 +26,7 @@ function DataSettingsPage() {
   // What clearing would delete, shown in the confirmation dialog; null while it's closed.
   const [clearCounts, setClearCounts] = useState<{ entries: number; readingLists: number } | null>(null);
   const [clearing, setClearing] = useState(false);
-  const [clearStatus, setClearStatus] = useState<string | null>(null);
+  const [clearStatus, setClearStatus] = useState<{ message: string; error?: boolean } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,8 +59,16 @@ function DataSettingsPage() {
   };
 
   const exportData = async () => {
-    const filePath = await window.tankobon.data.export();
-    setDataStatus(filePath ? { message: t('data.exported', { filePath }) } : null);
+    const result = await window.tankobon.data.export();
+    if (result.status === 'cancelled') {
+      setDataStatus(null);
+      return;
+    }
+    if (result.status === 'error') {
+      setDataStatus({ message: result.message, error: true });
+      return;
+    }
+    setDataStatus({ message: t('data.exported', { filePath: result.filePath }) });
   };
 
   const importData = async () => {
@@ -95,9 +103,13 @@ function DataSettingsPage() {
     setClearing(true);
     try {
       const result = await window.tankobon.data.clearLibrary();
+      if (result.status === 'error') {
+        setClearStatus({ message: result.message, error: true });
+        return;
+      }
       // The reading lists are gone too: the sidebar must stop showing them.
       notifyReadingListsChanged();
-      setClearStatus(t('data.cleared', { entries: result.entries, count: result.readingLists }));
+      setClearStatus({ message: t('data.cleared', { entries: result.entries, count: result.readingLists }) });
     } finally {
       setClearing(false);
       setClearCounts(null);
@@ -161,7 +173,11 @@ function DataSettingsPage() {
             {t('data.clearButton')}
           </Button>
         </div>
-        {clearStatus && <p className="text-sm text-muted-foreground">{clearStatus}</p>}
+        {clearStatus && (
+          <p className={cn('text-sm', clearStatus.error ? 'text-destructive' : 'text-muted-foreground')}>
+            {clearStatus.message}
+          </p>
+        )}
       </SettingsSection>
 
       <Dialog
