@@ -7,7 +7,7 @@ import { SettingsSection } from '@/components/settings-section';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { notifyReadingListsChanged } from '@/hooks/use-reading-lists';
-import { useSettings } from '@/hooks/use-settings';
+import { notifySettingsChanged } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
 import type { DatabaseLocation } from '@/shared/data';
 
@@ -17,7 +17,6 @@ export const Route = createFileRoute('/settings/data')({
 
 function DataSettingsPage() {
   const { t } = useTranslation(['settings', 'common']);
-  const { reload } = useSettings();
   const [dataStatus, setDataStatus] = useState<{ message: string; error?: boolean } | null>(null);
   const [dbLocation, setDbLocation] = useState<DatabaseLocation | null>(null);
   // A location change only takes effect on the next start, so the app has to offer a restart.
@@ -26,7 +25,7 @@ function DataSettingsPage() {
   // What clearing would delete, shown in the confirmation dialog; null while it's closed.
   const [clearCounts, setClearCounts] = useState<{ entries: number; readingLists: number } | null>(null);
   const [clearing, setClearing] = useState(false);
-  const [clearStatus, setClearStatus] = useState<string | null>(null);
+  const [clearStatus, setClearStatus] = useState<{ message: string; error?: boolean } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,8 +58,16 @@ function DataSettingsPage() {
   };
 
   const exportData = async () => {
-    const filePath = await window.tankobon.data.export();
-    setDataStatus(filePath ? { message: t('data.exported', { filePath }) } : null);
+    const result = await window.tankobon.data.export();
+    if (result.status === 'cancelled') {
+      setDataStatus(null);
+      return;
+    }
+    if (result.status === 'error') {
+      setDataStatus({ message: result.message, error: true });
+      return;
+    }
+    setDataStatus({ message: t('data.exported', { filePath: result.filePath }) });
   };
 
   const importData = async () => {
@@ -73,8 +80,9 @@ function DataSettingsPage() {
       setDataStatus({ message: result.message, error: true });
       return;
     }
-    // The import wrote settings straight to the database; pull them back into the form.
-    await reload();
+    // The import wrote settings straight to the database; every settings view (the sidebar
+    // included) must pull them back.
+    notifySettingsChanged();
     // It also replaced the reading lists the sidebar shows.
     notifyReadingListsChanged();
     setDataStatus({
@@ -95,9 +103,13 @@ function DataSettingsPage() {
     setClearing(true);
     try {
       const result = await window.tankobon.data.clearLibrary();
+      if (result.status === 'error') {
+        setClearStatus({ message: result.message, error: true });
+        return;
+      }
       // The reading lists are gone too: the sidebar must stop showing them.
       notifyReadingListsChanged();
-      setClearStatus(t('data.cleared', { entries: result.entries, count: result.readingLists }));
+      setClearStatus({ message: t('data.cleared', { entries: result.entries, count: result.readingLists }) });
     } finally {
       setClearing(false);
       setClearCounts(null);
@@ -161,7 +173,11 @@ function DataSettingsPage() {
             {t('data.clearButton')}
           </Button>
         </div>
-        {clearStatus && <p className="text-sm text-muted-foreground">{clearStatus}</p>}
+        {clearStatus && (
+          <p className={cn('text-sm', clearStatus.error ? 'text-destructive' : 'text-muted-foreground')}>
+            {clearStatus.message}
+          </p>
+        )}
       </SettingsSection>
 
       <Dialog

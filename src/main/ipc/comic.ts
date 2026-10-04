@@ -2,12 +2,14 @@ import { app, ipcMain } from 'electron';
 import { stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-import { SUPPORTED_COMIC_EXTENSIONS } from '../../shared/comic';
+import { SUPPORTED_COMIC_EXTENSIONS, type OpenComicResult } from '../../shared/comic';
 import { t } from '../../shared/i18n';
 import type { LibraryRepository } from '../db/library-repository';
 import { ComicService } from '../services/comic-service';
+import { openErrorMessage } from '../services/open-error';
 import type { ThumbnailCache } from '../services/thumbnail-cache';
 import { openDialogFor } from './dialogs';
+import { MAX_PATH_LENGTH, IpcArgumentError, expectInteger, expectNonEmptyString } from './validate';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const COMIC_CHANNELS = {
@@ -36,8 +38,14 @@ async function lastOpenedDirectory(libraryRepo: LibraryRepository): Promise<stri
   }
 }
 
+/** Upper bound of a page index (see `library.ts`). */
+const MAX_PAGE_INDEX = 1_000_000;
+
 export function registerComicIpc(libraryRepo: LibraryRepository, thumbnails: ThumbnailCache): void {
   const service = new ComicService();
+  // The file the user last chose in the open dialog: with the library's books, the only paths
+  // `comic:open` accepts, so a renderer can't have the main process read an arbitrary file.
+  let lastPickedPath: string | null = null;
 
   ipcMain.handle(COMIC_CHANNELS.pickFile, async (event) => {
     const options: Electron.OpenDialogOptions = {
@@ -47,26 +55,38 @@ export function registerComicIpc(libraryRepo: LibraryRepository, thumbnails: Thu
       defaultPath: await lastOpenedDirectory(libraryRepo),
     };
     const { canceled, filePaths } = await openDialogFor(event, options);
-    return canceled ? null : filePaths[0];
+    lastPickedPath = canceled ? null : filePaths[0];
+    return lastPickedPath;
   });
 
-  ipcMain.handle(COMIC_CHANNELS.open, async (_event, filePath: string) => {
-    const comic = await service.open(filePath);
-    const { size } = await stat(comic.path);
-    const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
-    // In the background, from the archive just opened: opening the book must not wait for its cover.
-    if (comic.pageCount > 0) {
-      void thumbnails.ensure(comic.path, () => service.readPage(comic.id, 0));
+  ipcMain.handle(COMIC_CHANNELS.open, async (_event, rawPath: unknown): Promise<OpenComicResult> => {
+    const filePath = expectNonEmptyString(rawPath, 'filePath', MAX_PATH_LENGTH);
+    if (filePath !== lastPickedPath && !libraryRepo.hasPath(filePath)) {
+      throw new IpcArgumentError('filePath', 'a path from the library or the last file picked');
     }
-    // The library title wins over the file name: the user may have set one from a metadata lookup.
-    return { ...comic, title: entry.title, libraryId: entry.id, resumePage: entry.currentPage };
+    try {
+      const comic = await service.open(filePath);
+      const { size } = await stat(comic.path);
+      const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
+      // In the background, from the archive just opened: opening the book must not wait for its cover.
+      if (comic.pageCount > 0) {
+        void thumbnails.ensure(comic.path, () => service.readPage(comic.id, 0));
+      }
+      // The library title wins over the file name: the user may have set one from a metadata lookup.
+      return {
+        status: 'ok',
+        comic: { ...comic, title: entry.title, libraryId: entry.id, resumePage: entry.currentPage },
+      };
+    } catch (error) {
+      return { status: 'error', message: openErrorMessage(error) };
+    }
   });
 
-  ipcMain.handle(COMIC_CHANNELS.readPage, (_event, id: string, index: number) =>
-    service.readPage(id, index),
+  ipcMain.handle(COMIC_CHANNELS.readPage, (_event, id: unknown, index: unknown) =>
+    service.readPage(expectNonEmptyString(id, 'id'), expectInteger(index, 'index', 0, MAX_PAGE_INDEX)),
   );
 
-  ipcMain.handle(COMIC_CHANNELS.close, (_event, id: string) => service.close(id));
+  ipcMain.handle(COMIC_CHANNELS.close, (_event, id: unknown) => service.close(expectNonEmptyString(id, 'id')));
 
   app.on('will-quit', () => {
     void service.closeAll();

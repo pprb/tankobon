@@ -29,8 +29,10 @@ export const Route = createFileRoute('/reader')({
 function ReaderPage() {
   const { path, list } = Route.useSearch();
   const { t } = useTranslation('reader');
-  const { comic, page, pageUrl, error, loading, pickAndOpen, openFile, close, next, prev } = useComic();
   const { settings } = useSettings();
+  const { comic, page, pageUrl, error, loading, pickAndOpen, openFile, close, next, prev } = useComic({
+    loadPages: settings.readingMode !== 'continuous',
+  });
   const { fullscreen, toggle: toggleFullscreen } = useReaderFullscreen(comic !== null);
   const nextInList = useNextInList(list, comic?.libraryId);
 
