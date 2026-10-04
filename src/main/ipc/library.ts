@@ -1,10 +1,11 @@
 import { t } from '../../shared/i18n';
 import type { ScanResult } from '../../shared/library';
 import type { LibraryRepository } from '../db/library-repository';
+import type { SettingsRepository } from '../db/settings-repository';
 import type { DecoderClient } from '../decoder/decoder-client';
 import { scanIntoLibrary } from '../services/library-scanner';
 import type { NotifyDataChange } from './data-changes';
-import { openDialogFor } from './dialogs';
+import { existingDirectory, openDialogFor } from './dialogs';
 import { handle } from './handle';
 import { args, expectInteger, expectMetadataUpdate, expectStringArray, idArg, pageIndexArg } from './validate';
 
@@ -24,6 +25,7 @@ export const LIBRARY_CHANNELS = {
 
 export function registerLibraryIpc(
   repo: LibraryRepository,
+  settingsRepo: SettingsRepository,
   decoder: DecoderClient,
   notify: NotifyDataChange,
 ): void {
@@ -39,6 +41,8 @@ export function registerLibraryIpc(
     const options: Electron.OpenDialogOptions = {
       title: t('dialogs:addFolder'),
       properties: ['openDirectory'],
+      // Where the previous folder was added, when it is still there.
+      defaultPath: await existingDirectory(settingsRepo.getAll().lastScanFolder),
     };
     const { canceled, filePaths } = await openDialogFor(event, options);
     if (canceled || filePaths.length === 0) {
@@ -46,6 +50,8 @@ export function registerLibraryIpc(
     }
 
     const directory = filePaths[0];
+    settingsRepo.set('lastScanFolder', directory);
+    notify({ scope: 'settings', values: { lastScanFolder: directory } });
     const summary = await scanIntoLibrary(
       repo,
       directory,

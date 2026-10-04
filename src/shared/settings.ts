@@ -28,6 +28,8 @@ export interface AppSettings {
   googleBooksEnabled: boolean;
   /** Optional Google Books API key; without one, requests share Google's anonymous quota. */
   googleBooksApiKey: string;
+  /** Folder last added with "Ajouter un dossier…" (empty before the first one): where the next folder dialog opens. */
+  lastScanFolder: string;
 }
 
 /**
@@ -46,6 +48,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   comicVineApiKey: '',
   googleBooksEnabled: true,
   googleBooksApiKey: '',
+  lastScanFolder: '',
 };
 
 /** A reader background preset; its label is the `settings:appearance.backgrounds.<name>` translation. */
@@ -91,6 +94,7 @@ export const SETTING_VALIDATORS: SettingValidators = {
   comicVineApiKey: isString,
   googleBooksEnabled: isBoolean,
   googleBooksApiKey: isString,
+  lastScanFolder: isString,
 };
 
 /** Whether `key` names a setting of {@link AppSettings}. */

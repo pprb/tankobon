@@ -1,3 +1,5 @@
+import { stat } from 'node:fs/promises';
+
 import { BrowserWindow, dialog, type IpcMainInvokeEvent } from 'electron';
 
 /**
@@ -19,4 +21,20 @@ export function saveDialogFor(
 ): Promise<Electron.SaveDialogReturnValue> {
   const window = BrowserWindow.fromWebContents(event.sender);
   return window ? dialog.showSaveDialog(window, options) : dialog.showSaveDialog(options);
+}
+
+/**
+ * `directory` when it still exists, else undefined (i.e. the OS default location): an external
+ * drive unplugged or a folder moved would otherwise leave a stale `defaultPath`, whose behaviour
+ * in Electron is platform-dependent.
+ */
+export async function existingDirectory(directory: string | null | undefined): Promise<string | undefined> {
+  if (!directory) {
+    return undefined;
+  }
+  try {
+    return (await stat(directory)).isDirectory() ? directory : undefined;
+  } catch {
+    return undefined;
+  }
 }
