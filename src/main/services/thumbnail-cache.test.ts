@@ -167,6 +167,31 @@ describe('ThumbnailCache', () => {
     await expect(cache.remove('/bd/a.cbz')).resolves.toBeUndefined();
   });
 
+  it('leaves no thumbnail behind when the book is removed while it is being generated', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let opening!: () => void;
+    const started = new Promise<void>((resolve) => {
+      opening = resolve;
+    });
+    const { open } = fakeOpener({ '/bd/a.cbz': [cover] });
+    const cache = new ThumbnailCache(dir, async (filePath) => {
+      opening();
+      await gate;
+      return open(filePath);
+    });
+
+    const generation = cache.ensure('/bd/a.cbz');
+    await started;
+    const removal = cache.remove('/bd/a.cbz');
+    release();
+    await Promise.all([generation, removal]);
+
+    expect(await cache.read('/bd/a.cbz')).toBeNull();
+  });
+
   it('prunes the thumbnails of books no longer in the library, and leftover files', async () => {
     const cache = new ThumbnailCache(dir, fakeOpener({ '/bd/a.cbz': [cover], '/bd/b.cbz': [cover] }).open);
     await cache.ensure('/bd/a.cbz');

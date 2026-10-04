@@ -102,10 +102,16 @@ export class ThumbnailCache {
     await this.enqueue(() => this.generate(archive.path, () => archive.readPage(0)));
   }
 
-  /** Deletes the thumbnail of a book (removed from the library); does nothing when there is none. */
-  async remove(filePath: string): Promise<void> {
-    this.failed.delete(thumbnailKey(filePath));
-    await rm(this.fileFor(filePath), { force: true });
+  /**
+   * Deletes the thumbnail of a book (removed from the library); does nothing when there is none.
+   * Queued like a generation, so one still running for this book finishes first and its file is
+   * deleted too, instead of being written after the deletion and left orphaned.
+   */
+  remove(filePath: string): Promise<void> {
+    return this.enqueue(async () => {
+      this.failed.delete(thumbnailKey(filePath));
+      await rm(this.fileFor(filePath), { force: true });
+    });
   }
 
   /**
