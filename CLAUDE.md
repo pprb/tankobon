@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Tankōbon is an Electron app (Vite + Electron Forge, React 19, TypeScript) that manages and reads digital comics (CBZ, CBR, PDF).
 
-- **Main process** (`src/main.ts`, `src/main/`): the window, the SQLite database (`node:sqlite`, `src/main/db/`), archive decoding (`src/main/services/`) and IPC handlers (`src/main/ipc/`).
+- **Main process** (`src/main.ts`, `src/main/`): the window, the SQLite database (`node:sqlite`, `src/main/db/`) and IPC handlers (`src/main/ipc/`). It never parses a comic file.
+- **Decoder process** (`src/main/decoder/`, `src/main/services/`): a `utilityProcess` that does the archive decoding and thumbnails; the main process reaches it only through `DecoderClient`.
 - **Preload** (`src/preload.ts`): the only bridge, exposing `window.tankobon` via `contextBridge`. Channel strings are duplicated from `src/main/ipc/` by hand: keep both sides in sync (`npm run docs:gen` fails otherwise).
 - **Renderer** (`src/renderer.tsx`, `src/routes/`, `src/hooks/`, `src/components/`, `src/lib/`): React UI, reaches main only through `window.tankobon`.
 - **Shared types** (`src/shared/`): everything that crosses the IPC boundary.

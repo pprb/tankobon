@@ -16,6 +16,9 @@ export default {
     fileNotFound: 'File not found: it has been moved or deleted.',
     openFailed: 'Unable to open this file: {{message}}',
   },
+  decoder: {
+    crashed: 'The file could not be read: the decoder stopped unexpectedly.',
+  },
   database: {
     notWritable: 'Cannot write to {{directory}}.',
   },

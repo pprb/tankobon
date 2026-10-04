@@ -17,6 +17,9 @@ const errors: Translation<typeof en> = {
     fileNotFound: 'Fichier introuvable : il a été déplacé ou supprimé.',
     openFailed: "Impossible d'ouvrir ce fichier : {{message}}",
   },
+  decoder: {
+    crashed: "Fichier illisible : le décodeur s'est arrêté de façon inattendue.",
+  },
   database: {
     notWritable: "Impossible d'écrire dans {{directory}}.",
   },

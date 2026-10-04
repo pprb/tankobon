@@ -2,6 +2,8 @@ import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
+import { DecoderClient } from './main/decoder/decoder-client';
+import { spawnDecoderProcess } from './main/decoder/spawn-decoder';
 import { openDatabase } from './main/db/database';
 import { LibraryRepository } from './main/db/library-repository';
 import { ReadingListRepository } from './main/db/reading-list-repository';
@@ -14,8 +16,7 @@ import { registerLibraryIpc } from './main/ipc/library';
 import { registerMetadataIpc } from './main/ipc/metadata';
 import { registerReadingListIpc } from './main/ipc/reading-lists';
 import { registerSettingsIpc } from './main/ipc/settings';
-import { applyMainLanguage } from './main/language';
-import { ThumbnailCache } from './main/services/thumbnail-cache';
+import { applyMainLanguage, onMainLanguageApplied } from './main/language';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -68,23 +69,28 @@ app.whenReady().then(() => {
   const libraryRepo = new LibraryRepository(db);
   const settingsRepo = new SettingsRepository(db);
   const readingListRepo = new ReadingListRepository(db);
+  // Archives and covers are decoded in their own process: a booby-trapped file can only take that one down.
+  // The thumbnails are a cache, so they stay in userData even when the database lives elsewhere.
+  const decoder = new DecoderClient(spawnDecoderProcess, path.join(app.getPath('userData'), 'thumbnails'));
+  onMainLanguageApplied((language) => decoder.setLanguage(language));
   // Before anything can show a dialog or return an error message.
   applyMainLanguage(settingsRepo.getAll().language);
-  // A cache, so it stays in userData even when the database lives elsewhere: it is rebuilt from the files.
-  const thumbnails = new ThumbnailCache(path.join(app.getPath('userData'), 'thumbnails'));
   // Leftovers of another database (its location changed) or of a crash between two writes.
-  void thumbnails.prune(libraryRepo.list().map((entry) => entry.path));
+  void decoder.pruneThumbnails(libraryRepo.list().map((entry) => entry.path)).catch(() => undefined);
 
-  registerLibraryIpc(libraryRepo, thumbnails);
+  registerLibraryIpc(libraryRepo, decoder);
   registerReadingListIpc(readingListRepo);
   registerSettingsIpc(settingsRepo);
-  registerDataIpc(db, libraryRepo, settingsRepo, readingListRepo, thumbnails);
-  registerComicIpc(libraryRepo, thumbnails);
+  registerDataIpc(db, libraryRepo, settingsRepo, readingListRepo, decoder);
+  registerComicIpc(libraryRepo, decoder);
   registerDatabaseIpc();
   registerMetadataIpc(settingsRepo);
   registerAppIpc();
 
-  app.on('will-quit', () => db.close());
+  app.on('will-quit', () => {
+    decoder.dispose();
+    db.close();
+  });
 
   createWindow();
 });

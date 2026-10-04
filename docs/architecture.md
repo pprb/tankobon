@@ -8,7 +8,8 @@ The app follows the standard Electron three-process split, with a strict boundar
 
 | Layer | Files | Role |
 |---|---|---|
-| Main process | `src/main.ts`, `src/main/` | Owns the window, the SQLite database and all filesystem/archive access. |
+| Main process | `src/main.ts`, `src/main/` | Owns the window, the SQLite database, the dialogs and the filesystem walk. Never parses a comic file. |
+| Decoder process | `src/main/decoder/`, `src/main/services/` | An Electron `utilityProcess` that opens archives, decodes pages and makes thumbnails (see [Decoder process](#decoder-process)). |
 | Preload | `src/preload.ts` | The *only* bridge between renderer and main. Exposes a single `window.tankobon` object via `contextBridge`. |
 | Renderer | `src/renderer.tsx`, `src/routes/`, `src/hooks/`, `src/components/`, `src/lib/` | React 19 UI; talks to main exclusively through `window.tankobon`. |
 | Shared types | `src/shared/` | Types used on both sides of the IPC boundary (`ComicInfo`, `LibraryEntry`, `AppSettings`…). |
@@ -110,8 +111,18 @@ The location can't be an `AppSettings` entry, since the settings are stored *in*
 - `buildExport()` snapshots library, reading lists and settings as `{ version: 1, exportedAt, library, readingLists, settings }`, written by `data:export` through a save dialog, whose default file name (`exportFileName()`) carries the local date and time. The library entries carry their looked-up metadata and credits; reading lists reference their books by **path**. The format stays `version: 1`, since those fields are only additions (an older export comes back with them empty). The settings include the metadata API keys.
 - `parseExport()` validates a user-picked file: anything that isn't a `version: 1` export is rejected; broken library entries are dropped, as are credits without a last name or with an unknown role; only known settings keys whose value type matches the default are kept. An export is a file the user can edit, so nothing in it is trusted.
 - `applyImport()` merges it: entries match on **path**, not id (ids aren't stable across machines); the snapshot wins for the entries it contains; entries only present locally are untouched; settings are replaced wholesale. Reading lists match on **id** (random UUIDs, so the same list keeps its id on every machine) and are replaced by the snapshot's; their paths are resolved to the local entries after the library is merged, and a path with no entry is dropped.
-- Cover thumbnails are not exported: after `applyImport()`, `data:import` starts `ThumbnailCache.rebuild()` in the background (see [Cover thumbnails](#cover-thumbnails)) and returns without waiting for it.
+- Cover thumbnails are not exported: after `applyImport()`, `data:import` starts `rebuildThumbnails()` (`ThumbnailCache.rebuild()` in the decoder process) in the background (see [Cover thumbnails](#cover-thumbnails)) and returns without waiting for it.
 - **Clearing the library** (`data:clear-library`): `ReadingListRepository.clear()` deletes every list, then `LibraryRepository.clear()` empties `library`, `credits`, `people` and `reading_list_items` (people only exist through credits, so none would be left referenced); `ThumbnailCache.prune([])` then deletes every thumbnail. Settings, the database location and the files on disk are left alone. The renderer asks for confirmation, showing the counts from `library:list` and `reading-lists:list`, then calls `notifyReadingListsChanged()` so the sidebar drops the deleted lists.
+
+## Decoder process
+
+See [ADR 0012](./decisions/0012-decoder-utility-process.md). Parsing a comic file (ZIP, RAR through wasm, PDF through pdf.js) and decoding its images (`@napi-rs/canvas`) happens on untrusted input, so it runs in an Electron `utilityProcess` rather than in the main process: a file that crashes a native decoder or exhausts memory stops that process, not the app and its database.
+
+- **Layout**: `src/main/decoder/decoder-worker.ts` is the process's entry (its own bundle, `decoder-worker.cjs`, built from a second `target: 'main'` entry in `forge.config.ts` with `vite.decoder.config.mts`); `decoder-handlers.ts` holds what each call does (a `ComicService` and a `ThumbnailCache`, free of Electron so it can be tested); `protocol.ts` types the messages, `DecoderMethods` being the list of calls; `decoder-client.ts` is the main side; `spawn-decoder.ts` is the only file that touches `utilityProcess` and `MessageChannelMain`.
+- **Calls**: `open`, `readPage`, `close` (the reader), `inspect` (the scan), and the thumbnail calls (`thumbnail`, `removeThumbnail`, `pruneThumbnails`, `rebuildThumbnails`). Each request carries an id, the answer the same id with a result or the error message; requests run concurrently in the process, so a library page asking for covers doesn't wait behind a page render. The IPC handlers of `src/main/ipc/` call `DecoderClient` and nothing else touches archives.
+- **Lifecycle**: started on the first call, and told the thumbnails directory and the current language (`init`; later `language`, sent by `applyMainLanguage()` through `onMainLanguageApplied()`). When it exits, calls in flight reject with `errors:decoder.crashed` ("Fichier illisible…") and the next call starts a new one. The reader's archives die with it: the next page request fails with "unknown archive" until the book is reopened. It is killed on `will-quit`.
+- **Pages between processes**: a page's bytes are copied by structured clone (a utility process can only transfer ports), then once more by `ipcMain.handle` to the renderer.
+- **Errors keep their language**: the decoder process has its own i18next instance, so its messages (`errors:archive.*`) are translated there, in the language the main process last sent.
 
 ## Comic archives (`src/main/services/`)
 
@@ -119,15 +130,15 @@ The location can't be an `AppSettings` entry, since the settings are stored *in*
 
 - `fileCount` counts every non-directory entry; `pages` is filtered and naturally sorted down to image entries (hidden files and `__MACOSX/` resource forks excluded). They commonly differ (a `ComicInfo.xml` sidecar counts in `fileCount`); for PDFs they are always equal.
 - `openArchive()` (`comic-service.ts`) picks the implementation from the file extension.
-- `ComicService` keeps opened archives alive between IPC calls, addressed by an opaque `randomUUID()`, distinct from the persistent library id.
+- `ComicService` keeps opened archives alive between IPC calls, addressed by an opaque `randomUUID()`, distinct from the persistent library id. It lives in the [decoder process](#decoder-process), like everything on this page.
 
 ### CBZ: closing while reading
 
-`CbzArchive.close()` waits for in-flight `readPage()` calls to settle before closing the zip, and `readPage()` refuses to start once closing has begun. `node-stream-zip` closes its file descriptor immediately, and a read caught mid-way fails with `EBADF` on an internal stream whose error never reaches the `entryData()` promise: it becomes an *uncaught exception in the main process*. This happens routinely from the renderer (switching books while a page loads, leaving continuous mode while preloads run); see `cbz-archive.test.ts`.
+`CbzArchive.close()` waits for in-flight `readPage()` calls to settle before closing the zip, and `readPage()` refuses to start once closing has begun. `node-stream-zip` closes its file descriptor immediately, and a read caught mid-way fails with `EBADF` on an internal stream whose error never reaches the `entryData()` promise: it becomes an *uncaught exception in the decoder process*. This happens routinely from the renderer (switching books while a page loads, leaving continuous mode while preloads run); see `cbz-archive.test.ts`.
 
 ### CBR: the wasm file
 
-`node-unrar-js`'s Emscripten glue locates its `.wasm` relative to its own `__dirname`, which breaks once Vite bundles it into `main.cjs`. `vite.main.config.mts` copies `unrar.wasm` next to the bundle (`vite-plugin-static-copy`), and `cbr-archive.ts` reads it itself and passes it as `wasmBinary`. A CBR is read fully into memory when opened.
+`node-unrar-js`'s Emscripten glue locates its `.wasm` relative to its own `__dirname`, which breaks once Vite bundles it into `decoder-worker.cjs`. `vite.decoder.config.mts` copies `unrar.wasm` next to the bundle (`vite-plugin-static-copy`), and `cbr-archive.ts` reads it itself and passes it as `wasmBinary`. A CBR is read fully into memory when opened.
 
 ### CBR: one wasm module for every archive
 
@@ -147,7 +158,8 @@ See [ADR 0004](./decisions/0004-pdf-rendering-pdfjs-napi-canvas.md). `PdfArchive
 
 See [ADR 0007](./decisions/0007-cover-thumbnails-disk-cache.md). `ThumbnailCache` (`thumbnail-cache.ts`) keeps a WebP of each book's first page, shrunk by `renderThumbnail()` (`@napi-rs/canvas`) to fit in 240 × 360 px, as a file in `<userData>/thumbnails/` named after a hash of the book's path (`thumbnailKey()`). It is a pure cache: nothing in the database points at it, it stays in `userData` even when the database is moved, and any missing file is regenerated.
 
-- **Writers**: the folder scan, through `scanIntoLibrary()`'s `onAdded` hook, from the archive it already has open (`storeFromArchive()`); `comic:open`, in the background, from the reader's archive (`ensure(path, readFirstPage)`), so opening a book never waits for its cover; `library:thumbnail`, on demand, opening the file itself when the thumbnail is missing; `rebuild()` after a JSON import.
+- **Where**: in the [decoder process](#decoder-process); the main process only calls `DecoderClient`'s thumbnail methods.
+- **Writers**: the folder scan, through the decoder's `inspect` (which opens the archive, counts its pages and caches the cover from it: `storeFromArchive()`); `comic:open`, in the background, from the reader's archive (`ensure(path, readFirstPage)`), so opening a book never waits for its cover; `library:thumbnail`, on demand, opening the file itself when the thumbnail is missing; `rebuild()` after a JSON import.
 - **One queue**: every generation (and `prune()`) is serialized through a promise chain, one book at a time, so a library page asking for hundreds of covers or a rebuild never opens archives in parallel; concurrent requests for the same book share one generation. `rebuild()` awaits each book in turn, so the library page's requests interleave with it instead of waiting for the end.
 - A file that couldn't be opened is remembered for the session (until the next `rebuild()`), so a missing file isn't reopened every time the library is shown. A failure of a given page reader (the reader closed the book meanwhile) is not remembered.
 - Files are written aside then renamed. `prune()` deletes everything that isn't the thumbnail of a library book, temporary files included; it runs at start-up, in `rebuild()` and, with an empty list, when the library is cleared. `library:remove` deletes the book's thumbnail, through the same queue as the generations: a removal during a generation of that book waits for it, so no orphan file is left behind.
@@ -173,8 +185,8 @@ These are the non-obvious constraints of the main-process bundle. Breaking one u
 |---|---|---|
 | `package.json`'s `main` is `.vite/build/main.cjs`, and `src/main.ts` loads `preload.cjs` | `package.json`, `src/main.ts` | Forge 8's Vite plugin emits the main and preload bundles as `.cjs`: `electron-forge package` refuses a `main` ending in `.js`, and a stale preload path leaves `window.tankobon` undefined. |
 | `node:sqlite` listed in `build.rollupOptions.external` | `vite.main.config.mts` | It isn't in Node's `builtinModules` yet, so Vite bundles an empty stub: `DatabaseSync` is silently `undefined` at runtime. |
-| `unrar.wasm` copied next to `main.cjs` | `vite.main.config.mts`, `cbr-archive.ts` | CBR files can't be opened. |
-| `pdfjs-dist` and `@napi-rs/canvas` external | `vite.main.config.mts` | `@napi-rs/canvas` is a native `.node` binary Rollup can't inline; pdf.js's `legacy` build is a foreign webpack bundle Rollup can't safely re-bundle. Being real packages also ships pdf.js's `standard_fonts`/`cmaps` for free. |
+| `unrar.wasm` copied next to `decoder-worker.cjs` | `vite.decoder.config.mts`, `cbr-archive.ts` | CBR files can't be opened. |
+| `pdfjs-dist` and `@napi-rs/canvas` external | `vite.decoder.config.mts` | `@napi-rs/canvas` is a native `.node` binary Rollup can't inline; pdf.js's `legacy` build is a foreign webpack bundle Rollup can't safely re-bundle. Being real packages also ships pdf.js's `standard_fonts`/`cmaps` for free. |
 | `hooks.packageAfterCopy` copies `pdfjs-dist`, `@napi-rs/canvas` and the installed `@napi-rs/canvas-<platform>-<arch>` | `forge.config.ts` | The Forge Vite plugin only packages its build output plus `package.json`, never `node_modules`: PDFs fail in the packaged app. Only the platform package matching the machine that ran `npm install` exists, so a package must be built on its target platform. |
 | `AutoUnpackNativesPlugin` | `forge.config.ts` | The native binary would stay inside the asar archive, which can't be `dlopen`ed. |
 | `packagerConfig.executableName` is `tankobon` on Linux | `forge.config.ts` | Packager names the Linux binary after `productName` (`Tankōbon`), while the deb and rpm makers look for `name` (`tankobon`): `npm run make` fails on Linux with "could not find the Electron app binary". |
@@ -201,9 +213,9 @@ The whole library comes from a single `library:list` call and is filtered client
 
 ### Folder scanning
 
-`library:add-folder` opens a directory picker, then `scanIntoLibrary()` (`src/main/services/library-scanner.ts`) walks it recursively for supported files. Unreadable directories are skipped; symlinks are never followed (`Dirent.isDirectory()` is false for them, which also rules out cycles). Learning a page count means opening each file, which is the slow part: progress is pushed file by file over `library:scan-progress`. The renderer subscribes via `library.onScanProgress()` for the whole life of the library page, not around each call, because progress starts as soon as the directory is picked. A file that won't open only counts as `failed`.
+`library:add-folder` opens a directory picker, then `scanIntoLibrary()` (`src/main/services/library-scanner.ts`) walks it recursively for supported files. Unreadable directories are skipped; symlinks are never followed (`Dirent.isDirectory()` is false for them, which also rules out cycles). Learning a page count means opening each file (in the [decoder process](#decoder-process), through `inspect`: the scanner only owns the walk and the database), which is the slow part: progress is pushed file by file over `library:scan-progress`. The renderer subscribes via `library.onScanProgress()` for the whole life of the library page, not around each call, because progress starts as soon as the directory is picked. A file that won't open only counts as `failed`.
 
-Scanned files go through `register()`, never `touch()` (see the table above), and `hasPath()` lets the scanner skip known files without opening them. Each new file's cover thumbnail is cached while its archive is still open (see [Cover thumbnails](#cover-thumbnails)). New rows get `last_opened_at = added_at`, which puts a fresh batch at the top of the list.
+Scanned files go through `register()`, never `touch()` (see the table above), and `hasPath()` lets the scanner skip known files without opening them. Each new file's cover thumbnail is cached by `inspect`, while its archive is still open (see [Cover thumbnails](#cover-thumbnails)). New rows get `last_opened_at = added_at`, which puts a fresh batch at the top of the list.
 
 ### Reader (`src/routes/reader.tsx`)
 

@@ -14,7 +14,7 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
 // `@napi-rs/canvas` (native binary) and `pdfjs-dist` (its JS + `standard_fonts`/`cmaps` data —
 // see pdf-archive.ts) are kept as real npm dependencies rather than bundled by Vite (see
-// vite.main.config.mts). The Vite plugin's packaging step only copies its own build output plus
+// vite.decoder.config.mts). The Vite plugin's packaging step only copies its own build output plus
 // `package.json` — no `node_modules` — so anything left external has to be copied in by hand.
 async function copyNodeModule(buildPath: string, name: string): Promise<void> {
   await cp(path.join('node_modules', name), path.join(buildPath, 'node_modules', name), { recursive: true });
@@ -27,7 +27,7 @@ if (devMode) {
   process.env.TANKOBON_DEV = '1';
 }
 
-// Restarts the app whenever Vite rebuilds the main process bundle. The Vite plugin's own
+// Restarts the app whenever Vite rebuilds the main process or decoder process bundle. The Vite plugin's own
 // `hotRestart` option is a no-op in Forge 8.0: its watch builds run in a subprocess that never
 // receives the option, and couldn't reach the app if it did. This runs in Forge's own process,
 // where `requestAppRestart()` is wired to `electron-forge start` (the same as typing `rs`).
@@ -37,7 +37,7 @@ function restartOnMainRebuild(): void {
   if (mainBundleWatcher) return; // postStart runs again after every restart
   let timer: NodeJS.Timeout | undefined;
   mainBundleWatcher = watch(path.resolve('.vite/build'), (_event, filename) => {
-    if (filename !== 'main.cjs') return;
+    if (filename !== 'main.cjs' && filename !== 'decoder-worker.cjs') return;
     // One rebuild fires several events; restart once, after the write has settled.
     clearTimeout(timer);
     timer = setTimeout(() => requestAppRestart(), 300);
@@ -73,6 +73,12 @@ const config: ForgeConfig = {
           // `entry` is just an alias for `build.lib.entry` in the corresponding file of `config`.
           entry: 'src/main.ts',
           config: 'vite.main.config.mts',
+          target: 'main',
+        },
+        {
+          // The decoder process (utilityProcess), see docs/decisions/0012: bundled apart from main.cjs.
+          entry: 'src/main/decoder/decoder-worker.ts',
+          config: 'vite.decoder.config.mts',
           target: 'main',
         },
         {

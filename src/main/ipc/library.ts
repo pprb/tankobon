@@ -1,9 +1,9 @@
 import { t } from '../../shared/i18n';
 import type { ScanResult } from '../../shared/library';
 import type { LibraryRepository } from '../db/library-repository';
+import type { DecoderClient } from '../decoder/decoder-client';
 import { scanIntoLibrary } from '../services/library-scanner';
 import { openDialogFor } from './dialogs';
-import type { ThumbnailCache } from '../services/thumbnail-cache';
 import { handle } from './handle';
 import { args, expectInteger, expectMetadataUpdate, expectStringArray, idArg, pageIndexArg } from './validate';
 
@@ -21,7 +21,7 @@ export const LIBRARY_CHANNELS = {
   thumbnail: 'library:thumbnail',
 } as const;
 
-export function registerLibraryIpc(repo: LibraryRepository, thumbnails: ThumbnailCache): void {
+export function registerLibraryIpc(repo: LibraryRepository, decoder: DecoderClient): void {
   handle(LIBRARY_CHANNELS.list, args(), () => repo.list());
 
   handle(LIBRARY_CHANNELS.addFolder, args(), async (event): Promise<ScanResult> => {
@@ -44,7 +44,7 @@ export function registerLibraryIpc(repo: LibraryRepository, thumbnails: Thumbnai
           event.sender.send(LIBRARY_CHANNELS.scanProgress, progress);
         }
       },
-      (archive) => thumbnails.storeFromArchive(archive),
+      (filePath) => decoder.inspect(filePath),
     );
     return { status: 'ok', directory, ...summary };
   });
@@ -53,7 +53,7 @@ export function registerLibraryIpc(repo: LibraryRepository, thumbnails: Thumbnai
     const entry = repo.get(id);
     repo.remove(id);
     if (entry) {
-      await thumbnails.remove(entry.path);
+      await decoder.removeThumbnail(entry.path).catch(() => undefined);
     }
   });
 
@@ -77,7 +77,7 @@ export function registerLibraryIpc(repo: LibraryRepository, thumbnails: Thumbnai
   // whose rebuild hasn't reached them yet.
   handle(LIBRARY_CHANNELS.thumbnail, args(idArg), (_event, id) => {
     const entry = repo.get(id);
-    return entry ? thumbnails.ensure(entry.path) : null;
+    return entry ? decoder.thumbnail(entry.path).catch(() => null) : null;
   });
 
   handle(LIBRARY_CHANNELS.updateMetadata, args(idArg, expectMetadataUpdate), (_event, id, update) =>

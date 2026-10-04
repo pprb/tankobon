@@ -1,0 +1,150 @@
+/**
+ * Main-process side of the decoder process: sends it calls and turns its crashes into errors.
+ * @module
+ */
+import type { ArchiveInfo, ComicPage } from '../../shared/comic';
+import { currentLanguage, t, type Language } from '../../shared/i18n';
+import type {
+  ArchiveSummary,
+  DecoderInbound,
+  DecoderMethod,
+  DecoderMethods,
+  DecoderRequest,
+  DecoderResponse,
+} from './protocol';
+
+/** A running decoder process, as the client sees it: Electron's `utilityProcess` in the app, a fake in tests. */
+export interface DecoderChannel {
+  /** Sends a message to the process. */
+  post(message: DecoderInbound): void;
+  /** Registers the receiver of the process's answers (once, right after spawning). */
+  onResponse(listener: (response: DecoderResponse) => void): void;
+  /** Registers what runs when the process is gone, crashed or killed (once, right after spawning). */
+  onExit(listener: () => void): void;
+  /** Stops the process. */
+  kill(): void;
+}
+
+interface Pending {
+  resolve: (result: never) => void;
+  reject: (error: Error) => void;
+}
+
+/**
+ * Calls into the decoder process, started on the first call. When it dies (a native crash, an
+ * out-of-memory kill on a booby-trapped file) every call waiting for it rejects with a "could not
+ * be decoded" error, and the next call starts a fresh process: the app, the database and the
+ * window are untouched. Archives opened in the dead process are gone with it.
+ */
+export class DecoderClient {
+  private channel: DecoderChannel | undefined;
+  private readonly pending = new Map<number, Pending>();
+  private nextId = 1;
+  private language: Language = currentLanguage();
+
+  /** `spawn` starts a decoder process; `thumbnailsDirectory` is where its thumbnail cache lives. */
+  constructor(
+    private readonly spawn: () => DecoderChannel,
+    private readonly thumbnailsDirectory: string,
+  ) {}
+
+  /** Opens a comic in the decoder process; see `DecoderMethods.open`. */
+  open(filePath: string): Promise<ArchiveInfo> {
+    return this.call('open', filePath);
+  }
+
+  /** Reads a page of an open comic. */
+  readPage(id: string, index: number): Promise<ComicPage> {
+    return this.call('readPage', id, index);
+  }
+
+  /** Closes an open comic. */
+  close(id: string): Promise<void> {
+    return this.call('close', id);
+  }
+
+  /** Counts a file's pages (and caches its cover); see `DecoderMethods.inspect`. */
+  inspect(filePath: string): Promise<ArchiveSummary> {
+    return this.call('inspect', filePath);
+  }
+
+  /** A book's thumbnail, generated when missing; null when it has no cover. */
+  thumbnail(filePath: string, archiveId?: string): Promise<Uint8Array<ArrayBuffer> | null> {
+    return this.call('thumbnail', filePath, archiveId);
+  }
+
+  /** Deletes a book's thumbnail. */
+  removeThumbnail(filePath: string): Promise<void> {
+    return this.call('removeThumbnail', filePath);
+  }
+
+  /** Deletes the thumbnails of books that aren't in `filePaths`. */
+  pruneThumbnails(filePaths: string[]): Promise<void> {
+    return this.call('pruneThumbnails', filePaths);
+  }
+
+  /** Prunes, then generates the missing thumbnails of `filePaths`. */
+  rebuildThumbnails(filePaths: string[]): Promise<void> {
+    return this.call('rebuildThumbnails', filePaths);
+  }
+
+  /** Switches the language of the messages the decoder process produces. */
+  setLanguage(language: Language): void {
+    this.language = language;
+    this.channel?.post({ type: 'language', language });
+  }
+
+  /** Stops the decoder process (app quit); a later call would start another one. */
+  dispose(): void {
+    this.channel?.kill();
+  }
+
+  private call<M extends DecoderMethod>(
+    method: M,
+    ...args: Parameters<DecoderMethods[M]>
+  ): Promise<Awaited<ReturnType<DecoderMethods[M]>>> {
+    const channel = this.ensureChannel();
+    const id = this.nextId++;
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve: resolve as Pending['resolve'], reject });
+      channel.post({ type: 'request', id, method, args } as DecoderRequest);
+    });
+  }
+
+  private ensureChannel(): DecoderChannel {
+    if (this.channel) {
+      return this.channel;
+    }
+    const channel = this.spawn();
+    this.channel = channel;
+    channel.onResponse((response) => this.settle(response));
+    channel.onExit(() => this.handleExit(channel));
+    channel.post({ type: 'init', thumbnailsDirectory: this.thumbnailsDirectory, language: this.language });
+    return channel;
+  }
+
+  private settle(response: DecoderResponse): void {
+    const pending = this.pending.get(response.id);
+    if (!pending) {
+      return;
+    }
+    this.pending.delete(response.id);
+    if (response.ok) {
+      pending.resolve(response.result as never);
+    } else {
+      pending.reject(new Error(response.message));
+    }
+  }
+
+  private handleExit(channel: DecoderChannel): void {
+    if (this.channel !== channel) {
+      return;
+    }
+    this.channel = undefined;
+    const pending = [...this.pending.values()];
+    this.pending.clear();
+    for (const { reject } of pending) {
+      reject(new Error(t('errors:decoder.crashed')));
+    }
+  }
+}

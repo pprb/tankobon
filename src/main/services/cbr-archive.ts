@@ -11,8 +11,8 @@ import { t } from '../../shared/i18n';
 import { imageMimeType, isPageEntry, sortPages, type ComicArchive } from './comic-archive';
 import { checkedPage } from './image-size';
 
-// The Emscripten-compiled wasm module is copied next to the bundled main.cjs (see
-// vite.main.config.mts): loaded once and reused for every archive opened.
+// The Emscripten-compiled wasm module is copied next to the bundled decoder-worker.cjs (see
+// vite.decoder.config.mts): loaded once and reused for every archive opened.
 let wasmBinary: ArrayBuffer | undefined;
 async function getWasmBinary(): Promise<ArrayBuffer> {
   wasmBinary ??= Uint8Array.from(await readFile(join(__dirname, 'unrar.wasm'))).buffer;
