@@ -16,7 +16,14 @@ import type {
   ExportResult,
   ImportResult,
 } from './shared/data';
-import type { LibraryEntry, MetadataUpdate, ResyncResult, ScanProgress, ScanResult } from './shared/library';
+import type {
+  AddFileResult,
+  LibraryEntry,
+  MetadataUpdate,
+  ResyncResult,
+  ScanProgress,
+  ScanResult,
+} from './shared/library';
 import type { MetadataPageResult, MetadataQuery, MetadataSearchResult } from './shared/metadata';
 import type { ReadingList, ReadingListOrderResult, ReadingListResult } from './shared/reading-list';
 import type { ApiKeys, AppSettings, PublicSettings } from './shared/settings';
@@ -52,6 +59,8 @@ export interface ComicApi {
 export interface LibraryApi {
   /** Every library entry, most recently opened first. */
   list(): Promise<LibraryEntry[]>;
+  /** Opens a native file picker, then adds the chosen comic to the library without opening it; an unreadable file resolves to an error result rather than rejecting. */
+  addFile(): Promise<AddFileResult>;
   /** Opens a native directory picker, then adds every comic found under it, recursively. */
   addFolder(): Promise<ScanResult>;
   /** The folders added with `addFolder`, which `resync` walks again, in the order they were added. */
@@ -178,6 +187,7 @@ const api: TankobonApi = {
   },
   library: {
     list: () => ipcRenderer.invoke('library:list'),
+    addFile: () => ipcRenderer.invoke('library:add-file'),
     addFolder: () => ipcRenderer.invoke('library:add-folder'),
     onScanProgress: (listener) => {
       const handler = (_event: Electron.IpcRendererEvent, progress: ScanProgress) => listener(progress);

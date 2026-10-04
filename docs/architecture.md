@@ -231,6 +231,8 @@ The library page (`src/routes/index.tsx`) draws only the rows near the viewport 
 
 The folder dialog opens in the previous scan's directory: `library:add-folder` stores it in the `lastScanFolder` setting (empty until a first scan) and passes it as `defaultPath` through `existingDirectory()` (`src/main/ipc/dialogs.ts`), which drops a directory that no longer exists, as the open-file dialog does with the last opened book's directory.
 
+**Adding a single file** (`library:add-file`, "Ajouter un fichier") goes through the same path as one scanned file: the file dialog opens in the last opened book's directory, `inspect` in the decoder process, then `register()`, never `touch()`; it does not open the reader. The result (`AddFileResult`) says `added`, `exists` (left untouched) or `error` (translated message), and an added file makes the main process push a `library` reload.
+
 Scanned files go through `register()`, never `touch()` (see the table above), and `hasPath()` lets the scanner skip known files without opening them. Each new file's cover thumbnail is cached by `inspect`, while its archive is still open (see [Cover thumbnails](#cover-thumbnails)). New rows get `last_opened_at = added_at`, which puts a fresh batch at the top of the list.
 
 ### Resynchronization

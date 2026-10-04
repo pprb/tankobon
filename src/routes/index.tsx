@@ -76,10 +76,11 @@ function LibraryPage() {
   };
 
   const addFile = async () => {
-    const token = await window.tankobon.comic.pickFile(true);
-    if (token) {
-      void navigate({ to: '/reader', search: { book: token } });
-    }
+    setScanStatus(null);
+    const result = await window.tankobon.library.addFile();
+    if (result.status === 'added') setScanStatus(t('fileAdded', { title: result.title }));
+    else if (result.status === 'exists') setScanStatus(t('fileExists', { title: result.title }));
+    else if (result.status === 'error') setScanStatus(result.message);
   };
 
   // The list drops the entry on the main process's `data:changed`.

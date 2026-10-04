@@ -6,6 +6,8 @@ const library: Translation<typeof en> = {
   intro: 'Gestionnaire et lecteur de BD numériques.',
   addFile: 'Ajouter un fichier',
   addFolder: 'Ajouter un dossier…',
+  fileAdded: '« {{title}} » ajouté à la bibliothèque',
+  fileExists: '« {{title}} » est déjà dans la bibliothèque',
   scanAdded_one: '{{count}} BD ajoutée depuis {{directory}}',
   scanAdded_other: '{{count}} BD ajoutées depuis {{directory}}',
   scanSkipped_one: '{{count}} déjà présente',

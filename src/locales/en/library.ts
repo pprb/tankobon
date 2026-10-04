@@ -4,6 +4,8 @@ export default {
   intro: 'Digital comics manager and reader.',
   addFile: 'Add a file',
   addFolder: 'Add a folder…',
+  fileAdded: '“{{title}}” added to the library',
+  fileExists: '“{{title}}” is already in the library',
   scanAdded_one: '{{count}} comic added from {{directory}}',
   scanAdded_other: '{{count}} comics added from {{directory}}',
   scanSkipped_one: '{{count}} already there',
