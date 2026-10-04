@@ -1,4 +1,3 @@
-import { ipcMain } from 'electron';
 import { readFile, writeFile } from 'node:fs/promises';
 import type { DatabaseSync } from 'node:sqlite';
 
@@ -11,6 +10,8 @@ import type { ReadingListRepository } from '../db/reading-list-repository';
 import type { SettingsRepository } from '../db/settings-repository';
 import { applyMainLanguage } from '../language';
 import { openDialogFor, saveDialogFor } from './dialogs';
+import { handle } from './handle';
+import { args } from './validate';
 import type { ThumbnailCache } from '../services/thumbnail-cache';
 
 // Channel names are shared with preload.ts: keep them in sync.
@@ -31,7 +32,7 @@ export function registerDataIpc(
   readingListRepo: ReadingListRepository,
   thumbnails: ThumbnailCache,
 ): void {
-  ipcMain.handle(DATA_CHANNELS.export, async (event): Promise<ExportResult> => {
+  handle(DATA_CHANNELS.export, args(), async (event): Promise<ExportResult> => {
     const options: Electron.SaveDialogOptions = {
       title: t('dialogs:exportData'),
       defaultPath: exportFileName(new Date()),
@@ -51,7 +52,7 @@ export function registerDataIpc(
     }
   });
 
-  ipcMain.handle(DATA_CHANNELS.import, async (event): Promise<ImportResult> => {
+  handle(DATA_CHANNELS.import, args(), async (event): Promise<ImportResult> => {
     const options: Electron.OpenDialogOptions = {
       title: t('dialogs:importData'),
       properties: ['openFile'],
@@ -76,7 +77,7 @@ export function registerDataIpc(
     }
   });
 
-  ipcMain.handle(DATA_CHANNELS.clearLibrary, async (): Promise<ClearLibraryResult> => {
+  handle(DATA_CHANNELS.clearLibrary, args(), async (): Promise<ClearLibraryResult> => {
     try {
       const readingLists = readingListRepo.clear();
       const entries = libraryRepo.clear();

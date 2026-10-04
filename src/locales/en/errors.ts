@@ -2,6 +2,7 @@
 // as a rejected IPC call.
 export default {
   archive: {
+    unknownBook: 'This book is not in the library: pick the file again.',
     unsupportedFormat: 'Unsupported format: {{extension}}',
     noExtension: '(no extension)',
     unknown: 'Unknown archive: {{id}}',

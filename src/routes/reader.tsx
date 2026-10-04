@@ -12,22 +12,22 @@ import { useReaderFullscreen } from '@/hooks/use-reader-fullscreen';
 import { useSettings } from '@/hooks/use-settings';
 
 interface ReaderSearch {
-  /** Absolute path of a comic to open automatically, e.g. from the library page. */
-  path?: string;
+  /** Library entry id, or file-dialog token, of a comic to open automatically, e.g. from the library page. */
+  book?: string;
   /** Id of the reading list the comic was opened from: its next book is offered on the last page. */
   list?: string;
 }
 
 export const Route = createFileRoute('/reader')({
   validateSearch: (search: Record<string, unknown>): ReaderSearch => ({
-    path: typeof search.path === 'string' ? search.path : undefined,
+    book: typeof search.book === 'string' ? search.book : undefined,
     list: typeof search.list === 'string' ? search.list : undefined,
   }),
   component: ReaderPage,
 });
 
 function ReaderPage() {
-  const { path, list } = Route.useSearch();
+  const { book, list } = Route.useSearch();
   const { t } = useTranslation('reader');
   const { settings } = useSettings();
   const { comic, page, pageUrl, error, loading, pickAndOpen, openFile, close, next, prev } = useComic({
@@ -37,8 +37,8 @@ function ReaderPage() {
   const nextInList = useNextInList(list, comic?.libraryId);
 
   useEffect(() => {
-    if (path) void openFile(path);
-  }, [path, openFile]);
+    if (book) void openFile(book);
+  }, [book, openFile]);
 
   // Continuous mode doesn't drive `page`/`goTo` (that would also re-trigger useComic's
   // own single-page fetch for no reason); it persists progress directly instead.

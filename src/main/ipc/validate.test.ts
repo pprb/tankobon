@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   IpcArgumentError,
+  args,
+  idArg,
+  pageIndexArg,
   expectInteger,
   expectMetadataQuery,
   expectMetadataUpdate,
@@ -65,5 +68,19 @@ describe('expectMetadataQuery', () => {
     expect(expectMetadataQuery({ text: 'x', volume: null })).toEqual({ text: 'x', volume: null });
     expect(() => expectMetadataQuery({ text: 'x' })).toThrow(IpcArgumentError);
     expect(() => expectMetadataQuery({ text: 1, volume: null })).toThrow(IpcArgumentError);
+  });
+});
+
+describe('args', () => {
+  it('parses each argument and returns them in order', () => {
+    expect(args(idArg, pageIndexArg)(['a', 2])).toEqual(['a', 2]);
+  });
+
+  it('refuses a wrong number of arguments or a bad one', () => {
+    expect(() => args(idArg)([])).toThrow(IpcArgumentError);
+    expect(() => args(idArg)(['a', 'b'])).toThrow(IpcArgumentError);
+    expect(() => args()(['x'])).toThrow(IpcArgumentError);
+    expect(() => args(idArg, pageIndexArg)(['a', -1])).toThrow(IpcArgumentError);
+    expect(() => args(idArg)([{ path: '/etc/passwd' }])).toThrow(IpcArgumentError);
   });
 });

@@ -1,7 +1,6 @@
-import { ipcMain } from 'electron';
-
 import type { ReadingListRepository } from '../db/reading-list-repository';
-import { expectNonEmptyString, expectString, expectStringArray } from './validate';
+import { handle } from './handle';
+import { args, expectString, expectStringArray, idArg } from './validate';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const READING_LIST_CHANNELS = {
@@ -15,30 +14,25 @@ export const READING_LIST_CHANNELS = {
   reorderLists: 'reading-lists:reorder-lists',
 } as const;
 
+const nameArg = (value: unknown) => expectString(value, 'name');
+const idsArg = (value: unknown) => expectStringArray(value, 'ids');
+
 export function registerReadingListIpc(repo: ReadingListRepository): void {
-  ipcMain.handle(READING_LIST_CHANNELS.list, () => repo.list());
+  handle(READING_LIST_CHANNELS.list, args(), () => repo.list());
 
-  ipcMain.handle(READING_LIST_CHANNELS.create, (_event, name: unknown) => repo.create(expectString(name, 'name')));
+  handle(READING_LIST_CHANNELS.create, args(nameArg), (_event, name) => repo.create(name));
 
-  ipcMain.handle(READING_LIST_CHANNELS.rename, (_event, id: unknown, name: unknown) =>
-    repo.rename(expectNonEmptyString(id, 'id'), expectString(name, 'name')),
+  handle(READING_LIST_CHANNELS.rename, args(idArg, nameArg), (_event, id, name) => repo.rename(id, name));
+
+  handle(READING_LIST_CHANNELS.remove, args(idArg), (_event, id) => repo.remove(id));
+
+  handle(READING_LIST_CHANNELS.addEntry, args(idArg, idArg), (_event, id, libraryId) => repo.addEntry(id, libraryId));
+
+  handle(READING_LIST_CHANNELS.removeEntry, args(idArg, idArg), (_event, id, libraryId) =>
+    repo.removeEntry(id, libraryId),
   );
 
-  ipcMain.handle(READING_LIST_CHANNELS.remove, (_event, id: unknown) => repo.remove(expectNonEmptyString(id, 'id')));
+  handle(READING_LIST_CHANNELS.reorder, args(idArg, idsArg), (_event, id, entryIds) => repo.reorder(id, entryIds));
 
-  ipcMain.handle(READING_LIST_CHANNELS.addEntry, (_event, id: unknown, libraryId: unknown) =>
-    repo.addEntry(expectNonEmptyString(id, 'id'), expectNonEmptyString(libraryId, 'libraryId')),
-  );
-
-  ipcMain.handle(READING_LIST_CHANNELS.removeEntry, (_event, id: unknown, libraryId: unknown) =>
-    repo.removeEntry(expectNonEmptyString(id, 'id'), expectNonEmptyString(libraryId, 'libraryId')),
-  );
-
-  ipcMain.handle(READING_LIST_CHANNELS.reorder, (_event, id: unknown, entryIds: unknown) =>
-    repo.reorder(expectNonEmptyString(id, 'id'), expectStringArray(entryIds, 'entryIds')),
-  );
-
-  ipcMain.handle(READING_LIST_CHANNELS.reorderLists, (_event, listIds: unknown) =>
-    repo.reorderLists(expectStringArray(listIds, 'listIds')),
-  );
+  handle(READING_LIST_CHANNELS.reorderLists, args(idsArg), (_event, listIds) => repo.reorderLists(listIds));
 }

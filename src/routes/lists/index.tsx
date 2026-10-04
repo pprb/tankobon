@@ -104,7 +104,7 @@ function ReadingListsPage() {
                     </p>
                     <Button
                       size="sm"
-                      onClick={() => navigate({ to: '/reader', search: { path: next.path, list: list.id } })}
+                      onClick={() => navigate({ to: '/reader', search: { book: next.id, list: list.id } })}
                     >
                       <BookOpen />
                       {t('read')}

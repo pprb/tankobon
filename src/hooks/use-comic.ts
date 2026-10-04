@@ -60,11 +60,11 @@ export function useComic({ loadPages = true }: UseComicOptions = {}) {
     }
   }, [state.comic?.id]);
 
-  const openFile = useCallback(async (filePath: string) => {
+  const openFile = useCallback(async (ref: string) => {
     const request = ++openRequest.current;
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
-      const result = await window.tankobon.comic.open(filePath);
+      const result = await window.tankobon.comic.open(ref);
       const stale = !mounted.current || request !== openRequest.current;
       if (result.status === 'error') {
         if (!stale) setState((s) => ({ ...s, loading: false, error: result.message }));
@@ -85,9 +85,9 @@ export function useComic({ loadPages = true }: UseComicOptions = {}) {
   }, [loadPages]);
 
   const pickAndOpen = useCallback(async () => {
-    const filePath = await window.tankobon.comic.pickFile();
-    if (filePath) {
-      await openFile(filePath);
+    const token = await window.tankobon.comic.pickFile();
+    if (token) {
+      await openFile(token);
     }
   }, [openFile]);
 

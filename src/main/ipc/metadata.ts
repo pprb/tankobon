@@ -1,10 +1,11 @@
-import { app, ipcMain, net } from 'electron';
+import { app, net } from 'electron';
 
 import type { MetadataPageResult, MetadataSearchResult } from '../../shared/metadata';
 import type { SettingsRepository } from '../db/settings-repository';
 import { fetchMetadataPage, searchMetadata } from '../services/metadata-service';
 import type { HttpOptions } from '../services/http-json';
-import { MAX_PATH_LENGTH, expectMetadataQuery, expectNonEmptyString } from './validate';
+import { handle } from './handle';
+import { MAX_PATH_LENGTH, args, expectMetadataQuery, expectNonEmptyString } from './validate';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const METADATA_CHANNELS = {
@@ -22,10 +23,12 @@ function httpOptions(): HttpOptions {
 }
 
 export function registerMetadataIpc(settingsRepo: SettingsRepository): void {
-  ipcMain.handle(METADATA_CHANNELS.search, (_event, query: unknown): Promise<MetadataSearchResult> =>
-    searchMetadata(expectMetadataQuery(query), settingsRepo.getAll(), httpOptions()),
+  handle(METADATA_CHANNELS.search, args(expectMetadataQuery), (_event, query): Promise<MetadataSearchResult> =>
+    searchMetadata(query, settingsRepo.getAll(), httpOptions()),
   );
-  ipcMain.handle(METADATA_CHANNELS.fromPage, (_event, url: unknown): Promise<MetadataPageResult> =>
-    fetchMetadataPage(expectNonEmptyString(url, 'url', MAX_PATH_LENGTH), httpOptions()),
+  handle(
+    METADATA_CHANNELS.fromPage,
+    args((url) => expectNonEmptyString(url, 'url', MAX_PATH_LENGTH)),
+    (_event, url): Promise<MetadataPageResult> => fetchMetadataPage(url, httpOptions()),
   );
 }

@@ -103,3 +103,35 @@ export function expectMetadataQuery(value: unknown): MetadataQuery {
   const input = expectRecord(value, 'query');
   return { text: expectString(input.text, 'query.text'), volume: expectNullableString(input.volume, 'query.volume') };
 }
+
+/** Parses one argument of a channel, throwing an {@link IpcArgumentError} when it is refused. */
+export type ArgParser<T> = (value: unknown) => T;
+
+/** The parsed argument list of a channel, as handed to its handler. */
+export type ParsedArgs<P extends readonly ArgParser<unknown>[]> = { -readonly [K in keyof P]: ReturnType<P[K]> };
+
+/** Parses a channel's whole argument list. */
+export type ArgsParser<A extends unknown[]> = (raw: unknown[]) => A;
+
+/**
+ * Builds the argument-list parser of a channel from one parser per argument, in order: the call is
+ * refused when it carries more or fewer arguments. `args()` is the parser of a channel without
+ * arguments.
+ */
+export function args<P extends readonly ArgParser<unknown>[]>(...parsers: P): ArgsParser<ParsedArgs<P>> {
+  return (raw) => {
+    if (raw.length !== parsers.length) {
+      throw new IpcArgumentError('arguments', `${parsers.length} argument(s), got ${raw.length}`);
+    }
+    return parsers.map((parse, index) => parse(raw[index])) as ParsedArgs<P>;
+  };
+}
+
+/** A library entry, reading list or open-comic id. */
+export const idArg: ArgParser<string> = (value) => expectNonEmptyString(value, 'id');
+
+/** A 0-based page index. */
+export const pageIndexArg: ArgParser<number> = (value) => expectInteger(value, 'index', 0, MAX_PAGE_INDEX);
+
+/** Upper bound of a page index: no archive has more pages, and it keeps absurd numbers out of the database. */
+export const MAX_PAGE_INDEX = 1_000_000;

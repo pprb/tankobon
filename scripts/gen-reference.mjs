@@ -100,7 +100,7 @@ function mainChannels() {
     for (const [, constName, body] of source.matchAll(/export const (\w+_CHANNELS) = \{([\s\S]*?)\} as const/g)) {
       for (const [, key, channel] of body.matchAll(/(\w+): '([^']+)'/g)) {
         const ref = `${constName}.${key}`;
-        const handled = new RegExp(`ipcMain\\.handle\\(\\s*${constName}\\.${key}\\b`).test(source);
+        const handled = new RegExp(`\\bhandle\\(\\s*${constName}\\.${key}\\b`).test(source);
         const pushed = new RegExp(`\\.send\\(\\s*${constName}\\.${key}\\b`).test(source);
         if (!handled && !pushed) errors.push(`${file}: ${ref} ('${channel}') is declared but never handled nor sent`);
         channels.set(channel, { file, ref, direction: pushed ? 'main → renderer (push)' : 'renderer → main (invoke)' });

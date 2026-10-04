@@ -3,6 +3,7 @@ import type { Translation } from '../types';
 
 const errors: Translation<typeof en> = {
   archive: {
+    unknownBook: 'Ce livre n’est pas dans la bibliothèque : choisissez à nouveau le fichier.',
     unsupportedFormat: 'Format non supporté : {{extension}}',
     noExtension: '(sans extension)',
     unknown: 'Archive inconnue : {{id}}',

@@ -93,7 +93,7 @@ function ReadingListPage() {
     void navigate({ to: '/lists' });
   };
 
-  const read = (entry: LibraryEntry) => navigate({ to: '/reader', search: { path: entry.path, list: list.id } });
+  const read = (entry: LibraryEntry) => navigate({ to: '/reader', search: { book: entry.id, list: list.id } });
 
   return (
     <div className="flex flex-col gap-4 p-6">

@@ -27,7 +27,7 @@ export function NextInListButton({ nextInList }: { nextInList: NextInList | null
     <Button
       variant="secondary"
       size="sm"
-      onClick={() => navigate({ to: '/reader', search: { path: next.path, list: listId } })}
+      onClick={() => navigate({ to: '/reader', search: { book: next.id, list: listId } })}
       title={t('nextInList', { name: listName })}
       className="max-w-64"
     >
