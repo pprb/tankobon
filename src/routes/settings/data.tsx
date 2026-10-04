@@ -7,7 +7,7 @@ import { SettingsSection } from '@/components/settings-section';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { notifyReadingListsChanged } from '@/hooks/use-reading-lists';
-import { useSettings } from '@/hooks/use-settings';
+import { notifySettingsChanged } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
 import type { DatabaseLocation } from '@/shared/data';
 
@@ -17,7 +17,6 @@ export const Route = createFileRoute('/settings/data')({
 
 function DataSettingsPage() {
   const { t } = useTranslation(['settings', 'common']);
-  const { reload } = useSettings();
   const [dataStatus, setDataStatus] = useState<{ message: string; error?: boolean } | null>(null);
   const [dbLocation, setDbLocation] = useState<DatabaseLocation | null>(null);
   // A location change only takes effect on the next start, so the app has to offer a restart.
@@ -81,8 +80,9 @@ function DataSettingsPage() {
       setDataStatus({ message: result.message, error: true });
       return;
     }
-    // The import wrote settings straight to the database; pull them back into the form.
-    await reload();
+    // The import wrote settings straight to the database; every settings view (the sidebar
+    // included) must pull them back.
+    notifySettingsChanged();
     // It also replaced the reading lists the sidebar shows.
     notifyReadingListsChanged();
     setDataStatus({
