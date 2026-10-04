@@ -28,6 +28,7 @@ const library: Translation<typeof en> = {
   lookupHint: 'Rechercher les infos (série, auteurs…)',
   addToList: 'Ajouter à une liste de lecture',
   remove: 'Retirer de la bibliothèque',
+  confirmRemove: "Retirer « {{title}} » de la bibliothèque ? Sa note, ses étiquettes et ses infos seront perdues ; le fichier reste sur le disque.",
   rating: '{{rating}} / 5',
   notRated: 'Non noté',
   rate_one: 'Noter {{count}} étoile',

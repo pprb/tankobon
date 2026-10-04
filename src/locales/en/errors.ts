@@ -2,6 +2,7 @@
 // as a rejected IPC call.
 export default {
   archive: {
+    unknownBook: 'This book is not in the library: pick the file again.',
     unsupportedFormat: 'Unsupported format: {{extension}}',
     noExtension: '(no extension)',
     unknown: 'Unknown archive: {{id}}',
@@ -11,9 +12,16 @@ export default {
     extractFailed: 'Could not extract the page: {{entry}}',
     closed: 'Archive closed: {{path}}',
     entryTooLarge: 'Page too large to be read: {{entry}}',
+    imageTooLarge: 'Image too large to be displayed: {{entry}} ({{width}} × {{height}} px)',
+    fileNotFound: 'File not found: it has been moved or deleted.',
+    openFailed: 'Unable to open this file: {{message}}',
   },
   database: {
     notWritable: 'Cannot write to {{directory}}.',
+  },
+  data: {
+    exportFailed: 'Could not write the export: {{message}}',
+    clearFailed: 'Could not clear the library: {{message}}',
   },
   import: {
     notJson: 'Unreadable file: this is not valid JSON.',

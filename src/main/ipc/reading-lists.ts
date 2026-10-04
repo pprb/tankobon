@@ -1,7 +1,7 @@
-import { ipcMain } from 'electron';
-
-import type { NotifyDataChange } from './data-changes';
 import type { ReadingListRepository } from '../db/reading-list-repository';
+import type { NotifyDataChange } from './data-changes';
+import { handle } from './handle';
+import { args, expectString, expectStringArray, idArg } from './validate';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const READING_LIST_CHANNELS = {
@@ -15,38 +15,35 @@ export const READING_LIST_CHANNELS = {
   reorderLists: 'reading-lists:reorder-lists',
 } as const;
 
+const nameArg = (value: unknown) => expectString(value, 'name');
+const idsArg = (value: unknown) => expectStringArray(value, 'ids');
+
 export function registerReadingListIpc(repo: ReadingListRepository, notify: NotifyDataChange): void {
   /** Runs a write, then announces it (a refused one changed nothing, but reloading is harmless). */
-  const write = <A extends unknown[], R>(fn: (...args: A) => R) => {
-    return (_event: unknown, ...args: A): R => {
-      const result = fn(...args);
-      notify({ scope: 'readingLists' });
-      return result;
-    };
+  const written = <R>(result: R): R => {
+    notify({ scope: 'readingLists' });
+    return result;
   };
 
-  ipcMain.handle(READING_LIST_CHANNELS.list, () => repo.list());
+  handle(READING_LIST_CHANNELS.list, args(), () => repo.list());
 
-  ipcMain.handle(READING_LIST_CHANNELS.create, write((name: string) => repo.create(name)));
+  handle(READING_LIST_CHANNELS.create, args(nameArg), (_event, name) => written(repo.create(name)));
 
-  ipcMain.handle(READING_LIST_CHANNELS.rename, write((id: string, name: string) => repo.rename(id, name)));
+  handle(READING_LIST_CHANNELS.rename, args(idArg, nameArg), (_event, id, name) => written(repo.rename(id, name)));
 
-  ipcMain.handle(READING_LIST_CHANNELS.remove, write((id: string) => repo.remove(id)));
+  handle(READING_LIST_CHANNELS.remove, args(idArg), (_event, id) => written(repo.remove(id)));
 
-  ipcMain.handle(
-    READING_LIST_CHANNELS.addEntry,
-    write((id: string, libraryId: string) => repo.addEntry(id, libraryId)),
+  handle(READING_LIST_CHANNELS.addEntry, args(idArg, idArg), (_event, id, libraryId) =>
+    written(repo.addEntry(id, libraryId)),
   );
 
-  ipcMain.handle(
-    READING_LIST_CHANNELS.removeEntry,
-    write((id: string, libraryId: string) => repo.removeEntry(id, libraryId)),
+  handle(READING_LIST_CHANNELS.removeEntry, args(idArg, idArg), (_event, id, libraryId) =>
+    written(repo.removeEntry(id, libraryId)),
   );
 
-  ipcMain.handle(
-    READING_LIST_CHANNELS.reorder,
-    write((id: string, entryIds: string[]) => repo.reorder(id, entryIds)),
+  handle(READING_LIST_CHANNELS.reorder, args(idArg, idsArg), (_event, id, entryIds) =>
+    written(repo.reorder(id, entryIds)),
   );
 
-  ipcMain.handle(READING_LIST_CHANNELS.reorderLists, write((listIds: string[]) => repo.reorderLists(listIds)));
+  handle(READING_LIST_CHANNELS.reorderLists, args(idsArg), (_event, listIds) => written(repo.reorderLists(listIds)));
 }

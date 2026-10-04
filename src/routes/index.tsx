@@ -72,14 +72,17 @@ function LibraryPage() {
   };
 
   const addFile = async () => {
-    const filePath = await window.tankobon.comic.pickFile();
-    if (filePath) {
-      void navigate({ to: '/reader', search: { path: filePath } });
+    const token = await window.tankobon.comic.pickFile();
+    if (token) {
+      void navigate({ to: '/reader', search: { book: token } });
     }
   };
 
   // The list drops the entry on the main process's `data:changed`.
-  const remove = (id: string) => window.tankobon.library.remove(id);
+  const remove = async (entry: LibraryEntry) => {
+    if (!window.confirm(t('confirmRemove', { title: entry.title }))) return;
+    await window.tankobon.library.remove(entry.id);
+  };
 
   const setRating = (id: string, rating: number) =>
     void appData.patchEntry(id, { rating }, () => window.tankobon.library.updateRating(id, rating));
@@ -168,7 +171,7 @@ function LibraryPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => navigate({ to: '/reader', search: { path: entry.path } })}
+                    onClick={() => navigate({ to: '/reader', search: { book: entry.id } })}
                     title={t('common:open')}
                     aria-label={t('openNamed', { title: entry.title })}
                     className="shrink-0 rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -220,14 +223,14 @@ function LibraryPage() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => navigate({ to: '/reader', search: { path: entry.path } })}
+                  onClick={() => navigate({ to: '/reader', search: { book: entry.id } })}
                 >
                   {t('common:open')}
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  onClick={() => remove(entry.id)}
+                  onClick={() => remove(entry)}
                   title={t('remove')}
                   aria-label={t('remove')}
                 >

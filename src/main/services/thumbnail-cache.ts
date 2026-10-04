@@ -11,6 +11,7 @@ import path from 'node:path';
 import type { ComicPage } from '../../shared/comic';
 import type { ComicArchive } from './comic-archive';
 import { openArchive } from './comic-service';
+import { assertImageWithinLimit } from './image-size';
 
 /** Bounding box of a thumbnail, in pixels: about 3× the size the library list shows it at. */
 export const THUMBNAIL_MAX_WIDTH = 240;
@@ -23,9 +24,10 @@ const WEBP_QUALITY = 80;
 /**
  * Shrinks an image (any format `@napi-rs/canvas` decodes: JPEG, PNG, WebP, GIF, AVIF…) to fit in
  * `THUMBNAIL_MAX_WIDTH` × `THUMBNAIL_MAX_HEIGHT`, keeping its aspect ratio and never enlarging it,
- * and encodes it as WebP.
+ * and encodes it as WebP. Rejects an image declaring more than `MAX_IMAGE_PIXELS`, before decoding it.
  */
 export async function renderThumbnail(image: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
+  assertImageWithinLimit(image, '');
   const source = await loadImage(Buffer.from(image.buffer, image.byteOffset, image.byteLength));
   const scale = Math.min(1, THUMBNAIL_MAX_WIDTH / source.width, THUMBNAIL_MAX_HEIGHT / source.height);
   const width = Math.max(1, Math.round(source.width * scale));
@@ -102,10 +104,16 @@ export class ThumbnailCache {
     await this.enqueue(() => this.generate(archive.path, () => archive.readPage(0)));
   }
 
-  /** Deletes the thumbnail of a book (removed from the library); does nothing when there is none. */
-  async remove(filePath: string): Promise<void> {
-    this.failed.delete(thumbnailKey(filePath));
-    await rm(this.fileFor(filePath), { force: true });
+  /**
+   * Deletes the thumbnail of a book (removed from the library); does nothing when there is none.
+   * Queued like a generation, so one still running for this book finishes first and its file is
+   * deleted too, instead of being written after the deletion and left orphaned.
+   */
+  remove(filePath: string): Promise<void> {
+    return this.enqueue(async () => {
+      this.failed.delete(thumbnailKey(filePath));
+      await rm(this.fileFor(filePath), { force: true });
+    });
   }
 
   /**

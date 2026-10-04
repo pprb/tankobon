@@ -6,7 +6,7 @@ import { useCallback, useSyncExternalStore } from 'react';
 
 import { appData } from '@/lib/app-data';
 import { applyLanguage, type Language, type LanguageSetting, resolveLanguage } from '@/shared/i18n';
-import type { AppSettings } from '@/shared/settings';
+import type { AppSettings, PublicSettings } from '@/shared/settings';
 
 /** The OS's preferred languages, from the main process (see {@link loadSystemLanguages}). */
 let systemLanguages: readonly string[] = navigator.languages;
@@ -59,7 +59,7 @@ const subscribe = (listener: () => void) => appData.subscribe('settings', listen
 export function useSettings() {
   const settings = useSyncExternalStore(subscribe, appData.getSettings);
 
-  const update = useCallback(<K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+  const update = useCallback(<K extends keyof PublicSettings>(key: K, value: AppSettings[K] & PublicSettings[K]) => {
     void appData.updateSetting(key, value, () => window.tankobon.settings.set(key, value));
   }, []);
 

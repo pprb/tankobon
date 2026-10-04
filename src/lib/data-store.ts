@@ -8,7 +8,7 @@
 import type { DataChange, LibraryChange } from '@/shared/data-changes';
 import type { LibraryEntry } from '@/shared/library';
 import type { ReadingList } from '@/shared/reading-list';
-import { DEFAULT_SETTINGS, type AppSettings } from '@/shared/settings';
+import { DEFAULT_SETTINGS, toPublicSettings, type PublicSettings } from '@/shared/settings';
 
 /** The slices of the store, each with its own subscribers: a progress update doesn't wake the settings' readers. */
 export type DataSlice = 'library' | 'readingLists' | 'settings';
@@ -28,7 +28,7 @@ export interface DataSource {
   /** The settings. */
   settings: {
     /** Every setting. */
-    getAll(): Promise<AppSettings>;
+    getAll(): Promise<PublicSettings>;
   };
   /** The main process's change notifications. */
   data: {
@@ -72,7 +72,7 @@ export function applyLibraryChange(entries: LibraryEntry[], change: LibraryChang
 export class DataStore {
   private library: LibraryEntry[] | null = null;
   private readingLists: ReadingList[] | null = null;
-  private settings: AppSettings = DEFAULT_SETTINGS;
+  private settings: PublicSettings = toPublicSettings(DEFAULT_SETTINGS);
   private readonly listeners: Record<DataSlice, Set<() => void>> = {
     library: new Set(),
     readingLists: new Set(),
@@ -107,7 +107,7 @@ export class DataStore {
   /** The reading lists in the user's order; `null` until loaded. */
   getReadingLists = (): ReadingList[] | null => this.readingLists;
   /** The settings. */
-  getSettings = (): AppSettings => this.settings;
+  getSettings = (): PublicSettings => this.settings;
 
   /** Calls `listener` after each change of `slice`; returns the unsubscribe function. */
   subscribe(slice: DataSlice, listener: () => void): () => void {
@@ -197,9 +197,9 @@ export class DataStore {
   }
 
   /** Shows a setting's new value at once, then runs `persist`. */
-  async updateSetting<K extends keyof AppSettings>(
+  async updateSetting<K extends keyof PublicSettings>(
     key: K,
-    value: AppSettings[K],
+    value: PublicSettings[K],
     persist: () => Promise<unknown>,
   ): Promise<void> {
     this.settings = { ...this.settings, [key]: value };

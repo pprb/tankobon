@@ -4,7 +4,7 @@
  * @module
  */
 import type { LibraryEntry } from './library';
-import type { AppSettings } from './settings';
+import type { PublicSettings } from './settings';
 
 /**
  * The library changed. With `upserted` and/or `removed`, only those entries did (the new state of
@@ -24,10 +24,13 @@ export interface ReadingListsChange {
   scope: 'readingLists';
 }
 
-/** Settings changed: the `values` written, or, when absent, anything (a data import), so reload them all. */
+/**
+ * Settings changed: the `values` written, or, when absent, anything (a data import), so reload them all.
+ * The API keys are never part of it (see `PublicSettings`).
+ */
 export interface SettingsChange {
   scope: 'settings';
-  values?: Partial<AppSettings>;
+  values?: Partial<PublicSettings>;
 }
 
 /** The payload of a `data:changed` event, sent to the renderer after every database write. */

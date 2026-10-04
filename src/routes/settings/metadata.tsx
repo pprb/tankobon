@@ -1,9 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { SettingsSection } from '@/components/settings-section';
 import { useSettings } from '@/hooks/use-settings';
-import type { AppSettings } from '@/shared/settings';
+import type { ApiKeys, ApiKeySetting } from '@/shared/settings';
 
 export const Route = createFileRoute('/settings/metadata')({
   component: MetadataSettingsPage,
@@ -14,6 +15,23 @@ const KEY_INPUT_CLASS = 'w-full max-w-md rounded-md border bg-background px-3 py
 function MetadataSettingsPage() {
   const { t } = useTranslation('settings', { keyPrefix: 'metadata' });
   const { settings, update } = useSettings();
+  // The keys aren't part of the settings every view loads: this page asks for them on its own.
+  const [apiKeys, setApiKeys] = useState<ApiKeys | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void window.tankobon.settings.getApiKeys().then((keys) => {
+      if (!cancelled) setApiKeys(keys);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const updateApiKey = (key: ApiKeySetting, value: string) => {
+    setApiKeys((keys) => (keys ? { ...keys, [key]: value } : keys));
+    void window.tankobon.settings.set(key, value);
+  };
 
   return (
     <>
@@ -29,9 +47,10 @@ function MetadataSettingsPage() {
         <ApiKeyInput
           id="comic-vine-key"
           label={t('comicVineKey')}
-          value={settings.comicVineApiKey}
+          value={apiKeys?.comicVineApiKey ?? ''}
+          disabled={apiKeys === null}
           settingKey="comicVineApiKey"
-          update={update}
+          update={updateApiKey}
         />
         <p className="text-sm text-muted-foreground">{t('comicVineHint')}</p>
       </SettingsSection>
@@ -46,9 +65,10 @@ function MetadataSettingsPage() {
         <ApiKeyInput
           id="google-books-key"
           label={t('googleBooksKey')}
-          value={settings.googleBooksApiKey}
+          value={apiKeys?.googleBooksApiKey ?? ''}
+          disabled={apiKeys === null}
           settingKey="googleBooksApiKey"
-          update={update}
+          update={updateApiKey}
         />
         <p className="text-sm text-muted-foreground">{t('googleBooksHint')}</p>
       </SettingsSection>
@@ -81,14 +101,16 @@ function ApiKeyInput({
   id,
   label,
   value,
+  disabled,
   settingKey,
   update,
 }: {
   id: string;
   label: string;
   value: string;
-  settingKey: 'comicVineApiKey' | 'googleBooksApiKey';
-  update: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  disabled: boolean;
+  settingKey: ApiKeySetting;
+  update: (key: ApiKeySetting, value: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-1">
@@ -102,6 +124,7 @@ function ApiKeyInput({
         spellCheck={false}
         className={KEY_INPUT_CLASS}
         value={value}
+        disabled={disabled}
         onChange={(event) => update(settingKey, event.target.value.trim())}
       />
     </div>

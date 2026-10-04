@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { DataChange } from '@/shared/data-changes';
 import type { LibraryEntry } from '@/shared/library';
 import type { ReadingList } from '@/shared/reading-list';
-import { DEFAULT_SETTINGS } from '@/shared/settings';
+import { DEFAULT_SETTINGS, toPublicSettings } from '@/shared/settings';
 
 import { applyLibraryChange, DataStore, type DataSource } from './data-store';
 
@@ -76,7 +76,7 @@ function fakeSource(overrides: Partial<{ library: LibraryEntry[]; lists: Reading
   const source = {
     library: { list: vi.fn(async () => overrides.library ?? []) },
     readingLists: { list: vi.fn(async () => overrides.lists ?? []) },
-    settings: { getAll: vi.fn(async () => ({ ...DEFAULT_SETTINGS, pageSpacing: 7 })) },
+    settings: { getAll: vi.fn(async () => ({ ...toPublicSettings(DEFAULT_SETTINGS), pageSpacing: 7 })) },
     data: {
       onChanged: (l: (change: DataChange) => void) => {
         listener = l;

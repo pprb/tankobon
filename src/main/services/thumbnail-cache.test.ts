@@ -51,6 +51,15 @@ function fakeOpener(pages: Record<string, ComicPage[]>) {
 }
 
 describe('renderThumbnail', () => {
+  it('refuses an image declaring huge dimensions without decoding it', async () => {
+    const header = Buffer.alloc(33);
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(header);
+    header.write('IHDR', 12, 'ascii');
+    header.writeUInt32BE(30_000, 16);
+    header.writeUInt32BE(30_000, 20);
+    await expect(renderThumbnail(header)).rejects.toThrow('30000');
+  });
+
   it('fits a large page into the bounding box, keeping its aspect ratio', async () => {
     const [width, height] = await size(await renderThumbnail(await png(1200, 1800)));
     expect(width).toBe(THUMBNAIL_MAX_WIDTH);
@@ -165,6 +174,31 @@ describe('ThumbnailCache', () => {
     await cache.remove('/bd/a.cbz');
     expect(await cache.read('/bd/a.cbz')).toBeNull();
     await expect(cache.remove('/bd/a.cbz')).resolves.toBeUndefined();
+  });
+
+  it('leaves no thumbnail behind when the book is removed while it is being generated', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let opening!: () => void;
+    const started = new Promise<void>((resolve) => {
+      opening = resolve;
+    });
+    const { open } = fakeOpener({ '/bd/a.cbz': [cover] });
+    const cache = new ThumbnailCache(dir, async (filePath) => {
+      opening();
+      await gate;
+      return open(filePath);
+    });
+
+    const generation = cache.ensure('/bd/a.cbz');
+    await started;
+    const removal = cache.remove('/bd/a.cbz');
+    release();
+    await Promise.all([generation, removal]);
+
+    expect(await cache.read('/bd/a.cbz')).toBeNull();
   });
 
   it('prunes the thumbnails of books no longer in the library, and leftover files', async () => {
