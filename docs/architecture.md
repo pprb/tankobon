@@ -23,6 +23,8 @@ Channel-name constants (e.g. `COMIC_CHANNELS`, `LIBRARY_CHANNELS`) live in the m
 
 The shape of `window.tankobon` is declared up front as explicit interfaces (`TankobonApi`, then one per namespace: `ComicApi`, `LibraryApi`…), and the `api` object only implements them. The method descriptions live on those interfaces, once: TypeDoc renders them as the [API reference](./reference/api/preload/interfaces/TankobonApi.md), and `npm run docs:gen` reads the same comments for the IPC reference's description column. A new method needs its signature and TSDoc in the interface, then its implementation in `api`.
 
+Handlers that open a native file or folder dialog go through `openDialogFor()`/`saveDialogFor()` (`src/main/ipc/dialogs.ts`), which make it modal to the window that sent the request when it still exists.
+
 Everything is `invoke`/`handle` (request/response), except `library:scan-progress`, the one main → renderer push channel (see [Folder scanning](#folder-scanning)).
 
 The "À propos" section gets the app's version (`app.getVersion()`, main process only) and the runtime versions from `app:get-info`, as an `AppInfo` (`src/shared/app.ts`). Its links go through `app:open-link`, which takes a key of `APP_LINKS` (repository, documentation, releases, issues), never a URL: the main process only ever passes those fixed pages to `shell.openExternal`, so a compromised renderer can't make it open anything else.
@@ -88,6 +90,7 @@ One row per comic ever opened or scanned. Three writers, with deliberately diffe
 - **"Finished" is derived, never stored**: `isFinished()` (`src/lib/reading-list.ts`) is true once the last page was reached or the entry carries the `Lu` tag. A list's progress, its next book (`nextToRead()`) and the greyed-out rows are all computed in the renderer from the `library:list` entries, so they can't drift from the reading progress.
 - **Reordering rule**: finished books are pinned. `moveUnfinished()` only swaps unfinished books among the slots they occupy, each finished book keeping its index; the repository's `reorder()` only checks that the new order holds exactly the list's current entries (a stale order is refused rather than dropping or adding books).
 - **Deletions**: like credits, items are deleted explicitly (`LibraryRepository.remove()`, `ReadingListRepository.remove()`), since `PRAGMA foreign_keys` is off and the `ON DELETE CASCADE` doesn't apply. Removing a library entry leaves a gap in the positions, which is why `addEntry()` appends after `MAX(position)` rather than at the list's length.
+- **Loading lists with the library**: `useListsWithLibrary()` (`src/hooks/use-lists-with-library.ts`) is the one place that fetches `readingLists.list()` and `library.list()` together (the two list pages and the reader's next-book lookup). A response is dropped when the view unmounted, when its `reloadKey` changed or when a newer `reload()` started, so a slow answer never overwrites a fresher one.
 - **Next book in the reader**: the list pages open the reader with a `list` search param; `useNextInList()` then finds the list's first unfinished book other than the current one (whose progress may not be saved yet), shown on the last page. It shows nothing when the current book isn't in that list (another file opened from the reader).
 
 ### Settings (`settings-repository.ts`)
@@ -202,6 +205,8 @@ The whole library comes from a single `library:list` call and is filtered client
 Scanned files go through `register()`, never `touch()` (see the table above), and `hasPath()` lets the scanner skip known files without opening them. Each new file's cover thumbnail is cached while its archive is still open (see [Cover thumbnails](#cover-thumbnails)). New rows get `last_opened_at = added_at`, which puts a fresh batch at the top of the list.
 
 ### Reader (`src/routes/reader.tsx`)
+
+**Layout of the code.** The route (`reader.tsx`) only reads the search params, wires `useComic()`, `useReaderFullscreen()` and `useNextInList()`, and picks a reader. The pieces live in `src/components/reader/`: `SinglePageReader` and `ContinuousReader` (with `ContinuousPage`), and the parts both modes share (`ReaderHeader`, `ReadingProgress`, `FullscreenButton`, `NextInListButton`). Reader-specific hooks are in `src/hooks/` (`use-reader-fullscreen.ts`, `use-resume-scroll.ts`). The page-turning rules are pure and tested in `src/lib/reader-navigation.ts`: `directionalControls()` binds `advance`/`retreat` to next/previous page for the reading direction, and `disabledControls()` says which click zone has nowhere to go (`isPrevDisabled`/`isNextDisabled`).
 
 `AppSettings.readingMode` picks `SinglePageReader` or `ContinuousReader`. They are separate components, each owning its hooks, so switching modes mounts/unmounts cleanly instead of sharing refs and effects.
 

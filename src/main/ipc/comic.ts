@@ -1,4 +1,4 @@
-import { BrowserWindow, app, dialog, ipcMain } from 'electron';
+import { app, ipcMain } from 'electron';
 import { stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
@@ -8,6 +8,7 @@ import type { LibraryRepository } from '../db/library-repository';
 import { ComicService } from '../services/comic-service';
 import { openErrorMessage } from '../services/open-error';
 import type { ThumbnailCache } from '../services/thumbnail-cache';
+import { openDialogFor } from './dialogs';
 import { MAX_PATH_LENGTH, IpcArgumentError, expectInteger, expectNonEmptyString } from './validate';
 
 // Channel names are shared with preload.ts: keep them in sync.
@@ -53,10 +54,7 @@ export function registerComicIpc(libraryRepo: LibraryRepository, thumbnails: Thu
       filters: [{ name: t('dialogs:comicFiles'), extensions: [...SUPPORTED_COMIC_EXTENSIONS] }],
       defaultPath: await lastOpenedDirectory(libraryRepo),
     };
-    const window = BrowserWindow.fromWebContents(event.sender);
-    const { canceled, filePaths } = window
-      ? await dialog.showOpenDialog(window, options)
-      : await dialog.showOpenDialog(options);
+    const { canceled, filePaths } = await openDialogFor(event, options);
     lastPickedPath = canceled ? null : filePaths[0];
     return lastPickedPath;
   });
