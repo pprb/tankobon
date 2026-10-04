@@ -78,3 +78,42 @@ describe('migrate', () => {
     expect(db.prepare('SELECT value FROM settings').get()).toEqual({ value: '"dark"' });
   });
 });
+
+describe('versioned migrations', () => {
+  const userVersion = (db: DatabaseSync) => (db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version;
+  const indexNames = (db: DatabaseSync) =>
+    (db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%'").all() as { name: string }[]).map(
+      (i) => i.name,
+    );
+
+  it('stamps a fresh database with the latest version and its indexes', () => {
+    const db = new DatabaseSync(':memory:');
+    migrate(db);
+
+    expect(userVersion(db)).toBe(2);
+    expect(indexNames(db)).toEqual(['idx_credits_person_id']);
+  });
+
+  it('upgrades an installed, unversioned database without touching its rows', () => {
+    const db = new DatabaseSync(':memory:');
+    migrate(db);
+    db.exec("INSERT INTO settings VALUES ('theme', '\"dark\"')");
+    db.exec('DROP INDEX idx_credits_person_id; PRAGMA user_version = 0');
+
+    migrate(db);
+
+    expect(userVersion(db)).toBe(2);
+    expect(indexNames(db)).toEqual(['idx_credits_person_id']);
+    expect(db.prepare('SELECT value FROM settings').get()).toEqual({ value: '"dark"' });
+  });
+
+  it('leaves a database from a newer release alone', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('PRAGMA user_version = 99');
+
+    migrate(db);
+
+    expect(userVersion(db)).toBe(99);
+    expect(columnNames(db, 'library')).toEqual([]);
+  });
+});

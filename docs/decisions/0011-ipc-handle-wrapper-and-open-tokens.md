@@ -1,4 +1,4 @@
-# 0010. A mandatory `handle()` wrapper for IPC, and opaque tokens instead of paths
+# 0011. A mandatory `handle()` wrapper for IPC, and opaque tokens instead of paths
 
 - **Status:** Accepted
 - **Date:** 2026-10-04
