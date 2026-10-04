@@ -17,7 +17,7 @@ export class CbzArchive implements ComicArchive {
   // Reads still in flight. node-stream-zip closes its file descriptor immediately on
   // `close()`, and a read that's mid-way then fails with EBADF on an internal stream
   // whose error is never forwarded to the `entryData()` promise — it surfaces as an
-  // uncaught exception that takes the whole main process down. So `close()` waits for
+  // uncaught exception that takes the whole decoder process down. So `close()` waits for
   // these to settle first, and `readPage()` refuses to start once closing has begun.
   private readonly pendingReads = new Set<Promise<unknown>>();
   private closing = false;

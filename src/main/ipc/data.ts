@@ -5,6 +5,7 @@ import type { ClearLibraryResult, ExportResult, ImportResult } from '../../share
 import { t } from '../../shared/i18n';
 import { buildExport, exportFileName } from '../db/export-service';
 import { applyImport, parseExport } from '../db/import-service';
+import type { DecoderClient } from '../decoder/decoder-client';
 import type { LibraryRepository } from '../db/library-repository';
 import type { ReadingListRepository } from '../db/reading-list-repository';
 import type { SettingsRepository } from '../db/settings-repository';
@@ -13,7 +14,6 @@ import type { NotifyDataChange } from './data-changes';
 import { openDialogFor, saveDialogFor } from './dialogs';
 import { handle } from './handle';
 import { args } from './validate';
-import type { ThumbnailCache } from '../services/thumbnail-cache';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const DATA_CHANNELS = {
@@ -31,7 +31,7 @@ export function registerDataIpc(
   libraryRepo: LibraryRepository,
   settingsRepo: SettingsRepository,
   readingListRepo: ReadingListRepository,
-  thumbnails: ThumbnailCache,
+  decoder: DecoderClient,
   notify: NotifyDataChange,
 ): void {
   handle(DATA_CHANNELS.export, args(), async (event): Promise<ExportResult> => {
@@ -75,7 +75,7 @@ export function registerDataIpc(
       notify({ scope: 'settings' });
       // Thumbnails aren't part of an export: rebuild the cache in the background, without making
       // the import wait for every archive to be opened.
-      void thumbnails.rebuild(libraryRepo.list().map((entry) => entry.path));
+      void decoder.rebuildThumbnails(libraryRepo.list().map((entry) => entry.path)).catch(() => undefined);
       return { status: 'imported', filePath: filePaths[0], ...counts };
     } catch (error) {
       return { status: 'error', message: error instanceof Error ? error.message : String(error) };
@@ -89,7 +89,7 @@ export function registerDataIpc(
       notify({ scope: 'library' });
       notify({ scope: 'readingLists' });
       // Every thumbnail now belongs to a book that is no longer in the library.
-      await thumbnails.prune([]);
+      await decoder.pruneThumbnails([]);
       return { status: 'cleared', entries, readingLists };
     } catch (error) {
       return { status: 'error', message: t('errors:data.clearFailed', { message: errorMessage(error) }) };

@@ -1,4 +1,4 @@
-# 0012. One renderer data store, kept current by a `data:changed` push
+# 0013. One renderer data store, kept current by a `data:changed` push
 
 - **Status:** Accepted
 - **Date:** 2026-10-03

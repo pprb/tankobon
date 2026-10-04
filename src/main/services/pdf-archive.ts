@@ -21,7 +21,7 @@ globals.Path2D ??= Path2D;
 globals.ImageData ??= ImageData;
 globals.Image ??= Image;
 
-// Kept as a real npm dependency (not bundled by Vite — see vite.main.config.mts) so its
+// Kept as a real npm dependency (not bundled by Vite — see vite.decoder.config.mts) so its
 // `standard_fonts`/`cmaps` data directories and its `@napi-rs/canvas` native dependency are
 // resolved normally from node_modules at runtime, both in dev and once packaged.
 type PdfjsModule = typeof import('pdfjs-dist/legacy/build/pdf.mjs');
@@ -43,7 +43,7 @@ const RENDER_SCALE = 200 / 72;
 /**
  * Ceiling on a rendered page's pixel count (40 megapixels, ~160 MB of RGBA). A tiny PDF can
  * declare a page of thousands of points per side: unbounded, the canvas would take hundreds of
- * MB and seconds of the main process per page, and the continuous mode renders several at once.
+ * MB and seconds of the decoder process per page, and the continuous mode renders several at once.
  */
 export const MAX_PAGE_PIXELS = 40_000_000;
 
@@ -58,7 +58,7 @@ export function pageRenderScale(width: number, height: number): number {
 }
 
 // `require` (a plain CJS global here, not `createRequire(import.meta.url)`): Vite bundles this
-// module into main.cjs as CommonJS, where Rollup rewrites `import.meta.url` to `{}.url`
+// module into decoder-worker.cjs as CommonJS, where Rollup rewrites `import.meta.url` to `{}.url`
 // (`undefined`) — the same reason cbr-archive.ts reads its wasm file via `__dirname`, not a URL.
 //
 // pdf.js validates these two options with `val.endsWith('/')` and rejects anything else, so the

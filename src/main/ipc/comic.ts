@@ -1,4 +1,3 @@
-import { app } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
@@ -6,9 +5,8 @@ import { dirname } from 'node:path';
 import { SUPPORTED_COMIC_EXTENSIONS, type OpenComicResult } from '../../shared/comic';
 import { t } from '../../shared/i18n';
 import type { LibraryRepository } from '../db/library-repository';
-import { ComicService } from '../services/comic-service';
+import type { DecoderClient } from '../decoder/decoder-client';
 import { openErrorMessage } from '../services/open-error';
-import type { ThumbnailCache } from '../services/thumbnail-cache';
 import type { NotifyDataChange } from './data-changes';
 import { openDialogFor } from './dialogs';
 import { handle } from './handle';
@@ -43,10 +41,9 @@ async function lastOpenedDirectory(libraryRepo: LibraryRepository): Promise<stri
 
 export function registerComicIpc(
   libraryRepo: LibraryRepository,
-  thumbnails: ThumbnailCache,
+  decoder: DecoderClient,
   notify: NotifyDataChange,
 ): void {
-  const service = new ComicService();
   // The files the user picked in the open dialog, by the opaque token `comic:pick-file` returned.
   // With the library's books (by id), they are the only things `comic:open` accepts: the renderer
   // never names a path, so it can't have the main process read an arbitrary file.
@@ -75,14 +72,14 @@ export function registerComicIpc(
       return { status: 'error', message: t('errors:archive.unknownBook') };
     }
     try {
-      const comic = await service.open(filePath);
+      const comic = await decoder.open(filePath);
       const { size } = await stat(comic.path);
       const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
       // Opening bumps `lastOpenedAt` (and may refresh the title and page count).
       notify({ scope: 'library', upserted: [entry] });
       // In the background, from the archive just opened: opening the book must not wait for its cover.
       if (comic.pageCount > 0) {
-        void thumbnails.ensure(comic.path, () => service.readPage(comic.id, 0));
+        void decoder.thumbnail(comic.path, comic.id).catch(() => undefined);
       }
       // The library title wins over the file name: the user may have set one from a metadata lookup.
       return {
@@ -94,11 +91,7 @@ export function registerComicIpc(
     }
   });
 
-  handle(COMIC_CHANNELS.readPage, args(idArg, pageIndexArg), (_event, id, index) => service.readPage(id, index));
+  handle(COMIC_CHANNELS.readPage, args(idArg, pageIndexArg), (_event, id, index) => decoder.readPage(id, index));
 
-  handle(COMIC_CHANNELS.close, args(idArg), (_event, id) => service.close(id));
-
-  app.on('will-quit', () => {
-    void service.closeAll();
-  });
+  handle(COMIC_CHANNELS.close, args(idArg), (_event, id) => decoder.close(id));
 }
