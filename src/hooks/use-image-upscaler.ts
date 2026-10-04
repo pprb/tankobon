@@ -67,6 +67,9 @@ export function useImageUpscaler(src: string | null, enabled: boolean): ImageUps
     }
 
     let cancelled = false;
+    // Aborts the inference itself (not just the state update) when the page changes or the
+    // option is unchecked, so a stale page doesn't keep the CPU busy.
+    const controller = new AbortController();
     setUpscaledUrl(null);
     setIsUpscaling(true);
     setError(null);
@@ -75,7 +78,16 @@ export function useImageUpscaler(src: string | null, enabled: boolean): ImageUps
     image.src = src;
     Promise.all([image.decode(), getUpscaler()])
       // Tile the image so large comic pages don't blow up GPU/CPU memory in one pass.
-      .then(([, upscaler]) => upscaler.upscale(image, { patchSize: 64, padding: 4 }))
+      // TensorFlow.js runs on the renderer's main thread: `awaitNextFrame` makes it yield
+      // to the browser between patches, so the UI stays responsive instead of freezing.
+      .then(([, upscaler]) =>
+        upscaler.upscale(image, {
+          patchSize: 64,
+          padding: 4,
+          signal: controller.signal,
+          awaitNextFrame: true,
+        }),
+      )
       .then((dataUrl) => {
         if (cancelled) return;
         cachePut(src, dataUrl);
@@ -92,6 +104,7 @@ export function useImageUpscaler(src: string | null, enabled: boolean): ImageUps
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [src, enabled]);
 
