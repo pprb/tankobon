@@ -79,7 +79,7 @@ app.whenReady().then(() => {
   // Leftovers of another database (its location changed) or of a crash between two writes.
   void decoder.pruneThumbnails(libraryRepo.list().map((entry) => entry.path)).catch(() => undefined);
 
-  registerLibraryIpc(libraryRepo, decoder, broadcastDataChange);
+  registerLibraryIpc(libraryRepo, settingsRepo, decoder, broadcastDataChange);
   registerReadingListIpc(readingListRepo, broadcastDataChange);
   registerSettingsIpc(settingsRepo, broadcastDataChange);
   registerDataIpc(db, libraryRepo, settingsRepo, readingListRepo, decoder, broadcastDataChange);
