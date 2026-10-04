@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { FolderOpen, FolderTree, ListPlus, Pencil, ScanSearch, Search, Star, Trash2, X } from 'lucide-react';
+import { FolderOpen, FolderTree, GripVertical, ListPlus, Pencil, ScanSearch, Search, Star, Trash2, X } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -23,6 +23,7 @@ import {
 import { creditRoleLabel } from '@/lib/metadata-review';
 import { encodeDraggedEntry, LIBRARY_ENTRY_DRAG_TYPE, READ_TAG, tagLabel, TO_READ_TAG } from '@/lib/reading-list';
 import { cn, formatFileSize, formatLanguage } from '@/lib/utils';
+import { comicFormat } from '@/shared/comic';
 import { CREDIT_ROLES, type LibraryEntry, type ScanProgress } from '@/shared/library';
 import { formatPersonName } from '@/shared/title-parsing';
 
@@ -58,11 +59,14 @@ function LibraryPage() {
   // sending progress as soon as the directory is picked, which is before `addFolder()` resolves.
   useEffect(() => window.tankobon.library.onScanProgress(setScan), []);
 
+  // The bar stays on its final state once the scan is done, until the user closes it.
+  const scanning = scan !== null && scan.phase !== 'done';
+
   const addFolder = async () => {
     setScanStatus(null);
     const result = await window.tankobon.library.addFolder();
-    setScan(null);
     if (result.status === 'cancelled') {
+      setScan(null);
       return;
     }
     const parts = [t('scanAdded', { count: result.added, directory: result.directory })];
@@ -115,17 +119,17 @@ function LibraryPage() {
       <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
       <p className="text-muted-foreground">{t('intro')}</p>
       <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={addFile} disabled={scan !== null}>
+        <Button onClick={addFile} disabled={scanning}>
           <FolderOpen />
           {t('addFile')}
         </Button>
-        <Button variant="outline" onClick={addFolder} disabled={scan !== null}>
+        <Button variant="outline" onClick={addFolder} disabled={scanning}>
           <FolderTree />
           {t('addFolder')}
         </Button>
       </div>
 
-      {scan && <ScanProgressBar progress={scan} />}
+      {scan && <ScanProgressBar progress={scan} onClose={() => setScan(null)} />}
       {scanStatus && <p className="text-sm text-muted-foreground">{scanStatus}</p>}
 
       {entries.length > 0 && (
@@ -156,8 +160,8 @@ function LibraryPage() {
               className="absolute top-0 left-0 flex w-full flex-col gap-2 border-b px-3 py-3"
             >
               <div className="flex items-center gap-3">
-                {/* The cover and the text drag the book onto a reading list of the sidebar; the
-                    rest of the row (stars, buttons, tag field) keeps its own mouse handling. */}
+                {/* Only the grip drags the book onto a reading list of the sidebar; the rest of the
+                    row opens it. The whole row is the drag image, so the user sees what is carried. */}
                 <div
                   draggable
                   onDragStart={(event) => {
@@ -165,13 +169,27 @@ function LibraryPage() {
                     // 'move', like the app's other drags, so the OS shows the same pointer (not the
                     // copy one with a "+"), even though the book stays in the library.
                     event.dataTransfer.effectAllowed = 'move';
+                    const row = event.currentTarget.closest('li');
+                    if (row) event.dataTransfer.setDragImage(row, 0, 0);
                   }}
-                  className="flex min-w-0 flex-1 cursor-grab items-center gap-3 active:cursor-grabbing"
+                  className="-ml-1 shrink-0 cursor-grab rounded-sm py-2 text-muted-foreground/60 hover:bg-accent hover:text-foreground active:cursor-grabbing"
                   title={t('dragHint')}
+                  aria-label={t('dragHandle', { title: entry.title })}
+                >
+                  <GripVertical className="size-4" />
+                </div>
+                <div
+                  role="link"
+                  tabIndex={-1}
+                  onClick={() => navigate({ to: '/reader', search: { book: entry.id } })}
+                  className="flex min-w-0 flex-1 cursor-pointer items-center gap-3"
                 >
                   <button
                     type="button"
-                    onClick={() => navigate({ to: '/reader', search: { book: entry.id } })}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void navigate({ to: '/reader', search: { book: entry.id } });
+                    }}
                     title={t('common:open')}
                     aria-label={t('openNamed', { title: entry.title })}
                     className="shrink-0 rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -186,9 +204,10 @@ function LibraryPage() {
                     <p className="text-xs text-muted-foreground">
                       {[
                         t('common:pageOf', { page: entry.currentPage + 1, total: entry.pageCount }),
+                        comicFormat(entry.path),
                         t('fileCount', { count: entry.fileCount }),
                         formatFileSize(entry.fileSize),
-                      ].join(' · ')}
+                      ].filter(Boolean).join(' · ')}
                     </p>
                   </div>
                 </div>
@@ -351,9 +370,10 @@ function TagEditor({ entry, onToggle }: { entry: LibraryEntry; onToggle: (tag: s
   );
 }
 
-function ScanProgressBar({ progress }: { progress: ScanProgress }) {
+function ScanProgressBar({ progress, onClose }: { progress: ScanProgress; onClose: () => void }) {
   // The walk reports no total yet, so the bar stays empty until the first file is opened.
   const scanning = progress.phase === 'scanning';
+  const done = progress.phase === 'done';
   const { t } = useTranslation('library');
 
   return (
@@ -363,6 +383,11 @@ function ScanProgressBar({ progress }: { progress: ScanProgress }) {
         <span className="min-w-0 truncate text-xs text-muted-foreground" title={progress.currentFile}>
           {progress.currentFile}
         </span>
+        {done && (
+          <Button variant="ghost" size="icon" aria-label={t('scanClose')} title={t('scanClose')} onClick={onClose}>
+            <X />
+          </Button>
+        )}
       </div>
       <Progress value={progress.processed} max={progress.total} label={t('scanProgress')} />
     </div>

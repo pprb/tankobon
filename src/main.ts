@@ -82,7 +82,7 @@ app.whenReady().then(() => {
   void decoder.pruneThumbnails(libraryRepo.list().map((entry) => entry.path)).catch(() => undefined);
 
   const resynchronizer = createResynchronizer(libraryRepo, folderRepo, settingsRepo, decoder, broadcastDataChange);
-  registerLibraryIpc(libraryRepo, folderRepo, resynchronizer, decoder, broadcastDataChange);
+  registerLibraryIpc(libraryRepo, folderRepo, resynchronizer, settingsRepo, decoder, broadcastDataChange);
   registerReadingListIpc(readingListRepo, broadcastDataChange);
   registerSettingsIpc(settingsRepo, broadcastDataChange);
   registerDataIpc(db, libraryRepo, settingsRepo, readingListRepo, decoder, broadcastDataChange);

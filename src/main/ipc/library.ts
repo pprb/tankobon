@@ -7,7 +7,7 @@ import type { DecoderClient } from '../decoder/decoder-client';
 import { scanIntoLibrary } from '../services/library-scanner';
 import { resyncLibrary } from '../services/library-sync';
 import type { NotifyDataChange } from './data-changes';
-import { openDialogFor } from './dialogs';
+import { existingDirectory, openDialogFor } from './dialogs';
 import { handle } from './handle';
 import {
   MAX_PATH_LENGTH,
@@ -93,6 +93,7 @@ export function registerLibraryIpc(
   repo: LibraryRepository,
   folders: LibraryFolderRepository,
   resynchronizer: Resynchronizer,
+  settingsRepo: SettingsRepository,
   decoder: DecoderClient,
   notify: NotifyDataChange,
 ): void {
@@ -108,6 +109,8 @@ export function registerLibraryIpc(
     const options: Electron.OpenDialogOptions = {
       title: t('dialogs:addFolder'),
       properties: ['openDirectory'],
+      // Where the previous folder was added, when it is still there.
+      defaultPath: await existingDirectory(settingsRepo.getAll().lastScanFolder),
     };
     const { canceled, filePaths } = await openDialogFor(event, options);
     if (canceled || filePaths.length === 0) {
@@ -115,6 +118,8 @@ export function registerLibraryIpc(
     }
 
     const directory = filePaths[0];
+    settingsRepo.set('lastScanFolder', directory);
+    notify({ scope: 'settings', values: { lastScanFolder: directory } });
     const summary = await scanIntoLibrary(
       repo,
       directory,
