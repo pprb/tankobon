@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { FolderOpen, FolderTree, ListPlus, Pencil, ScanSearch, Search, Star, Trash2, X } from 'lucide-react';
+import { FolderOpen, FolderTree, GripVertical, ListPlus, Pencil, ScanSearch, Search, Star, Trash2, X } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -157,8 +157,8 @@ function LibraryPage() {
               className="absolute top-0 left-0 flex w-full flex-col gap-2 border-b px-3 py-3"
             >
               <div className="flex items-center gap-3">
-                {/* The cover and the text drag the book onto a reading list of the sidebar; the
-                    rest of the row (stars, buttons, tag field) keeps its own mouse handling. */}
+                {/* Only the grip drags the book onto a reading list of the sidebar; the rest of the
+                    row opens it. The whole row is the drag image, so the user sees what is carried. */}
                 <div
                   draggable
                   onDragStart={(event) => {
@@ -166,13 +166,27 @@ function LibraryPage() {
                     // 'move', like the app's other drags, so the OS shows the same pointer (not the
                     // copy one with a "+"), even though the book stays in the library.
                     event.dataTransfer.effectAllowed = 'move';
+                    const row = event.currentTarget.closest('li');
+                    if (row) event.dataTransfer.setDragImage(row, 0, 0);
                   }}
-                  className="flex min-w-0 flex-1 cursor-grab items-center gap-3 active:cursor-grabbing"
+                  className="-ml-1 shrink-0 cursor-grab rounded-sm py-2 text-muted-foreground/60 hover:bg-accent hover:text-foreground active:cursor-grabbing"
                   title={t('dragHint')}
+                  aria-label={t('dragHandle', { title: entry.title })}
+                >
+                  <GripVertical className="size-4" />
+                </div>
+                <div
+                  role="link"
+                  tabIndex={-1}
+                  onClick={() => navigate({ to: '/reader', search: { book: entry.id } })}
+                  className="flex min-w-0 flex-1 cursor-pointer items-center gap-3"
                 >
                   <button
                     type="button"
-                    onClick={() => navigate({ to: '/reader', search: { book: entry.id } })}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void navigate({ to: '/reader', search: { book: entry.id } });
+                    }}
                     title={t('common:open')}
                     aria-label={t('openNamed', { title: entry.title })}
                     className="shrink-0 rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"

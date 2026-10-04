@@ -16,6 +16,7 @@ export default {
   empty: 'No comics in the library yet.',
   noMatch: 'No comics match the search.',
   dragHint: 'Drag onto a reading list in the sidebar',
+  dragHandle: 'Drag “{{title}}” onto a reading list',
   openNamed: 'Open {{title}}',
   fileCount_one: '{{count}} file',
   fileCount_other: '{{count}} files',
