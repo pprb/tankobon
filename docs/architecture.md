@@ -216,6 +216,10 @@ See [ADR 0013](./decisions/0013-renderer-data-store-data-changed.md). `DataStore
 - **Optimistic writes**: `patchEntry()` (rating, tags) and `updateSetting()` change the store at once, then persist. While such a write is in flight its key is *pending* and the `data:changed` echo for it is ignored (the event reaches the renderer before the call's reply), so a slider being dragged is never moved back by an older value. Other writes (list changes, removals, metadata saves) simply wait for their event.
 - **Language**: the store knows nothing about i18n; `keepInterfaceLanguageInSync()` (`src/hooks/use-settings.ts`) subscribes to the settings slice and applies the `language` setting when it changes.
 
+### Confirmations
+
+Destructive actions are confirmed in an in-app modal, never with `window.confirm()` (a native window that ignores the app's theme and language). `useConfirm()` (`src/components/confirm-dialog.tsx`) returns `confirm({ title, message, action })`, which resolves `true` on confirmation and `false` on cancel, Escape or a click on the backdrop, and a `dialog` element to render once in the view; it is built on the shared `Dialog`. Used for removing a book from the library and deleting a reading list.
+
 ### Library search & filters (`src/lib/library-filter.ts`)
 
 The whole library is in the [data store](#renderer-data-store) and is filtered client-side, in memory; the target is 20 000 books or more, and moving the filters into SQL is the next step beyond that, not needed yet. The logic is pure (unit-tested under Vitest's `node` environment, no DOM):

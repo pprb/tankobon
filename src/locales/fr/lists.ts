@@ -13,6 +13,8 @@ const lists: Translation<typeof en> = {
   noLists: 'Aucune liste',
   deleteList: 'Supprimer la liste',
   deleteListNamed: 'Supprimer la liste {{name}}',
+  confirmDeleteTitle: 'Supprimer cette liste ?',
+  confirmDeleteAction: 'Supprimer',
   confirmDelete: 'Supprimer la liste « {{name}} » ? Les livres restent dans la bibliothèque.',
   upNext: 'À suivre : ',
   upNextShort: 'À suivre',

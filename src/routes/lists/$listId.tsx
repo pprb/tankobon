@@ -3,6 +3,7 @@ import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, Check, GripVertical, Pencil, T
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useConfirm } from '@/components/confirm-dialog';
 import { ReadingListProgress } from '@/components/reading-list-progress';
 import { Button } from '@/components/ui/button';
 import { useLibrary } from '@/hooks/use-library';
@@ -22,6 +23,7 @@ export const Route = createFileRoute('/lists/$listId')({
 function ReadingListPage() {
   const { listId } = Route.useParams();
   const { t } = useTranslation(['lists', 'common']);
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const navigate = useNavigate();
   const lists = useReadingLists();
   const library = useLibrary();
@@ -76,7 +78,12 @@ function ReadingListPage() {
   };
 
   const removeList = async () => {
-    if (!window.confirm(t('confirmDelete', { name: list.name }))) return;
+    const confirmed = await confirm({
+      title: t('confirmDeleteTitle'),
+      message: t('confirmDelete', { name: list.name }),
+      action: t('confirmDeleteAction'),
+    });
+    if (!confirmed) return;
     await window.tankobon.readingLists.remove(list.id);
     void navigate({ to: '/lists' });
   };
@@ -223,6 +230,7 @@ function ReadingListPage() {
           })}
         </ol>
       )}
+      {confirmDialog}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { AddToListDialog } from '@/components/add-to-list-dialog';
 import { BookCover } from '@/components/book-cover';
 import { BookEditDialog } from '@/components/book-edit-dialog';
+import { useConfirm } from '@/components/confirm-dialog';
 import { MetadataDialog } from '@/components/metadata-dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -41,6 +42,7 @@ const ESTIMATED_ROW_HEIGHT = 128;
 
 function LibraryPage() {
   const { t } = useTranslation(['library', 'common']);
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const navigate = useNavigate();
   const library = useLibrary();
   const entries = library ?? NO_ENTRIES;
@@ -85,7 +87,12 @@ function LibraryPage() {
 
   // The list drops the entry on the main process's `data:changed`.
   const remove = async (entry: LibraryEntry) => {
-    if (!window.confirm(t('confirmRemove', { title: entry.title }))) return;
+    const confirmed = await confirm({
+      title: t('confirmRemoveTitle'),
+      message: t('confirmRemove', { title: entry.title }),
+      action: t('confirmRemoveAction'),
+    });
+    if (!confirmed) return;
     await window.tankobon.library.remove(entry.id);
   };
 
@@ -270,6 +277,7 @@ function LibraryPage() {
       )}
       {editEntry && <BookEditDialog entry={editEntry} onClose={() => setEditEntry(null)} onSaved={replaceEntry} />}
       {listEntry && <AddToListDialog entry={listEntry} onClose={() => setListEntry(null)} />}
+      {confirmDialog}
     </div>
   );
 }

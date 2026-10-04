@@ -11,6 +11,8 @@ export default {
   noLists: 'No lists',
   deleteList: 'Delete list',
   deleteListNamed: 'Delete list {{name}}',
+  confirmDeleteTitle: 'Delete this list?',
+  confirmDeleteAction: 'Delete',
   confirmDelete: 'Delete the list “{{name}}”? The books stay in the library.',
   upNext: 'Up next: ',
   upNextShort: 'Up next',
