@@ -18,6 +18,7 @@ const library: Translation<typeof en> = {
   empty: 'Aucune BD dans la bibliothèque pour le moment.',
   noMatch: 'Aucune BD ne correspond à la recherche.',
   dragHint: 'Glisser vers une liste de lecture du panneau latéral',
+  dragHandle: 'Glisser « {{title}} » vers une liste de lecture',
   openNamed: 'Ouvrir {{title}}',
   fileCount_one: '{{count}} fichier',
   fileCount_other: '{{count}} fichiers',
