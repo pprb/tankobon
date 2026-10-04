@@ -1,6 +1,6 @@
-import { arrayOf, isId, isText, tuple } from '../../shared/validation';
 import type { ReadingListRepository } from '../db/reading-list-repository';
 import { handle } from './handle';
+import { args, expectString, expectStringArray, idArg } from './validate';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const READING_LIST_CHANNELS = {
@@ -14,24 +14,25 @@ export const READING_LIST_CHANNELS = {
   reorderLists: 'reading-lists:reorder-lists',
 } as const;
 
+const nameArg = (value: unknown) => expectString(value, 'name');
+const idsArg = (value: unknown) => expectStringArray(value, 'ids');
+
 export function registerReadingListIpc(repo: ReadingListRepository): void {
-  handle(READING_LIST_CHANNELS.list, tuple(), () => repo.list());
+  handle(READING_LIST_CHANNELS.list, args(), () => repo.list());
 
-  handle(READING_LIST_CHANNELS.create, tuple(isText), (_event, name) => repo.create(name));
+  handle(READING_LIST_CHANNELS.create, args(nameArg), (_event, name) => repo.create(name));
 
-  handle(READING_LIST_CHANNELS.rename, tuple(isId, isText), (_event, id, name) => repo.rename(id, name));
+  handle(READING_LIST_CHANNELS.rename, args(idArg, nameArg), (_event, id, name) => repo.rename(id, name));
 
-  handle(READING_LIST_CHANNELS.remove, tuple(isId), (_event, id) => repo.remove(id));
+  handle(READING_LIST_CHANNELS.remove, args(idArg), (_event, id) => repo.remove(id));
 
-  handle(READING_LIST_CHANNELS.addEntry, tuple(isId, isId), (_event, id, libraryId) => repo.addEntry(id, libraryId));
+  handle(READING_LIST_CHANNELS.addEntry, args(idArg, idArg), (_event, id, libraryId) => repo.addEntry(id, libraryId));
 
-  handle(READING_LIST_CHANNELS.removeEntry, tuple(isId, isId), (_event, id, libraryId) =>
+  handle(READING_LIST_CHANNELS.removeEntry, args(idArg, idArg), (_event, id, libraryId) =>
     repo.removeEntry(id, libraryId),
   );
 
-  handle(READING_LIST_CHANNELS.reorder, tuple(isId, arrayOf(isId)), (_event, id, entryIds) =>
-    repo.reorder(id, entryIds),
-  );
+  handle(READING_LIST_CHANNELS.reorder, args(idArg, idsArg), (_event, id, entryIds) => repo.reorder(id, entryIds));
 
-  handle(READING_LIST_CHANNELS.reorderLists, tuple(arrayOf(isId)), (_event, listIds) => repo.reorderLists(listIds));
+  handle(READING_LIST_CHANNELS.reorderLists, args(idsArg), (_event, listIds) => repo.reorderLists(listIds));
 }

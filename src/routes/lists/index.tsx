@@ -1,13 +1,13 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { BookOpen, Plus, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ReadingListProgress } from '@/components/reading-list-progress';
 import { Button } from '@/components/ui/button';
+import { useListsWithLibrary } from '@/hooks/use-lists-with-library';
 import { notifyReadingListsChanged, onReadingListsChanged } from '@/hooks/use-reading-lists';
 import { listEntries, listProgress, nextToRead } from '@/lib/reading-list';
-import type { LibraryEntry } from '@/shared/library';
 import { MAX_READING_LIST_SIZE, type ReadingList } from '@/shared/reading-list';
 
 export const Route = createFileRoute('/lists/')({
@@ -17,25 +17,13 @@ export const Route = createFileRoute('/lists/')({
 function ReadingListsPage() {
   const { t } = useTranslation('lists');
   const navigate = useNavigate();
-  const [lists, setLists] = useState<ReadingList[] | null>(null);
-  const [library, setLibrary] = useState<LibraryEntry[]>([]);
+  const { lists, library: loadedLibrary, reload } = useListsWithLibrary();
+  const library = loadedLibrary ?? [];
   const [newName, setNewName] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(() => {
-    void Promise.all([window.tankobon.readingLists.list(), window.tankobon.library.list()]).then(
-      ([fetchedLists, fetchedLibrary]) => {
-        setLists(fetchedLists);
-        setLibrary(fetchedLibrary);
-      },
-    );
-  }, []);
-
   // Also reloads when the lists change elsewhere, e.g. reordered from the sidebar.
-  useEffect(() => {
-    refresh();
-    return onReadingListsChanged(refresh);
-  }, [refresh]);
+  useEffect(() => onReadingListsChanged(reload), [reload]);
 
   const create = async () => {
     const result = await window.tankobon.readingLists.create(newName);

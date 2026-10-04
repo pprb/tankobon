@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js 22, 22.13 or later (see `.nvmrc`; CI uses Node 22 too): Electron Forge 8 requires it. `node:sqlite` is used by the tests, and runs unflagged on recent Node 22 releases.
+- Node.js 24 (see `.nvmrc`; every CI workflow uses Node 24 too). The app runs on the Node embedded in Electron (Electron 44 ships Node 24.x, see `node_version` in Electron's `DEPS`), and `node:sqlite`, which is still young, changes between Node releases: running the tests on the same major keeps them faithful to what the packaged app does. When bumping Electron, check its embedded Node major and keep `.nvmrc` and the `node-version` of the workflows in line. Electron Forge 8 needs Node 22.13 or later, which Node 24 satisfies.
 - npm (the repository ships a `package-lock.json`).
 
 ## Line endings
@@ -19,6 +19,7 @@ Every text file uses LF. `.editorconfig` tells editors so, and `.gitattributes` 
 | `npm run lint` | ESLint (flat config: `typescript-eslint`, `import-x`, `react-hooks`, `react-refresh`). |
 | `npm run typecheck` | `tsc --noEmit`. |
 | `npm test` | Vitest, once (`node` environment, no DOM). |
+| `npm run test:e2e` | Playwright smoke tests of the packaged app (run `npm run package` first; on a headless Linux, prefix with `xvfb-run`). See [Smoke tests](#smoke-tests-of-the-packaged-app). |
 | `npm run package` | `electron-forge package`: builds the app into `out/`. |
 | `npm run make` | `electron-forge make`: builds installers for the current platform (Squirrel, ZIP on macOS, deb, rpm). |
 | `npm run docs:gen` | Generates the database schema and IPC references, and checks the IPC channels of preload and main agree. |
@@ -54,6 +55,8 @@ A restart kills the app without going through `will-quit`, so the database isn't
 
 `.github/workflows/ci.yml` runs on every push to `master` and on every pull request, as independent parallel jobs: `lint`, `typecheck`, `test` and `docs` (`npm run docs:build`).
 
+`.github/workflows/e2e.yml` runs the [smoke tests](#smoke-tests-of-the-packaged-app) every night and on demand (`workflow_dispatch`), not on pull requests: it packages the app and drives it under xvfb.
+
 Four other workflows run on GitHub:
 
 - `.github/workflows/docs.yml` builds the documentation and publishes it to GitHub Pages on every push to `master`.
@@ -61,7 +64,23 @@ Four other workflows run on GitHub:
 - `.github/workflows/build.yml` builds the installers of a release tag (`npm run make`) and attaches them to its GitHub release: Squirrel (`.exe`) on Windows, ZIP on macOS (Apple silicon), `.deb` and `.rpm` on Linux. Each platform builds on its own runner, since only the native `@napi-rs/canvas` package of the machine that ran `npm ci` gets packaged (see [Build gotchas](./architecture.md#build-gotchas)). The job fails if the tag isn't `v` + `package.json`'s version. A tag created by release-please doesn't trigger workflows (it is pushed with the default `GITHUB_TOKEN`), so `release-please.yml` calls `build.yml` itself once it has created a release; the `push: tags` trigger covers a `v*` tag pushed by hand (the release is then created if missing), and `workflow_dispatch` rebuilds an existing tag.
 - `.github/workflows/pr-title.yml` checks that a pull request's title follows the [commit convention](https://github.com/pprb/tankobon/blob/master/CONTRIBUTING.md), since squash-merging turns it into the commit message on `master`.
 
+**Token permissions**: each workflow declares the least `GITHUB_TOKEN` permissions it needs. `ci.yml`, `pr-title.yml` and `build.yml` default to `contents: read` at the workflow level; `build.yml` grants `contents: write` to its `release` job only (it creates the release and uploads the installers), so the `make` jobs, which run `npm ci` and third-party scripts, hold a read-only token. `docs.yml` adds `pages: write` and `id-token: write` for the Pages deployment, and `release-please.yml` needs `contents: write` and `pull-requests: write` to maintain the release pull request. A new workflow or job should start from `contents: read` and add only what it uses.
+
 Dependabot (`.github/dependabot.yml`) opens one pull request a week, titled `ci(deps): bump …`, when the GitHub Actions used by these workflows have new versions.
+
+## Smoke tests of the packaged app
+
+Vitest runs in a `node` environment with no DOM, so the React components (the reader above all) are only covered through their pure helpers in `src/lib/`. `npm run test:e2e` completes that with a few [Playwright](https://playwright.dev) tests against the *packaged* app (`out/`, built by `npm run package`), which also catches what only breaks once packaged (see [Build gotchas](./architecture.md#build-gotchas)). They are not part of `npm test`: they need the package and a display, so on a headless Linux run `xvfb-run npm run test:e2e`.
+
+What they cover (`e2e/smoke.e2e.ts`): the app starts and `window.tankobon` exists; a CBZ opens from the library in single-page mode and its progress is saved; the continuous mode follows the scroll, saves the last page and resumes on the saved page without reporting page 1 over it; a book opened from a reading list offers the list's next book on its last page.
+
+How it works:
+
+- **Seeded user data**: each test starts the app on a throw-away `--user-data-dir`, whose database `e2e/app.ts` fills through the app's own `migrate()` and repositories (books, reading lists, settings), so no native file dialog is involved. The language is forced to English.
+- **Generated CBZ**: `e2e/cbz.ts` builds the test books on the fly (a few tall PNGs drawn with `@napi-rs/canvas`, in an uncompressed ZIP): no binary in the repository.
+- **CDP, not `_electron.launch()`**: Playwright's Electron launcher needs `--inspect`, which the packaged app refuses (the `EnableNodeCliInspectArguments` fuse is off, on purpose). The executable is started with Chromium's `--remote-debugging-port` and Playwright attaches over CDP (`chromium.connectOverCDP`), which leaves the fuses untouched. The cost: the main process can't be reached from the tests (no dialog stubbing), hence the seeding.
+- **A copy in an ASCII path**: `e2e/global-setup.ts` copies the package to a temporary directory first. On Linux the packaged app exits at once, silently, when it runs from `Tankōbon-linux-x64` (the "ō" is a decomposed character in the folder name); the same files start fine from an ASCII path, as in the deb's `/usr/lib/tankobon`.
+- **CI**: `.github/workflows/e2e.yml`, nightly and on demand, on Linux only (packaging takes a few minutes and a pull request doesn't need it). It uploads `test-results/` when it fails. The code of `e2e/app.ts` also handles the Windows and macOS executables, but only Linux has been run.
 
 ## Documentation
 

@@ -1,11 +1,12 @@
-import { BrowserWindow, app, dialog } from 'electron';
+import { app } from 'electron';
 
 import type { DatabaseLocation, DatabaseLocationResult } from '../../shared/data';
 import { t } from '../../shared/i18n';
-import { tuple } from '../../shared/validation';
 import { databaseLocation } from '../db/database';
 import { checkDirectoryUsable, writeLocationPointer } from '../db/db-location';
+import { openDialogFor } from './dialogs';
 import { handle } from './handle';
+import { args } from './validate';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const DATABASE_CHANNELS = {
@@ -22,18 +23,15 @@ export const DATABASE_CHANNELS = {
  * has to keep that database rather than overwrite it.
  */
 export function registerDatabaseIpc(): void {
-  handle(DATABASE_CHANNELS.getLocation, tuple(), (): DatabaseLocation => databaseLocation());
+  handle(DATABASE_CHANNELS.getLocation, args(), (): DatabaseLocation => databaseLocation());
 
-  handle(DATABASE_CHANNELS.chooseLocation, tuple(), async (event): Promise<DatabaseLocationResult> => {
-    const window = BrowserWindow.fromWebContents(event.sender);
+  handle(DATABASE_CHANNELS.chooseLocation, args(), async (event): Promise<DatabaseLocationResult> => {
     const options: Electron.OpenDialogOptions = {
       title: t('dialogs:chooseDatabaseFolder'),
       properties: ['openDirectory', 'createDirectory'],
       defaultPath: databaseLocation().directory,
     };
-    const { canceled, filePaths } = window
-      ? await dialog.showOpenDialog(window, options)
-      : await dialog.showOpenDialog(options);
+    const { canceled, filePaths } = await openDialogFor(event, options);
     if (canceled || filePaths.length === 0) {
       return { status: 'cancelled' };
     }
@@ -48,12 +46,12 @@ export function registerDatabaseIpc(): void {
     return { status: 'changed', location: databaseLocation() };
   });
 
-  handle(DATABASE_CHANNELS.resetLocation, tuple(), (): DatabaseLocation => {
+  handle(DATABASE_CHANNELS.resetLocation, args(), (): DatabaseLocation => {
     writeLocationPointer(app.getPath('userData'), null);
     return databaseLocation();
   });
 
-  handle(DATABASE_CHANNELS.relaunch, tuple(), () => {
+  handle(DATABASE_CHANNELS.relaunch, args(), () => {
     app.relaunch();
     // `quit` (not `exit`) so main.ts's `will-quit` still closes the database cleanly.
     app.quit();

@@ -1,15 +1,17 @@
-import { BrowserWindow, app, dialog } from 'electron';
-import { stat } from 'node:fs/promises';
+import { app } from 'electron';
 import { randomUUID } from 'node:crypto';
+import { stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-import { SUPPORTED_COMIC_EXTENSIONS } from '../../shared/comic';
+import { SUPPORTED_COMIC_EXTENSIONS, type OpenComicResult } from '../../shared/comic';
 import { t } from '../../shared/i18n';
-import { isId, isIndex, tuple } from '../../shared/validation';
 import type { LibraryRepository } from '../db/library-repository';
 import { ComicService } from '../services/comic-service';
+import { openErrorMessage } from '../services/open-error';
 import type { ThumbnailCache } from '../services/thumbnail-cache';
+import { openDialogFor } from './dialogs';
 import { handle } from './handle';
+import { args, idArg, pageIndexArg } from './validate';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const COMIC_CHANNELS = {
@@ -40,26 +42,19 @@ async function lastOpenedDirectory(libraryRepo: LibraryRepository): Promise<stri
 
 export function registerComicIpc(libraryRepo: LibraryRepository, thumbnails: ThumbnailCache): void {
   const service = new ComicService();
-  // Paths the user picked in the file dialog, by the opaque token `comic:pick-file` returned: the
-  // renderer never names a path, only a token or a library id (ADR 0009).
+  // The files the user picked in the open dialog, by the opaque token `comic:pick-file` returned.
+  // With the library's books (by id), they are the only things `comic:open` accepts: the renderer
+  // never names a path, so it can't have the main process read an arbitrary file.
   const pickedPaths = new Map<string, string>();
 
-  handle(COMIC_CHANNELS.pickFile, tuple(), async (event) => {
+  handle(COMIC_CHANNELS.pickFile, args(), async (event) => {
     const options: Electron.OpenDialogOptions = {
       title: t('dialogs:openComic'),
       properties: ['openFile'],
-      filters: [
-        {
-          name: t('dialogs:comicFiles'),
-          extensions: [...SUPPORTED_COMIC_EXTENSIONS],
-        },
-      ],
+      filters: [{ name: t('dialogs:comicFiles'), extensions: [...SUPPORTED_COMIC_EXTENSIONS] }],
       defaultPath: await lastOpenedDirectory(libraryRepo),
     };
-    const window = BrowserWindow.fromWebContents(event.sender);
-    const { canceled, filePaths } = window
-      ? await dialog.showOpenDialog(window, options)
-      : await dialog.showOpenDialog(options);
+    const { canceled, filePaths } = await openDialogFor(event, options);
     if (canceled || filePaths.length === 0) {
       return null;
     }
@@ -68,31 +63,33 @@ export function registerComicIpc(libraryRepo: LibraryRepository, thumbnails: Thu
     return token;
   });
 
-  handle(COMIC_CHANNELS.open, tuple(isId), async (_event, ref) => {
-    // A dialog token, else a library entry id: any other string is refused, never read as a path.
+  handle(COMIC_CHANNELS.open, args(idArg), async (_event, ref): Promise<OpenComicResult> => {
+    // A dialog token, else a library entry id; anything else is not a book we know.
     const filePath = pickedPaths.get(ref) ?? libraryRepo.get(ref)?.path;
     if (!filePath) {
-      throw new Error(t('errors:archive.unknownBook'));
+      return { status: 'error', message: t('errors:archive.unknownBook') };
     }
-    const comic = await service.open(filePath);
-    const { size } = await stat(comic.path);
-    const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
-    // In the background, from the archive just opened: opening the book must not wait for its cover.
-    if (comic.pageCount > 0) {
-      void thumbnails.ensure(comic.path, () => service.readPage(comic.id, 0));
+    try {
+      const comic = await service.open(filePath);
+      const { size } = await stat(comic.path);
+      const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
+      // In the background, from the archive just opened: opening the book must not wait for its cover.
+      if (comic.pageCount > 0) {
+        void thumbnails.ensure(comic.path, () => service.readPage(comic.id, 0));
+      }
+      // The library title wins over the file name: the user may have set one from a metadata lookup.
+      return {
+        status: 'ok',
+        comic: { ...comic, title: entry.title, libraryId: entry.id, resumePage: entry.currentPage },
+      };
+    } catch (error) {
+      return { status: 'error', message: openErrorMessage(error) };
     }
-    // The library title wins over the file name: the user may have set one from a metadata lookup.
-    return {
-      ...comic,
-      title: entry.title,
-      libraryId: entry.id,
-      resumePage: entry.currentPage,
-    };
   });
 
-  handle(COMIC_CHANNELS.readPage, tuple(isId, isIndex), (_event, id, index) => service.readPage(id, index));
+  handle(COMIC_CHANNELS.readPage, args(idArg, pageIndexArg), (_event, id, index) => service.readPage(id, index));
 
-  handle(COMIC_CHANNELS.close, tuple(isId), (_event, id) => service.close(id));
+  handle(COMIC_CHANNELS.close, args(idArg), (_event, id) => service.close(id));
 
   app.on('will-quit', () => {
     void service.closeAll();

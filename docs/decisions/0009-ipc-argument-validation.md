@@ -1,28 +1,26 @@
-# 0009. Validation of IPC arguments, and no filesystem paths from the renderer
+# 0009. IPC arguments validated in the main process
 
 - **Status:** Accepted
 - **Date:** 2026-10-03
 
 ## Context
 
-[ADR 0001](./0001-electron-process-isolation.md) keeps the renderer sandboxed and makes the preload the only bridge, but it says nothing about what crosses that bridge. Until now each `ipcMain.handle` callback trusted its arguments: the TypeScript signatures of `window.tankobon` are erased at runtime, so a compromised or simply buggy renderer could send a number where a string is expected, an unknown settings key, a malformed `MetadataUpdate`, or, with `comic:open`, any path on the disk (the main process would open it as an archive and register it in the library). With 30-odd channels, every new one was one more chance to forget a check.
+[ADR 0001](./0001-electron-process-isolation.md) isolates the renderer, but everything it sends over `window.tankobon` still reaches handlers that trusted the TypeScript types of `TankobonApi`. Types don't exist at run time: a buggy or compromised renderer could call `library.updateTags(id, null)` (stored as the string `"null"`, which then crashed the library page), `comic.open()` on any path of the disk, or `settings.set()` with any key and value. The JSON import had the same weakness for settings (`readingMode: "webtoon"`, `pageSpacing: -400` were accepted since only the `typeof` was checked). And `settings:get-all` handed the metadata API keys to every view.
 
 ## Decision
 
-- **Every handler goes through `handle(channel, validate, fn)`** (`src/main/ipc/handle.ts`), never through `ipcMain.handle` directly. `validate` checks the whole argument list; when it refuses it, the call is rejected with an error and `fn` never runs. `scripts/gen-reference.mjs` counts a channel as handled only through `handle()`.
-- **The validators are hand-written, pure and shared**, in `src/shared/validation.ts`: scalar guards (`isId`, `isIndex`, `isRating`, `isText`), `arrayOf()`, structured guards (`isMetadataUpdate`, `isMetadataQuery`, `isSettingValue`) and `tuple()`, which builds a handler's argument-list guard from one guard per argument (exact arity). Settings are checked against the key they are written under: the type of the default, and for the constrained ones a value the app understands (language, direction, `#rrggbb` colour…). The JSON import uses the same `isSettingValue()`.
-- **The renderer never names a filesystem path.** `comic:pick-file` returns an opaque token for the file the user picked in the native dialog (the main process remembers token → path); `comic:open` takes either such a token or a library entry id, and refuses anything else. The reader's `book` search param (previously `path`) carries one of those two.
+- **Every handler checks its arguments**, typed `unknown`, with the guards of `src/main/ipc/validate.ts` (`expectString`, `expectInteger`, `expectStringArray`, `expectMetadataUpdate`…) before touching a repository or the filesystem. A refused call rejects with an `IpcArgumentError`; it is a programming error or a hostile call, never shown to the user, so its message isn't translated. Errors the user can cause keep returning result-union values.
+- **Settings have one validator per key** (`SETTING_VALIDATORS`, `src/shared/settings.ts`), typed so that a new setting can't be added without one. `settings:set` and the JSON import's `toSettings()` both use it: unknown key, wrong type or out-of-range value (a `readerBackground` that isn't `#rrggbb`, a `pageSpacing` outside 0–1000) is refused, the import falling back to the default for that key.
+- **`comic:open` only opens known paths**: a path of the library, or the one `comic:pick-file` returned last. The renderer never opens a file by any other route (library rows, the reader's "open" button and the home page all go through one of the two).
+- **API keys have their own channel**: `settings:get-all` returns `PublicSettings` (no keys); the Métadonnées page loads them with `settings:get-api-keys` and writes them with `settings:set`. The main process still reads them directly for lookups and exports.
 
 ## Consequences
 
-- A new channel can't skip validation by omission: it is written with `handle()`, whose signature requires a guard, and its handler's arguments are typed from it. `tuple()` with no guard documents "no argument".
-- Validation is about shape and range, not about whether an id exists: an unknown id is still answered by the repository (`null`, a result error…) as before.
-- An invalid call is a bug or an attack, not a user-facing failure, so it rejects instead of returning a `{ status: 'error' }` member; those stay reserved for the failures a user can cause.
-- Opening a comic from the renderer is no longer possible for a file that is neither in the library nor just picked; there is no "open this path" call to forge. A token only lives as long as the main process.
-- Hand-written guards mean a bit of code per structured argument (`MetadataUpdate`), and `isMetadataUpdate()` must follow the type when a field is added; `validation.test.ts` covers the accepted and refused shapes.
+- A new IPC handler must validate its arguments the same way; reviewers should refuse a handler that types a parameter as anything but `unknown` before checking it.
+- The guards are pure and unit-tested (`validate.test.ts`, `settings.test.ts`).
+- This is defense in depth, not a boundary of its own: the keys are still in the renderer's memory while the Métadonnées page is open, and `comic:open` still accepts any file the user picked or imported into the library, whatever its content.
 
 ## Alternatives considered
 
-- **A schema library (zod…)**: declarative and infers types, but adds a dependency to both bundles for about a dozen shapes, and the project prefers pure helpers it can read in one file.
-- **Checking inside each handler**: what was there; nothing makes it happen for the next channel.
-- **Validating only the format of the path in `comic:open`** (absolute, supported extension): cheap, but still lets the renderer open any file with that extension.
+- **A schema library (zod…)** for every channel: heavier than the dozen shapes involved, and the guards double as TypeScript narrowing without a new dependency.
+- **Masking the keys in `getAll()` but keeping them writable only**: the page needs to show the current value, hence the dedicated read channel.

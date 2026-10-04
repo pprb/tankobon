@@ -25,6 +25,12 @@ export interface ComicInfo extends ArchiveInfo {
   resumePage: number;
 }
 
+/**
+ * What `comic:open` resolves to: the opened comic, or a message (in the interface language) saying
+ * why the file could not be opened (moved or deleted, unsupported, corrupted…).
+ */
+export type OpenComicResult = { status: 'ok'; comic: ComicInfo } | { status: 'error'; message: string };
+
 /** One page, as returned by `comic:read-page`. */
 export interface ComicPage {
   /** Raw image bytes. */

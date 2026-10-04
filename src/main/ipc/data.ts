@@ -1,18 +1,18 @@
-import { BrowserWindow, dialog } from 'electron';
 import { readFile, writeFile } from 'node:fs/promises';
 import type { DatabaseSync } from 'node:sqlite';
 
-import type { ClearLibraryResult, ImportResult } from '../../shared/data';
+import type { ClearLibraryResult, ExportResult, ImportResult } from '../../shared/data';
 import { t } from '../../shared/i18n';
-import { tuple } from '../../shared/validation';
 import { buildExport, exportFileName } from '../db/export-service';
 import { applyImport, parseExport } from '../db/import-service';
 import type { LibraryRepository } from '../db/library-repository';
 import type { ReadingListRepository } from '../db/reading-list-repository';
 import type { SettingsRepository } from '../db/settings-repository';
 import { applyMainLanguage } from '../language';
-import type { ThumbnailCache } from '../services/thumbnail-cache';
+import { openDialogFor, saveDialogFor } from './dialogs';
 import { handle } from './handle';
+import { args } from './validate';
+import type { ThumbnailCache } from '../services/thumbnail-cache';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const DATA_CHANNELS = {
@@ -21,6 +21,10 @@ export const DATA_CHANNELS = {
   clearLibrary: 'data:clear-library',
 } as const;
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function registerDataIpc(
   db: DatabaseSync,
   libraryRepo: LibraryRepository,
@@ -28,35 +32,33 @@ export function registerDataIpc(
   readingListRepo: ReadingListRepository,
   thumbnails: ThumbnailCache,
 ): void {
-  handle(DATA_CHANNELS.export, tuple(), async (event) => {
-    const window = BrowserWindow.fromWebContents(event.sender);
+  handle(DATA_CHANNELS.export, args(), async (event): Promise<ExportResult> => {
     const options: Electron.SaveDialogOptions = {
       title: t('dialogs:exportData'),
       defaultPath: exportFileName(new Date()),
       filters: [{ name: 'JSON', extensions: ['json'] }],
     };
-    const { canceled, filePath } = window
-      ? await dialog.showSaveDialog(window, options)
-      : await dialog.showSaveDialog(options);
+    const { canceled, filePath } = await saveDialogFor(event, options);
     if (canceled || !filePath) {
-      return null;
+      return { status: 'cancelled' };
     }
 
-    const data = buildExport(libraryRepo, settingsRepo, readingListRepo);
-    await writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
-    return filePath;
+    try {
+      const data = buildExport(libraryRepo, settingsRepo, readingListRepo);
+      await writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
+      return { status: 'exported', filePath };
+    } catch (error) {
+      return { status: 'error', message: t('errors:data.exportFailed', { message: errorMessage(error) }) };
+    }
   });
 
-  handle(DATA_CHANNELS.import, tuple(), async (event): Promise<ImportResult> => {
-    const window = BrowserWindow.fromWebContents(event.sender);
+  handle(DATA_CHANNELS.import, args(), async (event): Promise<ImportResult> => {
     const options: Electron.OpenDialogOptions = {
       title: t('dialogs:importData'),
       properties: ['openFile'],
       filters: [{ name: 'JSON', extensions: ['json'] }],
     };
-    const { canceled, filePaths } = window
-      ? await dialog.showOpenDialog(window, options)
-      : await dialog.showOpenDialog(options);
+    const { canceled, filePaths } = await openDialogFor(event, options);
     if (canceled || filePaths.length === 0) {
       return { status: 'cancelled' };
     }
@@ -71,18 +73,19 @@ export function registerDataIpc(
       void thumbnails.rebuild(libraryRepo.list().map((entry) => entry.path));
       return { status: 'imported', filePath: filePaths[0], ...counts };
     } catch (error) {
-      return {
-        status: 'error',
-        message: error instanceof Error ? error.message : String(error),
-      };
+      return { status: 'error', message: error instanceof Error ? error.message : String(error) };
     }
   });
 
-  handle(DATA_CHANNELS.clearLibrary, tuple(), async (): Promise<ClearLibraryResult> => {
-    const readingLists = readingListRepo.clear();
-    const entries = libraryRepo.clear();
-    // Every thumbnail now belongs to a book that is no longer in the library.
-    await thumbnails.prune([]);
-    return { entries, readingLists };
+  handle(DATA_CHANNELS.clearLibrary, args(), async (): Promise<ClearLibraryResult> => {
+    try {
+      const readingLists = readingListRepo.clear();
+      const entries = libraryRepo.clear();
+      // Every thumbnail now belongs to a book that is no longer in the library.
+      await thumbnails.prune([]);
+      return { status: 'cleared', entries, readingLists };
+    } catch (error) {
+      return { status: 'error', message: t('errors:data.clearFailed', { message: errorMessage(error) }) };
+    }
   });
 }

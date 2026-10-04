@@ -2,8 +2,9 @@
  * The next book of a reading list, for the reader's "next" button.
  * @module
  */
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 
+import { useListsWithLibrary } from '@/hooks/use-lists-with-library';
 import { listEntries, nextToRead } from '@/lib/reading-list';
 import type { LibraryEntry } from '@/shared/library';
 
@@ -22,28 +23,18 @@ export interface NextInList {
  * whenever the current book changes.
  */
 export function useNextInList(listId: string | undefined, libraryId: string | undefined): NextInList | null {
-  const [state, setState] = useState<{ key: string; value: NextInList | null } | null>(null);
-  const key = `${listId}:${libraryId}`;
+  // Keyed by the current book: data loaded for the previous one is never used for the new one.
+  const { lists, library } = useListsWithLibrary({
+    enabled: !!listId && !!libraryId,
+    reloadKey: `${listId}:${libraryId}`,
+  });
 
-  useEffect(() => {
-    if (!listId || !libraryId) return;
-    let cancelled = false;
-    void Promise.all([window.tankobon.readingLists.list(), window.tankobon.library.list()]).then(([lists, library]) => {
-      if (cancelled) return;
-      const list = lists.find((l) => l.id === listId);
-      setState({
-        key: `${listId}:${libraryId}`,
-        // Opening an unrelated file from the reader keeps the `list` param: no suggestion then.
-        value: list?.entryIds.includes(libraryId)
-          ? { listId, listName: list.name, next: nextToRead(listEntries(list, library), libraryId) }
-          : null,
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [listId, libraryId]);
-
-  // A result fetched for the previous book is never shown for the new one.
-  return state?.key === key ? state.value : null;
+  return useMemo(() => {
+    if (!listId || !libraryId || !lists || !library) return null;
+    const list = lists.find((l) => l.id === listId);
+    // Opening an unrelated file from the reader keeps the `list` param: no suggestion then.
+    return list?.entryIds.includes(libraryId)
+      ? { listId, listName: list.name, next: nextToRead(listEntries(list, library), libraryId) }
+      : null;
+  }, [listId, libraryId, lists, library]);
 }

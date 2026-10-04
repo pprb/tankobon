@@ -7,12 +7,18 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 import type { AppInfo, AppLink } from './shared/app';
-import type { ComicInfo, ComicPage } from './shared/comic';
-import type { ClearLibraryResult, DatabaseLocation, DatabaseLocationResult, ImportResult } from './shared/data';
+import type { ComicPage, OpenComicResult } from './shared/comic';
+import type {
+  ClearLibraryResult,
+  DatabaseLocation,
+  DatabaseLocationResult,
+  ExportResult,
+  ImportResult,
+} from './shared/data';
 import type { LibraryEntry, MetadataUpdate, ScanProgress, ScanResult } from './shared/library';
 import type { MetadataPageResult, MetadataQuery, MetadataSearchResult } from './shared/metadata';
 import type { ReadingList, ReadingListOrderResult, ReadingListResult } from './shared/reading-list';
-import type { AppSettings } from './shared/settings';
+import type { ApiKeys, AppSettings, PublicSettings } from './shared/settings';
 
 /** The app itself (versions, OS languages, project links), as `window.tankobon.app`. */
 export interface AppApi {
@@ -28,8 +34,11 @@ export interface AppApi {
 export interface ComicApi {
   /** Opens a native file picker; resolves to an opaque token for the chosen file (to pass to `open`), or null if cancelled. The renderer never learns the path. */
   pickFile(): Promise<string | null>;
-  /** Opens a comic and registers it in the library (or refreshes its entry); resolves with its saved page. `ref` is a library entry id or a token from `pickFile`, never a path; rejects for anything else. */
-  open(ref: string): Promise<ComicInfo>;
+  /** Opens a comic and registers it in the library (or refreshes its entry); resolves with its saved page.
+   * `ref` is a library entry id or a token from `pickFile`, never a path. A file that can't be opened (moved, deleted, corrupted, unsupported) resolves to an error result
+   * with a message in the interface language, rather than rejecting.
+   */
+  open(ref: string): Promise<OpenComicResult>;
   /** Reads one page (0-based) of a comic opened with `open`, as image bytes. */
   readPage(id: string, index: number): Promise<ComicPage>;
   /** Closes a comic opened with `open`, releasing its archive in the main process. */
@@ -88,19 +97,21 @@ export interface MetadataApi {
 
 /** The user's settings, as `window.tankobon.settings`. */
 export interface SettingsApi {
-  /** Every setting, with defaults for the ones never stored. */
-  getAll(): Promise<AppSettings>;
-  /** Stores one setting. */
+  /** Every setting except the API keys, with defaults for the ones never stored. */
+  getAll(): Promise<PublicSettings>;
+  /** The metadata sources' API keys, kept out of `getAll()` so only the page that edits them loads them. */
+  getApiKeys(): Promise<ApiKeys>;
+  /** Stores one setting; the main process refuses an unknown key or a value its validator rejects. */
   set<K extends keyof AppSettings>(key: K, value: AppSettings[K]): Promise<void>;
 }
 
 /** JSON export and import of the library and settings, and clearing the library, as `window.tankobon.data`. */
 export interface DataApi {
-  /** Opens a native save dialog and writes a JSON export there; resolves to the chosen path, or null if cancelled. */
-  export(): Promise<string | null>;
+  /** Opens a native save dialog and writes a JSON export there; an error (full or read-only disk…) comes back as a result, not a rejection. */
+  export(): Promise<ExportResult>;
   /** Opens a native file picker and merges the chosen JSON export into the local database. */
   import(): Promise<ImportResult>;
-  /** Empties the library (entries, credits, people) and deletes every reading list and cover thumbnail; the comic files and the settings are left untouched. */
+  /** Empties the library (entries, credits, people) and deletes every reading list and cover thumbnail; the comic files and the settings are left untouched. A failure comes back as an error result. */
   clearLibrary(): Promise<ClearLibraryResult>;
 }
 
@@ -150,7 +161,7 @@ const api: TankobonApi = {
   },
   comic: {
     pickFile: () => ipcRenderer.invoke('comic:pick-file'),
-    open: (ref) => ipcRenderer.invoke('comic:open', ref),
+    open: (filePath) => ipcRenderer.invoke('comic:open', filePath),
     readPage: (id, index) => ipcRenderer.invoke('comic:read-page', id, index),
     close: (id) => ipcRenderer.invoke('comic:close', id),
   },
@@ -183,6 +194,7 @@ const api: TankobonApi = {
   },
   settings: {
     getAll: () => ipcRenderer.invoke('settings:get-all'),
+    getApiKeys: () => ipcRenderer.invoke('settings:get-api-keys'),
     set: (key, value) => ipcRenderer.invoke('settings:set', key, value),
   },
   data: {

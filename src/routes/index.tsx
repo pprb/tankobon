@@ -76,8 +76,9 @@ function LibraryPage() {
     }
   };
 
-  const remove = async (id: string) => {
-    await window.tankobon.library.remove(id);
+  const remove = async (entry: LibraryEntry) => {
+    if (!window.confirm(t('confirmRemove', { title: entry.title }))) return;
+    await window.tankobon.library.remove(entry.id);
     refresh();
   };
 
@@ -207,7 +208,7 @@ function LibraryPage() {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  onClick={() => remove(entry.id)}
+                  onClick={() => remove(entry)}
                   title={t('remove')}
                   aria-label={t('remove')}
                 >

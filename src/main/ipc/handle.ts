@@ -1,21 +1,21 @@
 /**
- * The one way to register an IPC handler: the arguments are validated before the handler runs.
+ * The one way to register an IPC handler: the arguments are parsed before the handler runs.
  * See ADR 0009.
  * @module
  */
 import { ipcMain, type IpcMainInvokeEvent } from 'electron';
 
-import { validated, type ArgsGuard } from './validated';
+import type { ArgsParser } from './validate';
 
 /**
- * `ipcMain.handle()` with argument validation: every handler of `src/main/ipc/` goes through it, so
- * nothing the renderer sends reaches a repository, the filesystem or the network unchecked. An
- * invalid call rejects with an error; the handler's own, user-facing failures stay result unions.
+ * `ipcMain.handle()` that cannot be written without argument validation: `parse` (built with
+ * `args()` from the guards of `validate.ts`) turns the raw arguments into the typed ones `fn`
+ * receives, or throws an `IpcArgumentError` and the call is rejected without `fn` running.
  */
 export function handle<A extends unknown[], R>(
   channel: string,
-  validate: ArgsGuard<A>,
+  parse: ArgsParser<A>,
   fn: (event: IpcMainInvokeEvent, ...args: A) => R,
 ): void {
-  ipcMain.handle(channel, validated(channel, validate, fn));
+  ipcMain.handle(channel, (event, ...raw: unknown[]) => fn(event, ...parse(raw)));
 }

@@ -12,12 +12,15 @@ export default {
     extractFailed: 'Could not extract the page: {{entry}}',
     closed: 'Archive closed: {{path}}',
     entryTooLarge: 'Page too large to be read: {{entry}}',
-  },
-  ipc: {
-    invalidArguments: 'Invalid arguments for {{channel}}.',
+    fileNotFound: 'File not found: it has been moved or deleted.',
+    openFailed: 'Unable to open this file: {{message}}',
   },
   database: {
     notWritable: 'Cannot write to {{directory}}.',
+  },
+  data: {
+    exportFailed: 'Could not write the export: {{message}}',
+    clearFailed: 'Could not clear the library: {{message}}',
   },
   import: {
     notJson: 'Unreadable file: this is not valid JSON.',
