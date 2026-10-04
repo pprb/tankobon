@@ -3,6 +3,7 @@ import { BookOpen, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useConfirm } from '@/components/confirm-dialog';
 import { ReadingListProgress } from '@/components/reading-list-progress';
 import { Button } from '@/components/ui/button';
 import { useLibrary } from '@/hooks/use-library';
@@ -16,6 +17,7 @@ export const Route = createFileRoute('/lists/')({
 
 function ReadingListsPage() {
   const { t } = useTranslation('lists');
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const navigate = useNavigate();
   const lists = useReadingLists();
   const library = useLibrary();
@@ -33,7 +35,12 @@ function ReadingListsPage() {
   };
 
   const remove = async (list: ReadingList) => {
-    if (!window.confirm(t('confirmDelete', { name: list.name }))) return;
+    const confirmed = await confirm({
+      title: t('confirmDeleteTitle'),
+      message: t('confirmDelete', { name: list.name }),
+      action: t('confirmDeleteAction'),
+    });
+    if (!confirmed) return;
     await window.tankobon.readingLists.remove(list.id);
   };
 
@@ -115,6 +122,7 @@ function ReadingListsPage() {
           })}
         </ul>
       )}
+      {confirmDialog}
     </div>
   );
 }
