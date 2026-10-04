@@ -23,6 +23,7 @@ import {
 import { creditRoleLabel } from '@/lib/metadata-review';
 import { encodeDraggedEntry, LIBRARY_ENTRY_DRAG_TYPE, READ_TAG, tagLabel, TO_READ_TAG } from '@/lib/reading-list';
 import { cn, formatFileSize, formatLanguage } from '@/lib/utils';
+import { comicFormat } from '@/shared/comic';
 import { CREDIT_ROLES, type LibraryEntry, type ScanProgress } from '@/shared/library';
 import { formatPersonName } from '@/shared/title-parsing';
 
@@ -189,9 +190,10 @@ function LibraryPage() {
                     <p className="text-xs text-muted-foreground">
                       {[
                         t('common:pageOf', { page: entry.currentPage + 1, total: entry.pageCount }),
+                        comicFormat(entry.path),
                         t('fileCount', { count: entry.fileCount }),
                         formatFileSize(entry.fileSize),
-                      ].join(' · ')}
+                      ].filter(Boolean).join(' · ')}
                     </p>
                   </div>
                 </div>
