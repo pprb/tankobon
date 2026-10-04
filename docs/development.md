@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js 22, 22.13 or later (see `.nvmrc`; CI uses Node 22 too): Electron Forge 8 requires it. `node:sqlite` is used by the tests, and runs unflagged on recent Node 22 releases.
+- Node.js 24 (see `.nvmrc`; every CI workflow uses Node 24 too). The app runs on the Node embedded in Electron (Electron 44 ships Node 24.x, see `node_version` in Electron's `DEPS`), and `node:sqlite`, which is still young, changes between Node releases: running the tests on the same major keeps them faithful to what the packaged app does. When bumping Electron, check its embedded Node major and keep `.nvmrc` and the `node-version` of the workflows in line. Electron Forge 8 needs Node 22.13 or later, which Node 24 satisfies.
 - npm (the repository ships a `package-lock.json`).
 
 ## Line endings
