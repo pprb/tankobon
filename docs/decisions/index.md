@@ -16,6 +16,7 @@ An ADR records one structural decision: the context, what was decided, and what 
 | [0010](./0010-versioned-migrations.md) | Schema migrations versioned with `PRAGMA user_version` | Accepted |
 | [0011](./0011-ipc-handle-wrapper-and-open-tokens.md) | A mandatory `handle()` wrapper for IPC, and opaque tokens instead of paths | Accepted |
 | [0012](./0012-decoder-utility-process.md) | Comic files decoded in a utility process, not in the main process | Accepted |
+| [0013](./0013-renderer-data-store-data-changed.md) | One renderer data store, kept current by a `data:changed` push | Accepted |
 
 These first four ADRs were written after the fact, from the code and its comments, then checked by the maintainer.
 

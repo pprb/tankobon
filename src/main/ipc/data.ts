@@ -10,6 +10,7 @@ import type { LibraryRepository } from '../db/library-repository';
 import type { ReadingListRepository } from '../db/reading-list-repository';
 import type { SettingsRepository } from '../db/settings-repository';
 import { applyMainLanguage } from '../language';
+import type { NotifyDataChange } from './data-changes';
 import { openDialogFor, saveDialogFor } from './dialogs';
 import { handle } from './handle';
 import { args } from './validate';
@@ -31,6 +32,7 @@ export function registerDataIpc(
   settingsRepo: SettingsRepository,
   readingListRepo: ReadingListRepository,
   decoder: DecoderClient,
+  notify: NotifyDataChange,
 ): void {
   handle(DATA_CHANNELS.export, args(), async (event): Promise<ExportResult> => {
     const options: Electron.SaveDialogOptions = {
@@ -68,6 +70,9 @@ export function registerDataIpc(
       const counts = applyImport(db, libraryRepo, settingsRepo, readingListRepo, data);
       // The settings were replaced, the language with them.
       applyMainLanguage(settingsRepo.getAll().language);
+      notify({ scope: 'library' });
+      notify({ scope: 'readingLists' });
+      notify({ scope: 'settings' });
       // Thumbnails aren't part of an export: rebuild the cache in the background, without making
       // the import wait for every archive to be opened.
       void decoder.rebuildThumbnails(libraryRepo.list().map((entry) => entry.path)).catch(() => undefined);
@@ -81,6 +86,8 @@ export function registerDataIpc(
     try {
       const readingLists = readingListRepo.clear();
       const entries = libraryRepo.clear();
+      notify({ scope: 'library' });
+      notify({ scope: 'readingLists' });
       // Every thumbnail now belongs to a book that is no longer in the library.
       await decoder.pruneThumbnails([]);
       return { status: 'cleared', entries, readingLists };

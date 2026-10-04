@@ -1,6 +1,7 @@
-import { isSettingKey, isValidSetting, pickApiKeys, toPublicSettings } from '../../shared/settings';
+import { isApiKeySetting, isSettingKey, isValidSetting, pickApiKeys, toPublicSettings } from '../../shared/settings';
 import type { SettingsRepository } from '../db/settings-repository';
 import { applyMainLanguage } from '../language';
+import type { NotifyDataChange } from './data-changes';
 import { handle } from './handle';
 import { IpcArgumentError, args } from './validate';
 
@@ -18,7 +19,7 @@ function keyArg(key: unknown) {
   return key;
 }
 
-export function registerSettingsIpc(repo: SettingsRepository): void {
+export function registerSettingsIpc(repo: SettingsRepository, notify: NotifyDataChange): void {
   // The API keys only go to the Métadonnées page, through their own channel.
   handle(SETTINGS_CHANNELS.getAll, args(), () => toPublicSettings(repo.getAll()));
 
@@ -34,6 +35,8 @@ export function registerSettingsIpc(repo: SettingsRepository): void {
       }
       repo.set(key, value);
       if (key === 'language') applyMainLanguage(String(value));
+      // The API keys never reach the store: nothing public changed.
+      if (!isApiKeySetting(key)) notify({ scope: 'settings', values: { [key]: value } });
     },
   );
 }

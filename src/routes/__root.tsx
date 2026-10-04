@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { useFullscreen } from '@/hooks/use-fullscreen';
-import { notifyReadingListsChanged, useReadingLists } from '@/hooks/use-reading-lists';
+import { useReadingLists } from '@/hooks/use-reading-lists';
 import { useSettings } from '@/hooks/use-settings';
 import {
   decodeDraggedEntry,
@@ -181,7 +181,6 @@ function ReadingListsNav({ collapsed }: { collapsed: boolean }) {
     const entry = decodeDraggedEntry(data);
     if (!entry) return;
     setFeedback(dropFeedback(list, entry, await window.tankobon.readingLists.addEntry(list.id, entry.id)));
-    notifyReadingListsChanged();
   };
 
   const drop = async (to: number) => {
@@ -191,7 +190,6 @@ function ReadingListsNav({ collapsed }: { collapsed: boolean }) {
     if (!order) return;
     // A refused (stale) order needs no message: reloading shows the lists as they are.
     await window.tankobon.readingLists.reorderLists(order);
-    notifyReadingListsChanged();
   };
 
   return (

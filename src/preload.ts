@@ -8,6 +8,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 import type { AppInfo, AppLink } from './shared/app';
 import type { ComicPage, OpenComicResult } from './shared/comic';
+import type { DataChange } from './shared/data-changes';
 import type {
   ClearLibraryResult,
   DatabaseLocation,
@@ -113,6 +114,8 @@ export interface DataApi {
   import(): Promise<ImportResult>;
   /** Empties the library (entries, credits, people) and deletes every reading list and cover thumbnail; the comic files and the settings are left untouched. A failure comes back as an error result. */
   clearLibrary(): Promise<ClearLibraryResult>;
+  /** Subscribes to the main process's `data:changed` push, sent after every database write (library, reading lists, settings); returns the unsubscribe function. */
+  onChanged(listener: (change: DataChange) => void): () => void;
 }
 
 /** Where the database file lives, as `window.tankobon.database`. */
@@ -201,6 +204,13 @@ const api: TankobonApi = {
     export: () => ipcRenderer.invoke('data:export'),
     import: () => ipcRenderer.invoke('data:import'),
     clearLibrary: () => ipcRenderer.invoke('data:clear-library'),
+    onChanged: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, change: DataChange) => listener(change);
+      ipcRenderer.on('data:changed', handler);
+      return () => {
+        ipcRenderer.removeListener('data:changed', handler);
+      };
+    },
   },
   database: {
     getLocation: () => ipcRenderer.invoke('database:get-location'),

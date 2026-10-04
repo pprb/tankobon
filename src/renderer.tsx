@@ -5,7 +5,8 @@ import { createRoot } from 'react-dom/client';
 import { RouterProvider, createRouter, createMemoryHistory } from '@tanstack/react-router';
 import { I18nextProvider } from 'react-i18next';
 
-import { applyInterfaceLanguage, loadSystemLanguages } from './hooks/use-settings';
+import { applyInterfaceLanguage, keepInterfaceLanguageInSync, loadSystemLanguages } from './hooks/use-settings';
+import { appData } from './lib/app-data';
 import './index.css';
 import { routeTree } from './routeTree.gen';
 import { i18n } from './shared/i18n';
@@ -47,7 +48,11 @@ const render = () =>
   );
 
 // The language is applied before the first render, so the UI never shows up in another one first.
-Promise.all([window.tankobon.settings.getAll(), loadSystemLanguages()])
-  .then(([settings]) => applyInterfaceLanguage(settings.language))
+appData.start();
+Promise.all([appData.ready, loadSystemLanguages()])
+  .then(() => applyInterfaceLanguage(appData.getSettings().language))
   .catch(() => applyInterfaceLanguage('system'))
-  .finally(render);
+  .finally(() => {
+    keepInterfaceLanguageInSync();
+    render();
+  });

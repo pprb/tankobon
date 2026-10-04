@@ -8,6 +8,7 @@ import { openDatabase } from './main/db/database';
 import { LibraryRepository } from './main/db/library-repository';
 import { ReadingListRepository } from './main/db/reading-list-repository';
 import { SettingsRepository } from './main/db/settings-repository';
+import { broadcastDataChange } from './main/ipc/data-changes';
 import { registerAppIpc } from './main/ipc/app';
 import { registerComicIpc } from './main/ipc/comic';
 import { registerDatabaseIpc } from './main/ipc/database';
@@ -78,11 +79,11 @@ app.whenReady().then(() => {
   // Leftovers of another database (its location changed) or of a crash between two writes.
   void decoder.pruneThumbnails(libraryRepo.list().map((entry) => entry.path)).catch(() => undefined);
 
-  registerLibraryIpc(libraryRepo, decoder);
-  registerReadingListIpc(readingListRepo);
-  registerSettingsIpc(settingsRepo);
-  registerDataIpc(db, libraryRepo, settingsRepo, readingListRepo, decoder);
-  registerComicIpc(libraryRepo, decoder);
+  registerLibraryIpc(libraryRepo, decoder, broadcastDataChange);
+  registerReadingListIpc(readingListRepo, broadcastDataChange);
+  registerSettingsIpc(settingsRepo, broadcastDataChange);
+  registerDataIpc(db, libraryRepo, settingsRepo, readingListRepo, decoder, broadcastDataChange);
+  registerComicIpc(libraryRepo, decoder, broadcastDataChange);
   registerDatabaseIpc();
   registerMetadataIpc(settingsRepo);
   registerAppIpc();

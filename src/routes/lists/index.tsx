@@ -1,12 +1,12 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { BookOpen, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ReadingListProgress } from '@/components/reading-list-progress';
 import { Button } from '@/components/ui/button';
-import { useListsWithLibrary } from '@/hooks/use-lists-with-library';
-import { notifyReadingListsChanged, onReadingListsChanged } from '@/hooks/use-reading-lists';
+import { useLibrary } from '@/hooks/use-library';
+import { useReadingLists } from '@/hooks/use-reading-lists';
 import { listEntries, listProgress, nextToRead } from '@/lib/reading-list';
 import { MAX_READING_LIST_SIZE, type ReadingList } from '@/shared/reading-list';
 
@@ -17,13 +17,10 @@ export const Route = createFileRoute('/lists/')({
 function ReadingListsPage() {
   const { t } = useTranslation('lists');
   const navigate = useNavigate();
-  const { lists, library: loadedLibrary, reload } = useListsWithLibrary();
-  const library = loadedLibrary ?? [];
+  const lists = useReadingLists();
+  const library = useLibrary();
   const [newName, setNewName] = useState('');
   const [error, setError] = useState<string | null>(null);
-
-  // Also reloads when the lists change elsewhere, e.g. reordered from the sidebar.
-  useEffect(() => onReadingListsChanged(reload), [reload]);
 
   const create = async () => {
     const result = await window.tankobon.readingLists.create(newName);
@@ -33,13 +30,11 @@ function ReadingListsPage() {
     }
     setError(null);
     setNewName('');
-    notifyReadingListsChanged();
   };
 
   const remove = async (list: ReadingList) => {
     if (!window.confirm(t('confirmDelete', { name: list.name }))) return;
     await window.tankobon.readingLists.remove(list.id);
-    notifyReadingListsChanged();
   };
 
   return (
@@ -68,7 +63,7 @@ function ReadingListsPage() {
       </form>
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      {lists === null ? null : lists.length === 0 ? (
+      {lists === null || library === null ? null : lists.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('empty')}</p>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

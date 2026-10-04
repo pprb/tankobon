@@ -50,25 +50,40 @@ function normalize(value: string): string {
     .toLocaleLowerCase();
 }
 
-/** The texts the search box looks into. */
-function searchableTexts(entry: LibraryEntry): string[] {
-  return [entry.title, entry.path, entry.series ?? '', ...entry.credits.map(formatPersonName)];
+/**
+ * Normalized text the search box looks into, per entry: with thousands of entries, normalizing
+ * them again on every keystroke is what makes typing lag. Entries are replaced, never mutated
+ * (see `DataStore`), so a cached text can't go stale; a changed entry is a new key.
+ */
+const searchTexts = new WeakMap<LibraryEntry, string>();
+
+/** The title, path, series and credited names of an entry, normalized and joined by newlines. */
+function searchableText(entry: LibraryEntry): string {
+  let text = searchTexts.get(entry);
+  if (text === undefined) {
+    text = normalize([entry.title, entry.path, entry.series ?? '', ...entry.credits.map(formatPersonName)].join('\n'));
+    searchTexts.set(entry, text);
+  }
+  return text;
 }
 
-/** Whether an entry passes the search text, *every* selected tag and the minimum rating. */
-export function matchesFilters(entry: LibraryEntry, filters: LibraryFilters): boolean {
-  const search = normalize(filters.search.trim());
-  if (search && !searchableTexts(entry).some((text) => normalize(text).includes(search))) {
-    return false;
-  }
+/** `matchesFilters` with the search text already normalized, so a whole list normalizes it once. */
+function matches(entry: LibraryEntry, search: string, filters: LibraryFilters): boolean {
+  if (search && !searchableText(entry).includes(search)) return false;
   if (!filters.tags.every((tag) => entry.tags.includes(tag))) return false;
   if (filters.rating !== 'all' && entry.rating < filters.rating) return false;
   return true;
 }
 
+/** Whether an entry passes the search text, *every* selected tag and the minimum rating. */
+export function matchesFilters(entry: LibraryEntry, filters: LibraryFilters): boolean {
+  return matches(entry, normalize(filters.search.trim()), filters);
+}
+
 /** The entries that pass `matchesFilters`, in their original order. */
 export function filterEntries(entries: LibraryEntry[], filters: LibraryFilters): LibraryEntry[] {
-  return entries.filter((entry) => matchesFilters(entry, filters));
+  const search = normalize(filters.search.trim());
+  return entries.filter((entry) => matches(entry, search, filters));
 }
 
 /** Whether any filter would narrow the list (whitespace-only search does not count). */

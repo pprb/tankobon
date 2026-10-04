@@ -3,6 +3,7 @@ import type { ScanResult } from '../../shared/library';
 import type { LibraryRepository } from '../db/library-repository';
 import type { DecoderClient } from '../decoder/decoder-client';
 import { scanIntoLibrary } from '../services/library-scanner';
+import type { NotifyDataChange } from './data-changes';
 import { openDialogFor } from './dialogs';
 import { handle } from './handle';
 import { args, expectInteger, expectMetadataUpdate, expectStringArray, idArg, pageIndexArg } from './validate';
@@ -21,7 +22,17 @@ export const LIBRARY_CHANNELS = {
   thumbnail: 'library:thumbnail',
 } as const;
 
-export function registerLibraryIpc(repo: LibraryRepository, decoder: DecoderClient): void {
+export function registerLibraryIpc(
+  repo: LibraryRepository,
+  decoder: DecoderClient,
+  notify: NotifyDataChange,
+): void {
+  /** Announces the new state of entries a handler just wrote (the ones that still exist). */
+  const notifyUpserted = (...ids: string[]) => {
+    const upserted = ids.flatMap((id) => repo.get(id) ?? []);
+    if (upserted.length > 0) notify({ scope: 'library', upserted });
+  };
+
   handle(LIBRARY_CHANNELS.list, args(), () => repo.list());
 
   handle(LIBRARY_CHANNELS.addFolder, args(), async (event): Promise<ScanResult> => {
@@ -46,31 +57,42 @@ export function registerLibraryIpc(repo: LibraryRepository, decoder: DecoderClie
       },
       (filePath) => decoder.inspect(filePath),
     );
+    notify({ scope: 'library' });
     return { status: 'ok', directory, ...summary };
   });
 
   handle(LIBRARY_CHANNELS.remove, args(idArg), async (_event, id) => {
     const entry = repo.get(id);
     repo.remove(id);
+    notify({ scope: 'library', removed: [id] });
+    // The book left the reading lists it was in.
+    notify({ scope: 'readingLists' });
     if (entry) {
       await decoder.removeThumbnail(entry.path).catch(() => undefined);
     }
   });
 
-  handle(LIBRARY_CHANNELS.updateProgress, args(idArg, pageIndexArg), (_event, id, currentPage) =>
-    repo.updateProgress(id, currentPage),
-  );
+  handle(LIBRARY_CHANNELS.updateProgress, args(idArg, pageIndexArg), (_event, id, currentPage) => {
+    repo.updateProgress(id, currentPage);
+    notifyUpserted(id);
+  });
 
   handle(
     LIBRARY_CHANNELS.updateRating,
     args(idArg, (rating) => expectInteger(rating, 'rating', 0, 5)),
-    (_event, id, rating) => repo.updateRating(id, rating),
+    (_event, id, rating) => {
+      repo.updateRating(id, rating);
+      notifyUpserted(id);
+    },
   );
 
   handle(
     LIBRARY_CHANNELS.updateTags,
     args(idArg, (tags) => expectStringArray(tags, 'tags')),
-    (_event, id, tags) => repo.updateTags(id, tags),
+    (_event, id, tags) => {
+      repo.updateTags(id, tags);
+      notifyUpserted(id);
+    },
   );
 
   // Generated on the spot when missing: books added before thumbnails existed, or by an import
@@ -80,7 +102,9 @@ export function registerLibraryIpc(repo: LibraryRepository, decoder: DecoderClie
     return entry ? decoder.thumbnail(entry.path).catch(() => null) : null;
   });
 
-  handle(LIBRARY_CHANNELS.updateMetadata, args(idArg, expectMetadataUpdate), (_event, id, update) =>
-    repo.updateMetadata(id, update),
-  );
+  handle(LIBRARY_CHANNELS.updateMetadata, args(idArg, expectMetadataUpdate), (_event, id, update) => {
+    const updated = repo.updateMetadata(id, update);
+    if (updated) notify({ scope: 'library', upserted: [updated] });
+    return updated;
+  });
 }

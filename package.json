@@ -78,6 +78,7 @@
   "dependencies": {
     "@napi-rs/canvas": "^1.0.9",
     "@tanstack/react-router": "^1.170.36",
+    "@tanstack/react-virtual": "^3.14.13",
     "@tensorflow/tfjs": "~4.11.0",
     "@upscalerjs/default-model": "^1.0.0",
     "class-variance-authority": "^0.7.1",

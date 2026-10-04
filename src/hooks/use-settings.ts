@@ -2,10 +2,11 @@
  * App settings as React state.
  * @module
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
+import { appData } from '@/lib/app-data';
 import { applyLanguage, type Language, type LanguageSetting, resolveLanguage } from '@/shared/i18n';
-import { DEFAULT_SETTINGS, isApiKeySetting, toPublicSettings, type AppSettings, type PublicSettings } from '@/shared/settings';
+import type { AppSettings, PublicSettings } from '@/shared/settings';
 
 /** The OS's preferred languages, from the main process (see {@link loadSystemLanguages}). */
 let systemLanguages: readonly string[] = navigator.languages;
@@ -38,52 +39,33 @@ export function applyInterfaceLanguage(setting: LanguageSetting): void {
   document.documentElement.lang = language;
 }
 
-const changes = new EventTarget();
-const CHANGED = 'changed';
-
 /**
- * Tells every mounted {@link useSettings} to re-read the database. Call it after something wrote
- * settings behind the hooks' back (the data import), so no view keeps a stale copy, such as the
- * sidebar's `sidebarCollapsed`.
+ * Keeps the interface language on the `language` setting from now on, whoever changes it (the
+ * picker, a data import). The first application is the caller's, before the first render.
  */
-export function notifySettingsChanged() {
-  changes.dispatchEvent(new Event(CHANGED));
+export function keepInterfaceLanguageInSync(): void {
+  let applied = appData.getSettings().language;
+  appData.subscribe('settings', () => {
+    const { language } = appData.getSettings();
+    if (language === applied) return;
+    applied = language;
+    applyInterfaceLanguage(language);
+  });
 }
 
-/**
- * Owns the app settings: loads them from the database on mount and on every
- * {@link notifySettingsChanged}, persists changes.
- */
+const subscribe = (listener: () => void) => appData.subscribe('settings', listener);
+
+/** The app settings, shared by every component, and the function that changes one. */
 export function useSettings() {
-  const [settings, setSettings] = useState<PublicSettings>(() => toPublicSettings(DEFAULT_SETTINGS));
+  const settings = useSyncExternalStore(subscribe, appData.getSettings);
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = (applyLang: boolean) => {
-      void window.tankobon.settings.getAll().then((loaded) => {
-        if (cancelled) return;
-        setSettings(loaded);
-        if (applyLang) applyInterfaceLanguage(loaded.language);
-      });
-    };
-    load(false);
-    const onChanged = () => load(true);
-    changes.addEventListener(CHANGED, onChanged);
-    return () => {
-      cancelled = true;
-      changes.removeEventListener(CHANGED, onChanged);
-    };
-  }, []);
-
-  const update = useCallback(<K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-    if (!isApiKeySetting(key)) setSettings((s) => ({ ...s, [key]: value }));
-    if (key === 'language') applyInterfaceLanguage(value as LanguageSetting);
-    void window.tankobon.settings.set(key, value);
+  const update = useCallback(<K extends keyof PublicSettings>(key: K, value: AppSettings[K] & PublicSettings[K]) => {
+    void appData.updateSetting(key, value, () => window.tankobon.settings.set(key, value));
   }, []);
 
   return {
     settings,
-    /** Updates one setting in the UI immediately and persists it in the background. */
+    /** Updates one setting in every view immediately and persists it in the background. */
     update,
   };
 }

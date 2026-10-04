@@ -7,6 +7,7 @@ import { t } from '../../shared/i18n';
 import type { LibraryRepository } from '../db/library-repository';
 import type { DecoderClient } from '../decoder/decoder-client';
 import { openErrorMessage } from '../services/open-error';
+import type { NotifyDataChange } from './data-changes';
 import { openDialogFor } from './dialogs';
 import { handle } from './handle';
 import { args, idArg, pageIndexArg } from './validate';
@@ -38,7 +39,11 @@ async function lastOpenedDirectory(libraryRepo: LibraryRepository): Promise<stri
   }
 }
 
-export function registerComicIpc(libraryRepo: LibraryRepository, decoder: DecoderClient): void {
+export function registerComicIpc(
+  libraryRepo: LibraryRepository,
+  decoder: DecoderClient,
+  notify: NotifyDataChange,
+): void {
   // The files the user picked in the open dialog, by the opaque token `comic:pick-file` returned.
   // With the library's books (by id), they are the only things `comic:open` accepts: the renderer
   // never names a path, so it can't have the main process read an arbitrary file.
@@ -70,6 +75,8 @@ export function registerComicIpc(libraryRepo: LibraryRepository, decoder: Decode
       const comic = await decoder.open(filePath);
       const { size } = await stat(comic.path);
       const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
+      // Opening bumps `lastOpenedAt` (and may refresh the title and page count).
+      notify({ scope: 'library', upserted: [entry] });
       // In the background, from the archive just opened: opening the book must not wait for its cover.
       if (comic.pageCount > 0) {
         void decoder.thumbnail(comic.path, comic.id).catch(() => undefined);

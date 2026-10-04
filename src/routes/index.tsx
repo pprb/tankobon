@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { FolderOpen, FolderTree, ListPlus, Pencil, ScanSearch, Search, Star, Trash2, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AddToListDialog } from '@/components/add-to-list-dialog';
@@ -9,6 +10,8 @@ import { BookEditDialog } from '@/components/book-edit-dialog';
 import { MetadataDialog } from '@/components/metadata-dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { useLibrary } from '@/hooks/use-library';
+import { appData } from '@/lib/app-data';
 import {
   availableTags,
   EMPTY_FILTERS,
@@ -30,26 +33,26 @@ export const Route = createFileRoute('/')({
 /** Always offered as one-click toggles; any other tag is free-form. */
 const QUICK_TAGS = [READ_TAG, TO_READ_TAG];
 
+const NO_ENTRIES: LibraryEntry[] = [];
+
+/** Height guessed for a row before it is measured: cover, then the tag line. */
+const ESTIMATED_ROW_HEIGHT = 128;
+
 function LibraryPage() {
   const { t } = useTranslation(['library', 'common']);
   const navigate = useNavigate();
-  const [entries, setEntries] = useState<LibraryEntry[]>([]);
+  const library = useLibrary();
+  const entries = library ?? NO_ENTRIES;
   const [filters, setFilters] = useState<LibraryFilters>(EMPTY_FILTERS);
   const [scan, setScan] = useState<ScanProgress | null>(null);
   const [scanStatus, setScanStatus] = useState<string | null>(null);
   const [lookupEntry, setLookupEntry] = useState<LibraryEntry | null>(null);
   const [editEntry, setEditEntry] = useState<LibraryEntry | null>(null);
   const [listEntry, setListEntry] = useState<LibraryEntry | null>(null);
-  const visible = useMemo(() => filterEntries(entries, filters), [entries, filters]);
+  // The input follows the keystrokes; filtering and re-laying out the list can lag behind them.
+  const deferredFilters = useDeferredValue(filters);
+  const visible = useMemo(() => filterEntries(entries, deferredFilters), [entries, deferredFilters]);
   const tags = useMemo(() => availableTags(entries, QUICK_TAGS), [entries]);
-
-  const refresh = useCallback(() => {
-    void window.tankobon.library.list().then(setEntries);
-  }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
 
   // Subscribed for the whole page's life rather than around each scan: the main process starts
   // sending progress as soon as the directory is picked, which is before `addFolder()` resolves.
@@ -62,7 +65,6 @@ function LibraryPage() {
     if (result.status === 'cancelled') {
       return;
     }
-    refresh();
     const parts = [t('scanAdded', { count: result.added, directory: result.directory })];
     if (result.skipped > 0) parts.push(t('scanSkipped', { count: result.skipped }));
     if (result.failed > 0) parts.push(t('scanFailed', { count: result.failed }));
@@ -76,29 +78,40 @@ function LibraryPage() {
     }
   };
 
+  // The list drops the entry on the main process's `data:changed`.
   const remove = async (entry: LibraryEntry) => {
     if (!window.confirm(t('confirmRemove', { title: entry.title }))) return;
     await window.tankobon.library.remove(entry.id);
-    refresh();
   };
 
-  const setRating = (id: string, rating: number) => {
-    setEntries((prev) => prev.map((entry) => (entry.id === id ? { ...entry, rating } : entry)));
-    void window.tankobon.library.updateRating(id, rating);
-  };
+  const setRating = (id: string, rating: number) =>
+    void appData.patchEntry(id, { rating }, () => window.tankobon.library.updateRating(id, rating));
 
-  const replaceEntry = (updated: LibraryEntry) => {
-    setEntries((prev) => prev.map((entry) => (entry.id === updated.id ? updated : entry)));
-  };
+  const replaceEntry = (updated: LibraryEntry) => appData.upsertEntry(updated);
 
   const toggleTag = (entry: LibraryEntry, tag: string) => {
     const tags = entry.tags.includes(tag) ? entry.tags.filter((t) => t !== tag) : [...entry.tags, tag];
-    setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, tags } : e)));
-    void window.tankobon.library.updateTags(entry.id, tags);
+    void appData.patchEntry(entry.id, { tags }, () => window.tankobon.library.updateTags(entry.id, tags));
   };
 
+  // Only the rows near the viewport exist: a library of tens of thousands of books stays light.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // A new search starts from the top, not from wherever the previous results were scrolled to.
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [deferredFilters]);
+  // The virtualizer's functions aren't memoized, which the React Compiler lint can't know is fine here.
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const virtualizer = useVirtualizer({
+    count: visible.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ESTIMATED_ROW_HEIGHT,
+    getItemKey: (index) => visible[index].id,
+    overscan: 6,
+  });
+
   return (
-    <div className="flex flex-col gap-4 p-6">
+    <div className="flex h-full min-h-0 flex-col gap-4 p-6">
       <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
       <p className="text-muted-foreground">{t('intro')}</p>
       <div className="flex flex-wrap items-center gap-2">
@@ -125,14 +138,23 @@ function LibraryPage() {
         />
       )}
 
-      {entries.length === 0 ? (
+      {library === null ? null : entries.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('empty')}</p>
       ) : visible.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('noMatch')}</p>
       ) : (
-        <ul className="flex flex-col divide-y rounded-md border">
-          {visible.map((entry) => (
-            <li key={entry.id} className="flex flex-col gap-2 px-3 py-3">
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto rounded-md border">
+          <ul className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+            {virtualizer.getVirtualItems().map((item) => {
+              const entry = visible[item.index];
+              return (
+            <li
+              key={entry.id}
+              ref={virtualizer.measureElement}
+              data-index={item.index}
+              style={{ transform: `translateY(${item.start}px)` }}
+              className="absolute top-0 left-0 flex w-full flex-col gap-2 border-b px-3 py-3"
+            >
               <div className="flex items-center gap-3">
                 {/* The cover and the text drag the book onto a reading list of the sidebar; the
                     rest of the row (stars, buttons, tag field) keeps its own mouse handling. */}
@@ -217,8 +239,10 @@ function LibraryPage() {
               </div>
               <TagEditor entry={entry} onToggle={(tag) => toggleTag(entry, tag)} />
             </li>
-          ))}
-        </ul>
+              );
+            })}
+          </ul>
+        </div>
       )}
 
       {lookupEntry && (

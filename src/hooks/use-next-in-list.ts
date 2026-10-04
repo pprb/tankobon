@@ -4,7 +4,8 @@
  */
 import { useMemo } from 'react';
 
-import { useListsWithLibrary } from '@/hooks/use-lists-with-library';
+import { useLibrary } from '@/hooks/use-library';
+import { useReadingLists } from '@/hooks/use-reading-lists';
 import { listEntries, nextToRead } from '@/lib/reading-list';
 import type { LibraryEntry } from '@/shared/library';
 
@@ -19,15 +20,12 @@ export interface NextInList {
 /**
  * Looks up the book to read after `libraryId` in the reading list `listId` (the first unfinished
  * one other than the current book, see `nextToRead()`). Null while loading, when there is no
- * list, or when the list no longer exists or doesn't hold the current book. Fetched again
- * whenever the current book changes.
+ * list, or when the list no longer exists or doesn't hold the current book. Recomputed when the
+ * library or the lists change, e.g. when the current book's progress is saved.
  */
 export function useNextInList(listId: string | undefined, libraryId: string | undefined): NextInList | null {
-  // Keyed by the current book: data loaded for the previous one is never used for the new one.
-  const { lists, library } = useListsWithLibrary({
-    enabled: !!listId && !!libraryId,
-    reloadKey: `${listId}:${libraryId}`,
-  });
+  const lists = useReadingLists();
+  const library = useLibrary();
 
   return useMemo(() => {
     if (!listId || !libraryId || !lists || !library) return null;

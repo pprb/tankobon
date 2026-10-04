@@ -1,16 +1,16 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, Check, GripVertical, Pencil, Trash2, X } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ReadingListProgress } from '@/components/reading-list-progress';
 import { Button } from '@/components/ui/button';
-import { useListsWithLibrary } from '@/hooks/use-lists-with-library';
-import { notifyReadingListsChanged } from '@/hooks/use-reading-lists';
+import { useLibrary } from '@/hooks/use-library';
+import { useReadingLists } from '@/hooks/use-reading-lists';
 import { isFinished, listEntries, listProgress, moveUnfinished, nextToRead, READ_TAG, tagLabel } from '@/lib/reading-list';
 import { cn } from '@/lib/utils';
 import type { LibraryEntry } from '@/shared/library';
-import { MAX_READING_LIST_SIZE, type ReadingList, type ReadingListResult } from '@/shared/reading-list';
+import { MAX_READING_LIST_SIZE, type ReadingListResult } from '@/shared/reading-list';
 
 export const Route = createFileRoute('/lists/$listId')({
   component: ReadingListPage,
@@ -23,19 +23,15 @@ function ReadingListPage() {
   const { listId } = Route.useParams();
   const { t } = useTranslation(['lists', 'common']);
   const navigate = useNavigate();
-  const { lists, library: loadedLibrary, reload: refresh, setLists } = useListsWithLibrary();
-  // undefined while loading, null once the list turns out not to exist.
-  const list = lists === null ? undefined : (lists.find((l) => l.id === listId) ?? null);
-  const library = useMemo(() => loadedLibrary ?? [], [loadedLibrary]);
-  const setList = useCallback(
-    (updated: ReadingList) => setLists((previous) => previous && previous.map((l) => (l.id === updated.id ? updated : l))),
-    [setLists],
-  );
+  const lists = useReadingLists();
+  const library = useLibrary();
   const [error, setError] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [dragged, setDragged] = useState<number | null>(null);
+  // undefined while loading, null once the list turns out not to exist.
+  const list = lists && library ? (lists.find((l) => l.id === listId) ?? null) : undefined;
 
-  const entries = useMemo(() => (list ? listEntries(list, library) : []), [list, library]);
+  const entries = useMemo(() => (list && library ? listEntries(list, library) : []), [list, library]);
   const finished = useMemo(() => new Set(entries.filter(isFinished).map((entry) => entry.id)), [entries]);
   const next = nextToRead(entries);
 
@@ -50,13 +46,8 @@ function ReadingListPage() {
   }
 
   const apply = (result: ReadingListResult) => {
-    if (result.status === 'error') {
-      setError(result.message);
-      refresh();
-      return;
-    }
-    setError(null);
-    setList(result.list);
+    // The list itself comes back through the store, on the main process's `data:changed`.
+    setError(result.status === 'error' ? result.message : null);
   };
 
   // Ids of the books actually shown: ids of entries gone from the library are left out.
@@ -67,7 +58,6 @@ function ReadingListPage() {
     if (!reordered) return;
     // The ids missing from the library keep their place at the end; the repository wants them all.
     const missing = list.entryIds.filter((id) => !order.includes(id));
-    setList({ ...list, entryIds: [...reordered, ...missing] });
     apply(await window.tankobon.readingLists.reorder(list.id, [...reordered, ...missing]));
   };
 
@@ -83,13 +73,11 @@ function ReadingListPage() {
     if (renaming === null) return;
     apply(await window.tankobon.readingLists.rename(list.id, renaming));
     setRenaming(null);
-    notifyReadingListsChanged();
   };
 
   const removeList = async () => {
     if (!window.confirm(t('confirmDelete', { name: list.name }))) return;
     await window.tankobon.readingLists.remove(list.id);
-    notifyReadingListsChanged();
     void navigate({ to: '/lists' });
   };
 
