@@ -1,5 +1,5 @@
 /**
- * Entry point of the decoder process, an Electron `utilityProcess` (ADR 0009): everything that
+ * Entry point of the decoder process, an Electron `utilityProcess` (ADR 0012): everything that
  * parses an untrusted comic file runs here, so a crash or a runaway allocation stops this process
  * instead of the app. Bundled on its own as `decoder-worker.cjs` (`vite.decoder.config.mts`).
  * @module

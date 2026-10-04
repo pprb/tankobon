@@ -1,5 +1,5 @@
 /**
- * Messages exchanged between the main process and the decoder process (see ADR 0009).
+ * Messages exchanged between the main process and the decoder process (see ADR 0012).
  * @module
  */
 import type { ArchiveInfo, ComicPage } from '../../shared/comic';

@@ -1,11 +1,15 @@
-import { BrowserWindow, dialog, ipcMain } from 'electron';
+import { randomUUID } from 'node:crypto';
 import { stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-import { SUPPORTED_COMIC_EXTENSIONS } from '../../shared/comic';
+import { SUPPORTED_COMIC_EXTENSIONS, type OpenComicResult } from '../../shared/comic';
 import { t } from '../../shared/i18n';
 import type { LibraryRepository } from '../db/library-repository';
 import type { DecoderClient } from '../decoder/decoder-client';
+import { openErrorMessage } from '../services/open-error';
+import { openDialogFor } from './dialogs';
+import { handle } from './handle';
+import { args, idArg, pageIndexArg } from './validate';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const COMIC_CHANNELS = {
@@ -35,35 +39,52 @@ async function lastOpenedDirectory(libraryRepo: LibraryRepository): Promise<stri
 }
 
 export function registerComicIpc(libraryRepo: LibraryRepository, decoder: DecoderClient): void {
-  ipcMain.handle(COMIC_CHANNELS.pickFile, async (event) => {
+  // The files the user picked in the open dialog, by the opaque token `comic:pick-file` returned.
+  // With the library's books (by id), they are the only things `comic:open` accepts: the renderer
+  // never names a path, so it can't have the main process read an arbitrary file.
+  const pickedPaths = new Map<string, string>();
+
+  handle(COMIC_CHANNELS.pickFile, args(), async (event) => {
     const options: Electron.OpenDialogOptions = {
       title: t('dialogs:openComic'),
       properties: ['openFile'],
       filters: [{ name: t('dialogs:comicFiles'), extensions: [...SUPPORTED_COMIC_EXTENSIONS] }],
       defaultPath: await lastOpenedDirectory(libraryRepo),
     };
-    const window = BrowserWindow.fromWebContents(event.sender);
-    const { canceled, filePaths } = window
-      ? await dialog.showOpenDialog(window, options)
-      : await dialog.showOpenDialog(options);
-    return canceled ? null : filePaths[0];
-  });
-
-  ipcMain.handle(COMIC_CHANNELS.open, async (_event, filePath: string) => {
-    const comic = await decoder.open(filePath);
-    const { size } = await stat(comic.path);
-    const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
-    // In the background, from the archive just opened: opening the book must not wait for its cover.
-    if (comic.pageCount > 0) {
-      void decoder.thumbnail(comic.path, comic.id).catch(() => undefined);
+    const { canceled, filePaths } = await openDialogFor(event, options);
+    if (canceled || filePaths.length === 0) {
+      return null;
     }
-    // The library title wins over the file name: the user may have set one from a metadata lookup.
-    return { ...comic, title: entry.title, libraryId: entry.id, resumePage: entry.currentPage };
+    const token = randomUUID();
+    pickedPaths.set(token, filePaths[0]);
+    return token;
   });
 
-  ipcMain.handle(COMIC_CHANNELS.readPage, (_event, id: string, index: number) =>
-    decoder.readPage(id, index),
-  );
+  handle(COMIC_CHANNELS.open, args(idArg), async (_event, ref): Promise<OpenComicResult> => {
+    // A dialog token, else a library entry id; anything else is not a book we know.
+    const filePath = pickedPaths.get(ref) ?? libraryRepo.get(ref)?.path;
+    if (!filePath) {
+      return { status: 'error', message: t('errors:archive.unknownBook') };
+    }
+    try {
+      const comic = await decoder.open(filePath);
+      const { size } = await stat(comic.path);
+      const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
+      // In the background, from the archive just opened: opening the book must not wait for its cover.
+      if (comic.pageCount > 0) {
+        void decoder.thumbnail(comic.path, comic.id).catch(() => undefined);
+      }
+      // The library title wins over the file name: the user may have set one from a metadata lookup.
+      return {
+        status: 'ok',
+        comic: { ...comic, title: entry.title, libraryId: entry.id, resumePage: entry.currentPage },
+      };
+    } catch (error) {
+      return { status: 'error', message: openErrorMessage(error) };
+    }
+  });
 
-  ipcMain.handle(COMIC_CHANNELS.close, (_event, id: string) => decoder.close(id));
+  handle(COMIC_CHANNELS.readPage, args(idArg, pageIndexArg), (_event, id, index) => decoder.readPage(id, index));
+
+  handle(COMIC_CHANNELS.close, args(idArg), (_event, id) => decoder.close(id));
 }

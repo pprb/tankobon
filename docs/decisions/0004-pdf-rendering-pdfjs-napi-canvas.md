@@ -1,6 +1,6 @@
 # 0004. PDF pages rasterized in the main process with pdf.js + `@napi-rs/canvas`
 
-- **Status:** Accepted; the rendering now runs in the decoder process ([ADR 0009](./0009-decoder-utility-process.md))
+- **Status:** Accepted; the rendering now runs in the decoder process ([ADR 0012](./0012-decoder-utility-process.md))
 - **Date:** recorded 2026-09-30 (the decision predates this record)
 
 ## Context

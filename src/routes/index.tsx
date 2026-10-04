@@ -70,14 +70,15 @@ function LibraryPage() {
   };
 
   const addFile = async () => {
-    const filePath = await window.tankobon.comic.pickFile();
-    if (filePath) {
-      void navigate({ to: '/reader', search: { path: filePath } });
+    const token = await window.tankobon.comic.pickFile();
+    if (token) {
+      void navigate({ to: '/reader', search: { book: token } });
     }
   };
 
-  const remove = async (id: string) => {
-    await window.tankobon.library.remove(id);
+  const remove = async (entry: LibraryEntry) => {
+    if (!window.confirm(t('confirmRemove', { title: entry.title }))) return;
+    await window.tankobon.library.remove(entry.id);
     refresh();
   };
 
@@ -148,7 +149,7 @@ function LibraryPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => navigate({ to: '/reader', search: { path: entry.path } })}
+                    onClick={() => navigate({ to: '/reader', search: { book: entry.id } })}
                     title={t('common:open')}
                     aria-label={t('openNamed', { title: entry.title })}
                     className="shrink-0 rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -200,14 +201,14 @@ function LibraryPage() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => navigate({ to: '/reader', search: { path: entry.path } })}
+                  onClick={() => navigate({ to: '/reader', search: { book: entry.id } })}
                 >
                   {t('common:open')}
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  onClick={() => remove(entry.id)}
+                  onClick={() => remove(entry)}
                   title={t('remove')}
                   aria-label={t('remove')}
                 >

@@ -1,6 +1,6 @@
 # 0007. Cover thumbnails in a disk cache, outside the database
 
-- **Status:** Accepted; generation now runs in the decoder process ([ADR 0009](./0009-decoder-utility-process.md))
+- **Status:** Accepted; generation now runs in the decoder process ([ADR 0012](./0012-decoder-utility-process.md))
 - **Date:** 2026-10-01
 
 ## Context

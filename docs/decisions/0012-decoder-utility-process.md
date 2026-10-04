@@ -1,4 +1,4 @@
-# 0009. Comic files decoded in a utility process, not in the main process
+# 0012. Comic files decoded in a utility process, not in the main process
 
 - **Status:** Accepted
 - **Date:** 2026-10-03

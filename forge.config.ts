@@ -76,7 +76,7 @@ const config: ForgeConfig = {
           target: 'main',
         },
         {
-          // The decoder process (utilityProcess), see docs/decisions/0009: bundled apart from main.cjs.
+          // The decoder process (utilityProcess), see docs/decisions/0012: bundled apart from main.cjs.
           entry: 'src/main/decoder/decoder-worker.ts',
           config: 'vite.decoder.config.mts',
           target: 'main',
