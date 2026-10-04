@@ -92,6 +92,18 @@ const MIGRATIONS: Migration[] = [
       db.exec('CREATE INDEX IF NOT EXISTS idx_credits_person_id ON credits (person_id)');
     },
   },
+  {
+    // The folders the user added to the library, which "Resynchronize" walks again.
+    version: 3,
+    run: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS library_folders (
+          path TEXT PRIMARY KEY,
+          added_at TEXT NOT NULL
+        )
+      `);
+    },
+  },
 ];
 
 /**

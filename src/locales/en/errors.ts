@@ -26,6 +26,9 @@ export default {
     exportFailed: 'Could not write the export: {{message}}',
     clearFailed: 'Could not clear the library: {{message}}',
   },
+  library: {
+    resyncRunning: 'A resynchronization is already running.',
+  },
   import: {
     notJson: 'Unreadable file: this is not valid JSON.',
     notExport: 'Unrecognised file: this is not a Tankōbon export (version 1).',

@@ -5,6 +5,7 @@ import started from 'electron-squirrel-startup';
 import { DecoderClient } from './main/decoder/decoder-client';
 import { spawnDecoderProcess } from './main/decoder/spawn-decoder';
 import { openDatabase } from './main/db/database';
+import { LibraryFolderRepository } from './main/db/library-folder-repository';
 import { LibraryRepository } from './main/db/library-repository';
 import { ReadingListRepository } from './main/db/reading-list-repository';
 import { SettingsRepository } from './main/db/settings-repository';
@@ -13,7 +14,7 @@ import { registerAppIpc } from './main/ipc/app';
 import { registerComicIpc } from './main/ipc/comic';
 import { registerDatabaseIpc } from './main/ipc/database';
 import { registerDataIpc } from './main/ipc/data';
-import { registerLibraryIpc } from './main/ipc/library';
+import { createResynchronizer, registerLibraryIpc } from './main/ipc/library';
 import { registerMetadataIpc } from './main/ipc/metadata';
 import { registerReadingListIpc } from './main/ipc/reading-lists';
 import { registerSettingsIpc } from './main/ipc/settings';
@@ -68,6 +69,7 @@ const createWindow = () => {
 app.whenReady().then(() => {
   const db = openDatabase();
   const libraryRepo = new LibraryRepository(db);
+  const folderRepo = new LibraryFolderRepository(db);
   const settingsRepo = new SettingsRepository(db);
   const readingListRepo = new ReadingListRepository(db);
   // Archives and covers are decoded in their own process: a booby-trapped file can only take that one down.
@@ -79,7 +81,8 @@ app.whenReady().then(() => {
   // Leftovers of another database (its location changed) or of a crash between two writes.
   void decoder.pruneThumbnails(libraryRepo.list().map((entry) => entry.path)).catch(() => undefined);
 
-  registerLibraryIpc(libraryRepo, settingsRepo, decoder, broadcastDataChange);
+  const resynchronizer = createResynchronizer(libraryRepo, folderRepo, settingsRepo, decoder, broadcastDataChange);
+  registerLibraryIpc(libraryRepo, folderRepo, resynchronizer, settingsRepo, decoder, broadcastDataChange);
   registerReadingListIpc(readingListRepo, broadcastDataChange);
   registerSettingsIpc(settingsRepo, broadcastDataChange);
   registerDataIpc(db, libraryRepo, settingsRepo, readingListRepo, decoder, broadcastDataChange);
@@ -94,6 +97,11 @@ app.whenReady().then(() => {
   });
 
   createWindow();
+
+  // In the background: the library is usable meanwhile, and its views update as the walk goes.
+  if (settingsRepo.getAll().resyncOnStartup) {
+    void resynchronizer.run();
+  }
 });
 
 // Quit when all windows are closed, except on macOS where apps stay active

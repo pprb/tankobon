@@ -18,6 +18,7 @@ import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as SettingsAboutRouteImport } from './routes/settings/about'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
 import { Route as SettingsDataRouteImport } from './routes/settings/data'
+import { Route as SettingsLibraryRouteImport } from './routes/settings/library'
 import { Route as SettingsMetadataRouteImport } from './routes/settings/metadata'
 import { Route as SettingsReadingRouteImport } from './routes/settings/reading'
 
@@ -66,6 +67,11 @@ const SettingsDataRoute = SettingsDataRouteImport.update({
   path: '/data',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsLibraryRoute = SettingsLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsMetadataRoute = SettingsMetadataRouteImport.update({
   id: '/metadata',
   path: '/metadata',
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/settings/about': typeof SettingsAboutRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/data': typeof SettingsDataRoute
+  '/settings/library': typeof SettingsLibraryRoute
   '/settings/metadata': typeof SettingsMetadataRoute
   '/settings/reading': typeof SettingsReadingRoute
   '/lists/': typeof ListsIndexRoute
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/settings/about': typeof SettingsAboutRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/data': typeof SettingsDataRoute
+  '/settings/library': typeof SettingsLibraryRoute
   '/settings/metadata': typeof SettingsMetadataRoute
   '/settings/reading': typeof SettingsReadingRoute
   '/lists': typeof ListsIndexRoute
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/settings/about': typeof SettingsAboutRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/data': typeof SettingsDataRoute
+  '/settings/library': typeof SettingsLibraryRoute
   '/settings/metadata': typeof SettingsMetadataRoute
   '/settings/reading': typeof SettingsReadingRoute
   '/lists/': typeof ListsIndexRoute
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/settings/about'
     | '/settings/appearance'
     | '/settings/data'
+    | '/settings/library'
     | '/settings/metadata'
     | '/settings/reading'
     | '/lists/'
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/settings/about'
     | '/settings/appearance'
     | '/settings/data'
+    | '/settings/library'
     | '/settings/metadata'
     | '/settings/reading'
     | '/lists'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/settings/about'
     | '/settings/appearance'
     | '/settings/data'
+    | '/settings/library'
     | '/settings/metadata'
     | '/settings/reading'
     | '/lists/'
@@ -230,6 +242,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsDataRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/library': {
+      id: '/settings/library'
+      path: '/library'
+      fullPath: '/settings/library'
+      preLoaderRoute: typeof SettingsLibraryRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/metadata': {
       id: '/settings/metadata'
       path: '/metadata'
@@ -251,6 +270,7 @@ interface SettingsRouteChildren {
   SettingsAboutRoute: typeof SettingsAboutRoute
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
   SettingsDataRoute: typeof SettingsDataRoute
+  SettingsLibraryRoute: typeof SettingsLibraryRoute
   SettingsMetadataRoute: typeof SettingsMetadataRoute
   SettingsReadingRoute: typeof SettingsReadingRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
@@ -260,6 +280,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAboutRoute: SettingsAboutRoute,
   SettingsAppearanceRoute: SettingsAppearanceRoute,
   SettingsDataRoute: SettingsDataRoute,
+  SettingsLibraryRoute: SettingsLibraryRoute,
   SettingsMetadataRoute: SettingsMetadataRoute,
   SettingsReadingRoute: SettingsReadingRoute,
   SettingsIndexRoute: SettingsIndexRoute,

@@ -16,7 +16,7 @@ import type {
   ExportResult,
   ImportResult,
 } from './shared/data';
-import type { LibraryEntry, MetadataUpdate, ScanProgress, ScanResult } from './shared/library';
+import type { LibraryEntry, MetadataUpdate, ResyncResult, ScanProgress, ScanResult } from './shared/library';
 import type { MetadataPageResult, MetadataQuery, MetadataSearchResult } from './shared/metadata';
 import type { ReadingList, ReadingListOrderResult, ReadingListResult } from './shared/reading-list';
 import type { ApiKeys, AppSettings, PublicSettings } from './shared/settings';
@@ -54,7 +54,13 @@ export interface LibraryApi {
   list(): Promise<LibraryEntry[]>;
   /** Opens a native directory picker, then adds every comic found under it, recursively. */
   addFolder(): Promise<ScanResult>;
-  /** Subscribes to `addFolder`'s progress; returns the unsubscribe function. */
+  /** The folders added with `addFolder`, which `resync` walks again, in the order they were added. */
+  listFolders(): Promise<string[]>;
+  /** Forgets one of those folders (a path returned by `listFolders`); its comics stay in the library. */
+  removeFolder(folder: string): Promise<void>;
+  /** Walks the remembered folders again: new comics are added, and comics whose file no longer exists are removed from the library (with their progress, rating, tags and reading-list places; the files on disk are never touched). A folder that can't be read is skipped and counted as `unreachable`. Stores the date as the `lastResyncAt` setting. Reports through `onScanProgress`; an error result when one is already running. */
+  resync(): Promise<ResyncResult>;
+  /** Subscribes to the progress of `addFolder` and `resync`; returns the unsubscribe function. */
   onScanProgress(listener: (progress: ScanProgress) => void): () => void;
   /** Removes an entry from the library; the file on disk is left untouched. */
   remove(id: string): Promise<void>;
@@ -180,6 +186,9 @@ const api: TankobonApi = {
         ipcRenderer.removeListener('library:scan-progress', handler);
       };
     },
+    listFolders: () => ipcRenderer.invoke('library:list-folders'),
+    removeFolder: (folder) => ipcRenderer.invoke('library:remove-folder', folder),
+    resync: () => ipcRenderer.invoke('library:resync'),
     remove: (id) => ipcRenderer.invoke('library:remove', id),
     updateProgress: (id, currentPage) => ipcRenderer.invoke('library:update-progress', id, currentPage),
     updateRating: (id, rating) => ipcRenderer.invoke('library:update-rating', id, rating),

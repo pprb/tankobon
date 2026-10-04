@@ -115,3 +115,20 @@ export type ScanResult =
       /** Supported files found in the tree, i.e. `added + skipped + failed`. */
       total: number;
     };
+
+/** Outcome of `library.resync()`. */
+export type ResyncResult =
+  | {
+      status: 'ok';
+      /** Comics added to the library. */
+      added: number;
+      /** Comics removed because their file no longer exists. */
+      removed: number;
+      /** Files that couldn't be opened. */
+      failed: number;
+      /** Folders that couldn't be read, left untouched. */
+      unreachable: number;
+      /** When it finished (ISO 8601); also stored as the `lastResyncAt` setting. */
+      finishedAt: string;
+    }
+  | { status: 'error'; message: string };

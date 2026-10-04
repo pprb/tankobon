@@ -33,6 +33,10 @@ export interface AppSettings {
   googleBooksEnabled: boolean;
   /** Optional Google Books API key; without one, requests share Google's anonymous quota. */
   googleBooksApiKey: string;
+  /** Whether the library is resynchronized with its folders in the background at every start. */
+  resyncOnStartup: boolean;
+  /** When the last resynchronization finished (ISO 8601); empty when there has been none. */
+  lastResyncAt: string;
   /** Folder last added with "Ajouter un dossier…" (empty before the first one): where the next folder dialog opens. */
   lastScanFolder: string;
 }
@@ -54,6 +58,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   comicVineApiKey: '',
   googleBooksEnabled: true,
   googleBooksApiKey: '',
+  resyncOnStartup: false,
+  lastResyncAt: '',
   lastScanFolder: '',
 };
 
@@ -101,6 +107,8 @@ export const SETTING_VALIDATORS: SettingValidators = {
   comicVineApiKey: isString,
   googleBooksEnabled: isBoolean,
   googleBooksApiKey: isString,
+  resyncOnStartup: isBoolean,
+  lastResyncAt: (value): value is string => isString(value) && (value === '' || !Number.isNaN(Date.parse(value))),
   lastScanFolder: isString,
 };
 

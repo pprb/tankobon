@@ -1,13 +1,24 @@
 import { t } from '../../shared/i18n';
-import type { ScanResult } from '../../shared/library';
+import type { ResyncResult, ScanProgress, ScanResult } from '../../shared/library';
+import type { LibraryFolderRepository } from '../db/library-folder-repository';
 import type { LibraryRepository } from '../db/library-repository';
 import type { SettingsRepository } from '../db/settings-repository';
 import type { DecoderClient } from '../decoder/decoder-client';
 import { scanIntoLibrary } from '../services/library-scanner';
+import { resyncLibrary } from '../services/library-sync';
 import type { NotifyDataChange } from './data-changes';
 import { existingDirectory, openDialogFor } from './dialogs';
 import { handle } from './handle';
-import { args, expectInteger, expectMetadataUpdate, expectStringArray, idArg, pageIndexArg } from './validate';
+import {
+  MAX_PATH_LENGTH,
+  args,
+  expectInteger,
+  expectMetadataUpdate,
+  expectNonEmptyString,
+  expectStringArray,
+  idArg,
+  pageIndexArg,
+} from './validate';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const LIBRARY_CHANNELS = {
@@ -16,6 +27,9 @@ export const LIBRARY_CHANNELS = {
   /** Main → renderer, while `addFolder` runs. */
   scanProgress: 'library:scan-progress',
   remove: 'library:remove',
+  listFolders: 'library:list-folders',
+  removeFolder: 'library:remove-folder',
+  resync: 'library:resync',
   updateProgress: 'library:update-progress',
   updateRating: 'library:update-rating',
   updateTags: 'library:update-tags',
@@ -23,8 +37,62 @@ export const LIBRARY_CHANNELS = {
   thumbnail: 'library:thumbnail',
 } as const;
 
+/** Everything a resynchronization needs; built once in `main.ts`. */
+export interface Resynchronizer {
+  /**
+   * Walks the library's folders again (new comics added, comics whose file is gone removed), stores
+   * the date in `lastResyncAt` and tells the views. Only one runs at a time: a call during another
+   * one resolves to an error result.
+   */
+  run(onProgress?: (progress: ScanProgress) => void): Promise<ResyncResult>;
+}
+
+export function createResynchronizer(
+  repo: LibraryRepository,
+  folders: LibraryFolderRepository,
+  settings: SettingsRepository,
+  decoder: DecoderClient,
+  notify: NotifyDataChange,
+): Resynchronizer {
+  let running = false;
+
+  return {
+    async run(onProgress = () => undefined) {
+      if (running) return { status: 'error', message: t('errors:library.resyncRunning') };
+      running = true;
+      try {
+        const summary = await resyncLibrary(repo, folders.list(), onProgress, (filePath) => decoder.inspect(filePath));
+        const finishedAt = new Date().toISOString();
+        settings.set('lastResyncAt', finishedAt);
+
+        notify({ scope: 'library' });
+        notify({ scope: 'settings', values: { lastResyncAt: finishedAt } });
+        if (summary.removed > 0) {
+          // The removed books left the reading lists they were in, and their covers are useless.
+          notify({ scope: 'readingLists' });
+          await Promise.all(summary.removedEntries.map((entry) => decoder.removeThumbnail(entry.path).catch(() => undefined)));
+        }
+        return {
+          status: 'ok',
+          added: summary.added,
+          removed: summary.removed,
+          failed: summary.failed,
+          unreachable: summary.unreachable,
+          finishedAt,
+        };
+      } catch (error) {
+        return { status: 'error', message: error instanceof Error ? error.message : String(error) };
+      } finally {
+        running = false;
+      }
+    },
+  };
+}
+
 export function registerLibraryIpc(
   repo: LibraryRepository,
+  folders: LibraryFolderRepository,
+  resynchronizer: Resynchronizer,
   settingsRepo: SettingsRepository,
   decoder: DecoderClient,
   notify: NotifyDataChange,
@@ -63,9 +131,26 @@ export function registerLibraryIpc(
       },
       (filePath) => decoder.inspect(filePath),
     );
+    folders.add(directory);
     notify({ scope: 'library' });
     return { status: 'ok', directory, ...summary };
   });
+
+  handle(LIBRARY_CHANNELS.listFolders, args(), () => folders.list());
+
+  handle(
+    LIBRARY_CHANNELS.removeFolder,
+    args((value) => expectNonEmptyString(value, 'folder', MAX_PATH_LENGTH)),
+    (_event, folder) => folders.remove(folder),
+  );
+
+  handle(LIBRARY_CHANNELS.resync, args(), (event) =>
+    resynchronizer.run((progress) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send(LIBRARY_CHANNELS.scanProgress, progress);
+      }
+    }),
+  );
 
   handle(LIBRARY_CHANNELS.remove, args(idArg), async (_event, id) => {
     const entry = repo.get(id);
