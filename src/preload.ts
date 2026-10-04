@@ -18,7 +18,7 @@ import type {
 import type { LibraryEntry, MetadataUpdate, ScanProgress, ScanResult } from './shared/library';
 import type { MetadataPageResult, MetadataQuery, MetadataSearchResult } from './shared/metadata';
 import type { ReadingList, ReadingListOrderResult, ReadingListResult } from './shared/reading-list';
-import type { AppSettings } from './shared/settings';
+import type { ApiKeys, AppSettings, PublicSettings } from './shared/settings';
 
 /** The app itself (versions, OS languages, project links), as `window.tankobon.app`. */
 export interface AppApi {
@@ -97,9 +97,11 @@ export interface MetadataApi {
 
 /** The user's settings, as `window.tankobon.settings`. */
 export interface SettingsApi {
-  /** Every setting, with defaults for the ones never stored. */
-  getAll(): Promise<AppSettings>;
-  /** Stores one setting. */
+  /** Every setting except the API keys, with defaults for the ones never stored. */
+  getAll(): Promise<PublicSettings>;
+  /** The metadata sources' API keys, kept out of `getAll()` so only the page that edits them loads them. */
+  getApiKeys(): Promise<ApiKeys>;
+  /** Stores one setting; the main process refuses an unknown key or a value its validator rejects. */
   set<K extends keyof AppSettings>(key: K, value: AppSettings[K]): Promise<void>;
 }
 
@@ -192,6 +194,7 @@ const api: TankobonApi = {
   },
   settings: {
     getAll: () => ipcRenderer.invoke('settings:get-all'),
+    getApiKeys: () => ipcRenderer.invoke('settings:get-api-keys'),
     set: (key, value) => ipcRenderer.invoke('settings:set', key, value),
   },
   data: {
