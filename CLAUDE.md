@@ -24,6 +24,7 @@ npm run dev          # same, plus auto-restart on main-process changes and DevTo
 npm run lint         # eslint .
 npm run typecheck    # tsc --noEmit
 npm test             # vitest run
+npm run test:e2e     # Playwright smoke tests of the packaged app (after npm run package; xvfb-run on headless Linux)
 npm run docs:build   # generate references + TypeDoc + doc checks + VitePress build
 npm run docs:dev     # docs site locally
 npm run package      # electron-forge package, into out/
@@ -32,7 +33,7 @@ npm run make         # platform installers
 
 Single test file or test name: `npx vitest run src/main/db/library-repository.test.ts`, `npx vitest run -t "clamps the current page"`.
 
-CI (`.github/workflows/ci.yml`) runs `lint`, `typecheck`, `test` and `docs:build` as parallel jobs on pushes to `master` and on pull requests. See `docs/development.md` for the other workflows and the `npm audit` situation.
+CI (`.github/workflows/ci.yml`) runs `lint`, `typecheck`, `test` and `docs:build` as parallel jobs on pushes to `master` and on pull requests; `e2e.yml` runs the smoke tests nightly and on demand. See `docs/development.md` for the other workflows and the `npm audit` situation.
 
 ## Conventions
 

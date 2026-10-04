@@ -12,7 +12,8 @@ An ADR records one structural decision: the context, what was decided, and what 
 | [0006](./0006-bedetheque-album-page-scraping.md) | Bédéthèque album pages read from a pasted link | Accepted |
 | [0007](./0007-cover-thumbnails-disk-cache.md) | Cover thumbnails in a disk cache, outside the database | Accepted |
 | [0008](./0008-interface-translations-i18next.md) | Interface translations with i18next, locales split by area | Accepted |
-| [0009](./0009-versioned-migrations.md) | Schema migrations versioned with `PRAGMA user_version` | Accepted |
+| [0009](./0009-ipc-argument-validation.md) | IPC arguments validated in the main process | Accepted |
+| [0010](./0010-versioned-migrations.md) | Schema migrations versioned with `PRAGMA user_version` | Accepted |
 
 These first four ADRs were written after the fact, from the code and its comments, then checked by the maintainer.
 

@@ -1,4 +1,4 @@
-# 0009. Schema migrations versioned with `PRAGMA user_version`
+# 0010. Schema migrations versioned with `PRAGMA user_version`
 
 - **Status:** Accepted
 - **Date:** 2026-10-03
