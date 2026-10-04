@@ -58,11 +58,14 @@ function LibraryPage() {
   // sending progress as soon as the directory is picked, which is before `addFolder()` resolves.
   useEffect(() => window.tankobon.library.onScanProgress(setScan), []);
 
+  // The bar stays on its final state once the scan is done, until the user closes it.
+  const scanning = scan !== null && scan.phase !== 'done';
+
   const addFolder = async () => {
     setScanStatus(null);
     const result = await window.tankobon.library.addFolder();
-    setScan(null);
     if (result.status === 'cancelled') {
+      setScan(null);
       return;
     }
     const parts = [t('scanAdded', { count: result.added, directory: result.directory })];
@@ -115,17 +118,17 @@ function LibraryPage() {
       <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
       <p className="text-muted-foreground">{t('intro')}</p>
       <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={addFile} disabled={scan !== null}>
+        <Button onClick={addFile} disabled={scanning}>
           <FolderOpen />
           {t('addFile')}
         </Button>
-        <Button variant="outline" onClick={addFolder} disabled={scan !== null}>
+        <Button variant="outline" onClick={addFolder} disabled={scanning}>
           <FolderTree />
           {t('addFolder')}
         </Button>
       </div>
 
-      {scan && <ScanProgressBar progress={scan} />}
+      {scan && <ScanProgressBar progress={scan} onClose={() => setScan(null)} />}
       {scanStatus && <p className="text-sm text-muted-foreground">{scanStatus}</p>}
 
       {entries.length > 0 && (
@@ -351,9 +354,10 @@ function TagEditor({ entry, onToggle }: { entry: LibraryEntry; onToggle: (tag: s
   );
 }
 
-function ScanProgressBar({ progress }: { progress: ScanProgress }) {
+function ScanProgressBar({ progress, onClose }: { progress: ScanProgress; onClose: () => void }) {
   // The walk reports no total yet, so the bar stays empty until the first file is opened.
   const scanning = progress.phase === 'scanning';
+  const done = progress.phase === 'done';
   const { t } = useTranslation('library');
 
   return (
@@ -363,6 +367,11 @@ function ScanProgressBar({ progress }: { progress: ScanProgress }) {
         <span className="min-w-0 truncate text-xs text-muted-foreground" title={progress.currentFile}>
           {progress.currentFile}
         </span>
+        {done && (
+          <Button variant="ghost" size="icon" aria-label={t('scanClose')} title={t('scanClose')} onClick={onClose}>
+            <X />
+          </Button>
+        )}
       </div>
       <Progress value={progress.processed} max={progress.total} label={t('scanProgress')} />
     </div>

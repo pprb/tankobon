@@ -13,6 +13,7 @@ export default {
   scanNoneFound: 'No comics found in {{directory}}',
   scanning: 'Looking for comics…',
   scanProgress: 'Scan progress',
+  scanClose: 'Close',
   empty: 'No comics in the library yet.',
   noMatch: 'No comics match the search.',
   dragHint: 'Drag onto a reading list in the sidebar',
