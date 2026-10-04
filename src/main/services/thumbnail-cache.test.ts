@@ -51,6 +51,15 @@ function fakeOpener(pages: Record<string, ComicPage[]>) {
 }
 
 describe('renderThumbnail', () => {
+  it('refuses an image declaring huge dimensions without decoding it', async () => {
+    const header = Buffer.alloc(33);
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(header);
+    header.write('IHDR', 12, 'ascii');
+    header.writeUInt32BE(30_000, 16);
+    header.writeUInt32BE(30_000, 20);
+    await expect(renderThumbnail(header)).rejects.toThrow('30000');
+  });
+
   it('fits a large page into the bounding box, keeping its aspect ratio', async () => {
     const [width, height] = await size(await renderThumbnail(await png(1200, 1800)));
     expect(width).toBe(THUMBNAIL_MAX_WIDTH);

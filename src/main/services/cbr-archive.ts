@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import type { ComicPage } from '../../shared/comic';
 import { t } from '../../shared/i18n';
 import { imageMimeType, isPageEntry, sortPages, type ComicArchive } from './comic-archive';
+import { checkedPage } from './image-size';
 
 // The Emscripten-compiled wasm module is copied next to the bundled main.cjs (see
 // vite.main.config.mts): loaded once and reused for every archive opened.
@@ -72,7 +73,7 @@ export class CbrArchive implements ComicArchive {
       throw new Error(t('errors:archive.extractFailed', { entry: entryName }));
     }
     // Copy into a fresh ArrayBuffer: the extraction may be a view on a shared/wasm buffer.
-    return { data: new Uint8Array(file.extraction), mimeType: imageMimeType(entryName)! };
+    return checkedPage({ data: new Uint8Array(file.extraction), mimeType: imageMimeType(entryName)! }, entryName);
   }
 
   /** Nothing to release: the archive lives in memory. */
