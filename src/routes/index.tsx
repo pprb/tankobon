@@ -76,7 +76,7 @@ function LibraryPage() {
   };
 
   const addFile = async () => {
-    const token = await window.tankobon.comic.pickFile();
+    const token = await window.tankobon.comic.pickFile(true);
     if (token) {
       void navigate({ to: '/reader', search: { book: token } });
     }

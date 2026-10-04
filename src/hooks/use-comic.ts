@@ -85,7 +85,7 @@ export function useComic({ loadPages = true }: UseComicOptions = {}) {
   }, [loadPages]);
 
   const pickAndOpen = useCallback(async () => {
-    const token = await window.tankobon.comic.pickFile();
+    const token = await window.tankobon.comic.pickFile(false);
     if (token) {
       await openFile(token);
     }

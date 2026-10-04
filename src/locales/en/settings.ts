@@ -20,6 +20,10 @@ export default {
     modeContinuous: 'Continuous scroll (pages follow one another)',
     pageSpacing: 'Spacing between pages',
     pixels: 'px',
+    autoAdd: 'Library',
+    autoAddLabel: 'Add a book to the library when it is opened in the reader',
+    autoAddHint:
+      'When unchecked, a file opened from the reader that is not in the library is read anonymously: nothing is saved, and it starts again from the first page each time. "Add a file" in the library always adds the book.',
   },
   appearance: {
     language: 'Language',

@@ -32,6 +32,7 @@ The mouse pointer turns into a hand over everything that can be clicked (buttons
 ## Reader
 
 - **Resume**: a comic reopens at the last page read.
+- **Anonymous reading** (Paramètres › Lecture, "Ajouter un livre à la bibliothèque quand il est ouvert", checked by default): opening a book that isn't in the library adds it. Unchecked, a book opened from the reader ("Ouvrir un fichier") that isn't in the library is read anonymously: it isn't added, nothing is saved for it (no progress, no cover) and it starts from the first page each time. "Ajouter un fichier" on the library page always adds the book, whatever the option. Books already in the library keep their progress and stay up to date either way.
 - **Reading direction**: left-to-right (BD/comics) or right-to-left (manga), in Paramètres › Lecture. It swaps which side (arrow keys and click zones) goes forward.
 - **Zoom**: fit to window, or 50 % to 200 % (100 % being the page's actual size). A page smaller than the window stays centered; a larger one scrolls.
 - **AI enhancement**: when a page is displayed larger than its native resolution, the "Améliorer (IA)" option upscales it with a super-resolution model (ESRGAN via UpscalerJS/TensorFlow.js) that runs locally. The model ships with the app and works offline; it is only loaded the first time the option is used.

@@ -67,6 +67,18 @@ function ReadingSettingsPage() {
           </div>
         )}
       </SettingsSection>
+
+      <SettingsSection title={t('autoAdd')}>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={settings.addOpenedBooksToLibrary}
+            onChange={(event) => update('addOpenedBooksToLibrary', event.target.checked)}
+          />
+          {t('autoAddLabel')}
+        </label>
+        <p className="text-sm text-muted-foreground">{t('autoAddHint')}</p>
+      </SettingsSection>
     </>
   );
 }

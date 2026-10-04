@@ -5,12 +5,13 @@ import { dirname } from 'node:path';
 import { SUPPORTED_COMIC_EXTENSIONS, type OpenComicResult } from '../../shared/comic';
 import { t } from '../../shared/i18n';
 import type { LibraryRepository } from '../db/library-repository';
+import type { SettingsRepository } from '../db/settings-repository';
 import type { DecoderClient } from '../decoder/decoder-client';
 import { openErrorMessage } from '../services/open-error';
 import type { NotifyDataChange } from './data-changes';
 import { existingDirectory, openDialogFor } from './dialogs';
 import { handle } from './handle';
-import { args, idArg, pageIndexArg } from './validate';
+import { args, booleanArg, idArg, pageIndexArg } from './validate';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const COMIC_CHANNELS = {
@@ -28,15 +29,17 @@ function lastOpenedDirectory(libraryRepo: LibraryRepository): Promise<string | u
 
 export function registerComicIpc(
   libraryRepo: LibraryRepository,
+  settingsRepo: SettingsRepository,
   decoder: DecoderClient,
   notify: NotifyDataChange,
 ): void {
-  // The files the user picked in the open dialog, by the opaque token `comic:pick-file` returned.
+  // The files the user picked in the open dialog, by the opaque token `comic:pick-file` returned,
+  // with whether the pick came from the library's "add a file" (such a book is always added).
   // With the library's books (by id), they are the only things `comic:open` accepts: the renderer
   // never names a path, so it can't have the main process read an arbitrary file.
-  const pickedPaths = new Map<string, string>();
+  const pickedPaths = new Map<string, { path: string; addToLibrary: boolean }>();
 
-  handle(COMIC_CHANNELS.pickFile, args(), async (event) => {
+  handle(COMIC_CHANNELS.pickFile, args(booleanArg), async (event, addToLibrary) => {
     const options: Electron.OpenDialogOptions = {
       title: t('dialogs:openComic'),
       properties: ['openFile'],
@@ -48,18 +51,26 @@ export function registerComicIpc(
       return null;
     }
     const token = randomUUID();
-    pickedPaths.set(token, filePaths[0]);
+    pickedPaths.set(token, { path: filePaths[0], addToLibrary });
     return token;
   });
 
   handle(COMIC_CHANNELS.open, args(idArg), async (_event, ref): Promise<OpenComicResult> => {
     // A dialog token, else a library entry id; anything else is not a book we know.
-    const filePath = pickedPaths.get(ref) ?? libraryRepo.get(ref)?.path;
+    const picked = pickedPaths.get(ref);
+    const filePath = picked?.path ?? libraryRepo.get(ref)?.path;
     if (!filePath) {
       return { status: 'error', message: t('errors:archive.unknownBook') };
     }
     try {
       const comic = await decoder.open(filePath);
+      // Anonymous read: with the option off, a book the library doesn't know is not added (unless it was
+      // picked from the library page's "add a file"), so nothing is saved for it (no entry, no progress, no cover) and it reopens from its first page.
+      const anonymous =
+        !picked?.addToLibrary && !settingsRepo.getAll().addOpenedBooksToLibrary && !libraryRepo.hasPath(comic.path);
+      if (anonymous) {
+        return { status: 'ok', comic: { ...comic, libraryId: null, resumePage: 0 } };
+      }
       const { size } = await stat(comic.path);
       const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
       // Opening bumps `lastOpenedAt` (and may refresh the title and page count).
