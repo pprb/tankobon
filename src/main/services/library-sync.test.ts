@@ -1,0 +1,93 @@
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { LibraryRepository } from '../db/library-repository';
+import { migrate } from '../db/schema';
+import { isInside, resyncLibrary } from './library-sync';
+
+const roots: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(roots.map((root) => rm(root, { recursive: true, force: true })));
+  roots.length = 0;
+});
+
+async function tree(files: string[]): Promise<string> {
+  const root = await mkdtemp(path.join(tmpdir(), 'tankobon-sync-'));
+  roots.push(root);
+  for (const file of files) {
+    const fullPath = path.join(root, file);
+    await mkdir(path.dirname(fullPath), { recursive: true });
+    await writeFile(fullPath, '');
+  }
+  return root;
+}
+
+function repository(): LibraryRepository {
+  const db = new DatabaseSync(':memory:');
+  migrate(db);
+  return new LibraryRepository(db);
+}
+
+const inspect = async () => ({ pageCount: 10, fileCount: 10 });
+const noProgress = () => undefined;
+
+describe('isInside', () => {
+  it('is true for descendants only', () => {
+    expect(isInside('/comics', '/comics/a/b.cbz')).toBe(true);
+    expect(isInside('/comics', '/comics')).toBe(false);
+    expect(isInside('/comics', '/comics-other/a.cbz')).toBe(false);
+    expect(isInside('/comics/a', '/comics/b.cbz')).toBe(false);
+  });
+});
+
+describe('resyncLibrary', () => {
+  it('adds new files and removes entries whose file is gone', async () => {
+    const root = await tree(['new.cbz', 'kept.cbz']);
+    const repo = repository();
+    repo.register(path.join(root, 'kept.cbz'), 'kept', 10, 10, 0);
+    repo.register(path.join(root, 'gone.cbz'), 'gone', 10, 10, 0);
+
+    const summary = await resyncLibrary(repo, [root], noProgress, inspect);
+
+    expect(summary).toMatchObject({ added: 1, removed: 1, failed: 0, unreachable: 0 });
+    expect(repo.list().map((entry) => path.basename(entry.path)).sort()).toEqual(['kept.cbz', 'new.cbz']);
+    expect(summary.removedEntries.map((entry) => path.basename(entry.path))).toEqual(['gone.cbz']);
+  });
+
+  it('leaves entries outside the folders alone', async () => {
+    const root = await tree(['a.cbz']);
+    const repo = repository();
+    repo.register('/elsewhere/missing.cbz', 'elsewhere', 10, 10, 0);
+
+    const summary = await resyncLibrary(repo, [root], noProgress, inspect);
+
+    expect(summary.removed).toBe(0);
+    expect(repo.hasPath('/elsewhere/missing.cbz')).toBe(true);
+  });
+
+  it('skips a folder that cannot be read instead of emptying it', async () => {
+    const missingRoot = path.join(tmpdir(), 'tankobon-sync-unplugged');
+    const repo = repository();
+    repo.register(path.join(missingRoot, 'a.cbz'), 'a', 10, 10, 0);
+
+    const summary = await resyncLibrary(repo, [missingRoot], noProgress, inspect);
+
+    expect(summary).toMatchObject({ added: 0, removed: 0, unreachable: 1 });
+    expect(repo.list()).toHaveLength(1);
+  });
+
+  it('reports a single final "done" for all the folders', async () => {
+    const first = await tree(['a.cbz']);
+    const second = await tree(['b.cbz']);
+    const phases: string[] = [];
+
+    await resyncLibrary(repository(), [first, second], (progress) => phases.push(progress.phase), inspect);
+
+    expect(phases.filter((phase) => phase === 'done')).toEqual(['done']);
+    expect(phases.at(-1)).toBe('done');
+  });
+});

@@ -35,6 +35,7 @@ describe('migrate', () => {
     expect(columnNames(db, 'credits')).toEqual(['library_id', 'person_id', 'role', 'position']);
     expect(columnNames(db, 'reading_lists')).toEqual(['id', 'name', 'created_at', 'position']);
     expect(columnNames(db, 'reading_list_items')).toEqual(['list_id', 'library_id', 'position']);
+    expect(columnNames(db, 'library_folders')).toEqual(['path', 'added_at']);
   });
 
   it('backfills the later columns on a database from the initial release, keeping its rows', () => {
@@ -90,7 +91,7 @@ describe('versioned migrations', () => {
     const db = new DatabaseSync(':memory:');
     migrate(db);
 
-    expect(userVersion(db)).toBe(2);
+    expect(userVersion(db)).toBe(3);
     expect(indexNames(db)).toEqual(['idx_credits_person_id']);
   });
 
@@ -102,7 +103,7 @@ describe('versioned migrations', () => {
 
     migrate(db);
 
-    expect(userVersion(db)).toBe(2);
+    expect(userVersion(db)).toBe(3);
     expect(indexNames(db)).toEqual(['idx_credits_person_id']);
     expect(db.prepare('SELECT value FROM settings').get()).toEqual({ value: '"dark"' });
   });

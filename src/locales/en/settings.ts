@@ -4,6 +4,7 @@ export default {
   sections: {
     reading: 'Reading',
     appearance: 'Display',
+    library: 'Library',
     metadata: 'Metadata',
     data: 'Data',
     about: 'About',
@@ -20,6 +21,10 @@ export default {
     modeContinuous: 'Continuous scroll (pages follow one another)',
     pageSpacing: 'Spacing between pages',
     pixels: 'px',
+    autoAdd: 'Library',
+    autoAddLabel: 'Add a book to the library when it is opened in the reader',
+    autoAddHint:
+      'When unchecked, a file opened from the reader that is not in the library is read anonymously: nothing is saved, and it starts again from the first page each time. "Add a file" in the library always adds the book.',
   },
   appearance: {
     language: 'Language',
@@ -34,6 +39,22 @@ export default {
       sepia: 'Sepia',
       white: 'White',
     },
+  },
+  library: {
+    folders: 'Library folders',
+    foldersHint: 'The folders added with “Add a folder…” in the library. Resynchronizing walks them again.',
+    noFolders: 'No folder yet: add one from the library page.',
+    removeFolder: 'Forget this folder',
+    resync: 'Resynchronization',
+    resyncHint: 'Adds the new comics found in these folders and removes from the library the comics whose file no longer exists (with their progress, rating, tags and reading-list places). Files on disk are never touched, and a folder that can’t be read (unplugged drive) is skipped.',
+    resyncButton: 'Resynchronize now',
+    resyncRunning: 'Resynchronizing…',
+    resyncOnStartup: 'Resynchronize the library at startup',
+    lastResync: 'Last resynchronization: {{date}}',
+    neverResynced: 'Never resynchronized.',
+    resyncDone: '{{added}} added · {{removed}} removed',
+    resyncFailed: '{{count}} could not be opened',
+    resyncUnreachable: '{{count}} folder unreachable, skipped',
   },
   metadata: {
     intro: 'The “Look up details” action of a library comic queries these services to find its series, volume, release date, language and authors. Only the search text is sent to them, and only when you start a search.',

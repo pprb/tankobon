@@ -6,6 +6,7 @@ const settings: Translation<typeof en> = {
   sections: {
     reading: 'Lecture',
     appearance: 'Affichage',
+    library: 'Bibliothèque',
     metadata: 'Métadonnées',
     data: 'Données',
     about: 'À propos',
@@ -22,6 +23,10 @@ const settings: Translation<typeof en> = {
     modeContinuous: 'Défilement continu (pages qui se suivent)',
     pageSpacing: 'Espacement entre les pages',
     pixels: 'px',
+    autoAdd: 'Bibliothèque',
+    autoAddLabel: "Ajouter un livre à la bibliothèque quand il est ouvert dans le lecteur",
+    autoAddHint:
+      "Décoché, un fichier ouvert depuis le lecteur et absent de la bibliothèque est lu de façon anonyme : rien n'est enregistré, et il repart de la première page à chaque ouverture. « Ajouter un fichier » dans la bibliothèque ajoute toujours le livre.",
   },
   appearance: {
     language: 'Langue',
@@ -36,6 +41,22 @@ const settings: Translation<typeof en> = {
       sepia: 'Sépia',
       white: 'Blanc',
     },
+  },
+  library: {
+    folders: 'Dossiers de la bibliothèque',
+    foldersHint: 'Les dossiers ajoutés avec « Ajouter un dossier… » dans la bibliothèque. La resynchronisation les parcourt à nouveau.',
+    noFolders: 'Aucun dossier pour le moment : ajoutez-en un depuis la page Bibliothèque.',
+    removeFolder: 'Oublier ce dossier',
+    resync: 'Resynchronisation',
+    resyncHint: 'Ajoute les nouvelles BD trouvées dans ces dossiers et retire de la bibliothèque celles dont le fichier n’existe plus (avec leur progression, note, étiquettes et place dans les listes de lecture). Les fichiers sur le disque ne sont jamais touchés, et un dossier illisible (disque débranché) est ignoré.',
+    resyncButton: 'Resynchroniser maintenant',
+    resyncRunning: 'Resynchronisation…',
+    resyncOnStartup: 'Resynchroniser la bibliothèque au démarrage',
+    lastResync: 'Dernière resynchronisation : {{date}}',
+    neverResynced: 'Jamais resynchronisée.',
+    resyncDone: '{{added}} ajoutée(s) · {{removed}} retirée(s)',
+    resyncFailed: '{{count}} illisible(s)',
+    resyncUnreachable: '{{count}} dossier inaccessible, ignoré',
   },
   metadata: {
     intro: "L'action « Rechercher les infos » d'une BD de la bibliothèque interroge ces services pour retrouver sa série, son tome, sa date de sortie, sa langue et ses auteurs. Seul le texte de la recherche leur est envoyé, et seulement quand tu lances une recherche.",

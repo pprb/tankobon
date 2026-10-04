@@ -16,7 +16,14 @@ import type {
   ExportResult,
   ImportResult,
 } from './shared/data';
-import type { AddFileResult, LibraryEntry, MetadataUpdate, ScanProgress, ScanResult } from './shared/library';
+import type {
+  AddFileResult,
+  LibraryEntry,
+  MetadataUpdate,
+  ResyncResult,
+  ScanProgress,
+  ScanResult,
+} from './shared/library';
 import type { MetadataPageResult, MetadataQuery, MetadataSearchResult } from './shared/metadata';
 import type { ReadingList, ReadingListOrderResult, ReadingListResult } from './shared/reading-list';
 import type { ApiKeys, AppSettings, PublicSettings } from './shared/settings';
@@ -33,8 +40,10 @@ export interface AppApi {
 
 /** Opening and reading comics, as `window.tankobon.comic`. */
 export interface ComicApi {
-  /** Opens a native file picker; resolves to an opaque token for the chosen file (to pass to `open`), or null if cancelled. The renderer never learns the path. */
-  pickFile(): Promise<string | null>;
+  /** Opens a native file picker; resolves to an opaque token for the chosen file (to pass to `open`), or null if cancelled. The renderer never learns the path.
+   * `addToLibrary` is true for the library's "add a file" (opening the token then always adds the book) and false for the reader's "open a file" (the book is added only if the `addOpenedBooksToLibrary` setting is on).
+   */
+  pickFile(addToLibrary: boolean): Promise<string | null>;
   /** Opens a comic and registers it in the library (or refreshes its entry); resolves with its saved page.
    * `ref` is a library entry id or a token from `pickFile`, never a path. A file that can't be opened (moved, deleted, corrupted, unsupported) resolves to an error result
    * with a message in the interface language, rather than rejecting.
@@ -54,7 +63,13 @@ export interface LibraryApi {
   addFile(): Promise<AddFileResult>;
   /** Opens a native directory picker, then adds every comic found under it, recursively. */
   addFolder(): Promise<ScanResult>;
-  /** Subscribes to `addFolder`'s progress; returns the unsubscribe function. */
+  /** The folders added with `addFolder`, which `resync` walks again, in the order they were added. */
+  listFolders(): Promise<string[]>;
+  /** Forgets one of those folders (a path returned by `listFolders`); its comics stay in the library. */
+  removeFolder(folder: string): Promise<void>;
+  /** Walks the remembered folders again: new comics are added, and comics whose file no longer exists are removed from the library (with their progress, rating, tags and reading-list places; the files on disk are never touched). A folder that can't be read is skipped and counted as `unreachable`. Stores the date as the `lastResyncAt` setting. Reports through `onScanProgress`; an error result when one is already running. */
+  resync(): Promise<ResyncResult>;
+  /** Subscribes to the progress of `addFolder` and `resync`; returns the unsubscribe function. */
   onScanProgress(listener: (progress: ScanProgress) => void): () => void;
   /** Removes an entry from the library; the file on disk is left untouched. */
   remove(id: string): Promise<void>;
@@ -165,7 +180,7 @@ const api: TankobonApi = {
     openLink: (link) => ipcRenderer.invoke('app:open-link', link),
   },
   comic: {
-    pickFile: () => ipcRenderer.invoke('comic:pick-file'),
+    pickFile: (addToLibrary) => ipcRenderer.invoke('comic:pick-file', addToLibrary),
     open: (filePath) => ipcRenderer.invoke('comic:open', filePath),
     readPage: (id, index) => ipcRenderer.invoke('comic:read-page', id, index),
     close: (id) => ipcRenderer.invoke('comic:close', id),
@@ -181,6 +196,9 @@ const api: TankobonApi = {
         ipcRenderer.removeListener('library:scan-progress', handler);
       };
     },
+    listFolders: () => ipcRenderer.invoke('library:list-folders'),
+    removeFolder: (folder) => ipcRenderer.invoke('library:remove-folder', folder),
+    resync: () => ipcRenderer.invoke('library:resync'),
     remove: (id) => ipcRenderer.invoke('library:remove', id),
     updateProgress: (id, currentPage) => ipcRenderer.invoke('library:update-progress', id, currentPage),
     updateRating: (id, rating) => ipcRenderer.invoke('library:update-rating', id, rating),

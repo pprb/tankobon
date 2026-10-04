@@ -27,6 +27,9 @@ const errors: Translation<typeof en> = {
     exportFailed: "Impossible d'écrire l'export : {{message}}",
     clearFailed: 'Impossible de vider la bibliothèque : {{message}}',
   },
+  library: {
+    resyncRunning: 'Une resynchronisation est déjà en cours.',
+  },
   import: {
     notJson: "Fichier illisible : ce n'est pas du JSON valide.",
     notExport: "Fichier non reconnu : ce n'est pas un export Tankōbon (version 1).",

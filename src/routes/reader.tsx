@@ -34,7 +34,7 @@ function ReaderPage() {
     loadPages: settings.readingMode !== 'continuous',
   });
   const { fullscreen, toggle: toggleFullscreen } = useReaderFullscreen(comic !== null);
-  const nextInList = useNextInList(list, comic?.libraryId);
+  const nextInList = useNextInList(list, comic?.libraryId ?? undefined);
 
   useEffect(() => {
     if (book) void openFile(book);
@@ -44,7 +44,7 @@ function ReaderPage() {
   // own single-page fetch for no reason); it persists progress directly instead.
   const persistProgress = useCallback(
     (index: number) => {
-      if (!comic) return;
+      if (!comic?.libraryId) return;
       void window.tankobon.library.updateProgress(comic.libraryId, index);
     },
     [comic],

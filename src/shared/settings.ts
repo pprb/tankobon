@@ -10,6 +10,11 @@ export interface AppSettings {
   language: LanguageSetting;
   /** Page-turn direction: left-to-right (BD/comics) or right-to-left (manga). */
   readingDirection: 'ltr' | 'rtl';
+  /**
+   * Whether opening a book adds it to the library when it isn't there yet. Off, a book that isn't in
+   * the library is read anonymously: nothing is saved, and it reopens from its first page.
+   */
+  addOpenedBooksToLibrary: boolean;
   /** Whether the sidebar is collapsed to an icon-only rail. */
   sidebarCollapsed: boolean;
   /** Mouse/trackpad wheel direction in the reader: scrolling down advances or retreats a page. */
@@ -28,6 +33,10 @@ export interface AppSettings {
   googleBooksEnabled: boolean;
   /** Optional Google Books API key; without one, requests share Google's anonymous quota. */
   googleBooksApiKey: string;
+  /** Whether the library is resynchronized with its folders in the background at every start. */
+  resyncOnStartup: boolean;
+  /** When the last resynchronization finished (ISO 8601); empty when there has been none. */
+  lastResyncAt: string;
   /** Folder last added with "Ajouter un dossier…" (empty before the first one): where the next folder dialog opens. */
   lastScanFolder: string;
 }
@@ -39,6 +48,7 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   language: 'system',
   readingDirection: 'ltr',
+  addOpenedBooksToLibrary: true,
   sidebarCollapsed: false,
   scrollDirection: 'standard',
   readingMode: 'single',
@@ -48,6 +58,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   comicVineApiKey: '',
   googleBooksEnabled: true,
   googleBooksApiKey: '',
+  resyncOnStartup: false,
+  lastResyncAt: '',
   lastScanFolder: '',
 };
 
@@ -84,6 +96,7 @@ const isString = (value: unknown): value is string => typeof value === 'string';
 export const SETTING_VALIDATORS: SettingValidators = {
   language: (value): value is LanguageSetting => value === 'system' || (isString(value) && isSupportedLanguage(value)),
   readingDirection: (value): value is AppSettings['readingDirection'] => value === 'ltr' || value === 'rtl',
+  addOpenedBooksToLibrary: isBoolean,
   sidebarCollapsed: isBoolean,
   scrollDirection: (value): value is AppSettings['scrollDirection'] => value === 'standard' || value === 'inverted',
   readingMode: (value): value is AppSettings['readingMode'] => value === 'single' || value === 'continuous',
@@ -94,6 +107,8 @@ export const SETTING_VALIDATORS: SettingValidators = {
   comicVineApiKey: isString,
   googleBooksEnabled: isBoolean,
   googleBooksApiKey: isString,
+  resyncOnStartup: isBoolean,
+  lastResyncAt: (value): value is string => isString(value) && (value === '' || !Number.isNaN(Date.parse(value))),
   lastScanFolder: isString,
 };
 
