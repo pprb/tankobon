@@ -226,6 +226,8 @@ The library page (`src/routes/index.tsx`) draws only the rows near the viewport 
 
 `library:add-folder` opens a directory picker, then `scanIntoLibrary()` (`src/main/services/library-scanner.ts`) walks it recursively for supported files. Unreadable directories are skipped; symlinks are never followed (`Dirent.isDirectory()` is false for them, which also rules out cycles). Learning a page count means opening each file (in the [decoder process](#decoder-process), through `inspect`: the scanner only owns the walk and the database), which is the slow part: progress is pushed file by file over `library:scan-progress`. The renderer subscribes via `library.onScanProgress()` for the whole life of the library page, not around each call, because progress starts as soon as the directory is picked. A file that won't open only counts as `failed`.
 
+The folder dialog opens in the previous scan's directory: `library:add-folder` stores it in the `lastScanFolder` setting (empty until a first scan) and passes it as `defaultPath` through `existingDirectory()` (`src/main/ipc/dialogs.ts`), which drops a directory that no longer exists, as the open-file dialog does with the last opened book's directory.
+
 Scanned files go through `register()`, never `touch()` (see the table above), and `hasPath()` lets the scanner skip known files without opening them. Each new file's cover thumbnail is cached by `inspect`, while its archive is still open (see [Cover thumbnails](#cover-thumbnails)). New rows get `last_opened_at = added_at`, which puts a fresh batch at the top of the list.
 
 ### Reader (`src/routes/reader.tsx`)
