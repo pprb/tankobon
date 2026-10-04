@@ -20,8 +20,8 @@ export const COMIC_CHANNELS = {
   close: 'comic:close',
 } as const;
 
-/** Directory of the last comic opened, so the file dialog picks up where the user left off. */
-function lastOpenedDirectory(libraryRepo: LibraryRepository): Promise<string | undefined> {
+/** Directory of the last comic opened, so the file dialogs pick up where the user left off. */
+export function lastOpenedDirectory(libraryRepo: LibraryRepository): Promise<string | undefined> {
   const lastPath = libraryRepo.lastOpenedPath();
   return existingDirectory(lastPath && dirname(lastPath));
 }

@@ -1,9 +1,15 @@
+import { stat } from 'node:fs/promises';
+import path from 'node:path';
+
+import { SUPPORTED_COMIC_EXTENSIONS } from '../../shared/comic';
 import { t } from '../../shared/i18n';
-import type { ScanResult } from '../../shared/library';
+import type { AddFileResult, ScanResult } from '../../shared/library';
 import type { LibraryRepository } from '../db/library-repository';
 import type { SettingsRepository } from '../db/settings-repository';
 import type { DecoderClient } from '../decoder/decoder-client';
+import { openErrorMessage } from '../services/open-error';
 import { scanIntoLibrary } from '../services/library-scanner';
+import { lastOpenedDirectory } from './comic';
 import type { NotifyDataChange } from './data-changes';
 import { existingDirectory, openDialogFor } from './dialogs';
 import { handle } from './handle';
@@ -12,6 +18,7 @@ import { args, expectInteger, expectMetadataUpdate, expectStringArray, idArg, pa
 // Channel names are shared with preload.ts: keep them in sync.
 export const LIBRARY_CHANNELS = {
   list: 'library:list',
+  addFile: 'library:add-file',
   addFolder: 'library:add-folder',
   /** Main → renderer, while `addFolder` runs. */
   scanProgress: 'library:scan-progress',
@@ -36,6 +43,36 @@ export function registerLibraryIpc(
   };
 
   handle(LIBRARY_CHANNELS.list, args(), () => repo.list());
+
+  handle(LIBRARY_CHANNELS.addFile, args(), async (event): Promise<AddFileResult> => {
+    const options: Electron.OpenDialogOptions = {
+      title: t('dialogs:addFile'),
+      properties: ['openFile'],
+      filters: [{ name: t('dialogs:comicFiles'), extensions: [...SUPPORTED_COMIC_EXTENSIONS] }],
+      defaultPath: await lastOpenedDirectory(repo),
+    };
+    const { canceled, filePaths } = await openDialogFor(event, options);
+    if (canceled || filePaths.length === 0) {
+      return { status: 'cancelled' };
+    }
+
+    const filePath = filePaths[0];
+    const title = path.basename(filePath, path.extname(filePath));
+    if (repo.hasPath(filePath)) {
+      return { status: 'exists', title };
+    }
+    try {
+      // Same path as a scanned file: the decoder counts the pages and caches the cover.
+      const { pageCount, fileCount } = await decoder.inspect(filePath);
+      const { size } = await stat(filePath);
+      repo.register(filePath, title, pageCount, fileCount, size);
+    } catch (error) {
+      return { status: 'error', message: openErrorMessage(error) };
+    }
+    // New row: the library slice reloads (a targeted upsert would need the entry's id).
+    notify({ scope: 'library' });
+    return { status: 'added', title };
+  });
 
   handle(LIBRARY_CHANNELS.addFolder, args(), async (event): Promise<ScanResult> => {
     const options: Electron.OpenDialogOptions = {

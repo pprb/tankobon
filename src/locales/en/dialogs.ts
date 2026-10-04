@@ -2,6 +2,7 @@
 export default {
   openComic: 'Open a comic',
   comicFiles: 'Comics and PDF',
+  addFile: 'Add a comic',
   addFolder: 'Add a comics folder',
   chooseDatabaseFolder: 'Choose the database folder',
   exportData: 'Export data',

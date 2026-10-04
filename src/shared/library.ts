@@ -90,6 +90,16 @@ export interface MetadataUpdate {
   credits?: CreditInput[];
 }
 
+/** Outcome of `library.addFile()`. */
+export type AddFileResult =
+  | { status: 'cancelled' }
+  /** The comic was added to the library; the reader is not opened. */
+  | { status: 'added'; title: string }
+  /** The comic was already in the library, and is left untouched. */
+  | { status: 'exists'; title: string }
+  /** The file can't be opened (corrupted, unsupported…); `message` is in the interface language. */
+  | { status: 'error'; message: string };
+
 /** Progress of a folder scan, pushed from the main process while it runs. */
 export interface ScanProgress {
   /** `scanning`: walking the tree, `total` not known yet. `importing`: opening each file found. */
