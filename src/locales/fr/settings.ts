@@ -23,9 +23,9 @@ const settings: Translation<typeof en> = {
     pageSpacing: 'Espacement entre les pages',
     pixels: 'px',
     autoAdd: 'Bibliothèque',
-    autoAddLabel: "Ajouter un livre à la bibliothèque quand il est ouvert",
+    autoAddLabel: "Ajouter un livre à la bibliothèque quand il est ouvert dans le lecteur",
     autoAddHint:
-      "Décoché, un livre absent de la bibliothèque est lu de façon anonyme : rien n'est enregistré, et il repart de la première page à chaque ouverture.",
+      "Décoché, un fichier ouvert depuis le lecteur et absent de la bibliothèque est lu de façon anonyme : rien n'est enregistré, et il repart de la première page à chaque ouverture. « Ajouter un fichier » dans la bibliothèque ajoute toujours le livre.",
   },
   appearance: {
     language: 'Langue',

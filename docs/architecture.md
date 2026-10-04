@@ -68,7 +68,7 @@ One row per comic ever opened or scanned. Three writers, with deliberately diffe
 | `register()` | folder scan | Left completely alone (a scan is not a read) | Never touched |
 | `upsert()` | JSON import | Overwritten with the snapshot's values | Overwritten (restoring a backup is what the user asked for) |
 
-**Anonymous reading**: with `AppSettings.addOpenedBooksToLibrary` off, `comic:open` (which then takes the `SettingsRepository`) skips `touch()`, the `data:changed` notification and the cover for a book whose path isn't in the library (`hasPath()`), and returns `libraryId: null`, `resumePage: 0`. The renderer saves progress only when `libraryId` is set; a book already in the library behaves as usual.
+**Anonymous reading**: with `AppSettings.addOpenedBooksToLibrary` off, `comic:open` (which then takes the `SettingsRepository`) skips `touch()`, the `data:changed` notification and the cover for a book whose path isn't in the library (`hasPath()`) and whose token came from the reader's picker; `comic:pick-file` takes an `addToLibrary` flag (true from the library page's "add a file"), remembered with the token, and such a token always adds the book, and returns `libraryId: null`, `resumePage: 0`. The renderer saves progress only when `libraryId` is set; a book already in the library behaves as usual.
 
 `updateRating()`/`updateTags()`/`updateProgress()`/`updateMetadata()` are the dedicated writers for user-set fields.
 

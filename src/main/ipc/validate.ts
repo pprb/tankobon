@@ -127,6 +127,14 @@ export function args<P extends readonly ArgParser<unknown>[]>(...parsers: P): Ar
   };
 }
 
+/** A boolean flag. */
+export const booleanArg: ArgParser<boolean> = (value) => {
+  if (typeof value !== 'boolean') {
+    throw new IpcArgumentError('flag', 'expected a boolean');
+  }
+  return value;
+};
+
 /** A library entry, reading list or open-comic id. */
 export const idArg: ArgParser<string> = (value) => expectNonEmptyString(value, 'id');
 

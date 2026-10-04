@@ -33,8 +33,10 @@ export interface AppApi {
 
 /** Opening and reading comics, as `window.tankobon.comic`. */
 export interface ComicApi {
-  /** Opens a native file picker; resolves to an opaque token for the chosen file (to pass to `open`), or null if cancelled. The renderer never learns the path. */
-  pickFile(): Promise<string | null>;
+  /** Opens a native file picker; resolves to an opaque token for the chosen file (to pass to `open`), or null if cancelled. The renderer never learns the path.
+   * `addToLibrary` is true for the library's "add a file" (opening the token then always adds the book) and false for the reader's "open a file" (the book is added only if the `addOpenedBooksToLibrary` setting is on).
+   */
+  pickFile(addToLibrary: boolean): Promise<string | null>;
   /** Opens a comic and registers it in the library (or refreshes its entry); resolves with its saved page.
    * `ref` is a library entry id or a token from `pickFile`, never a path. A file that can't be opened (moved, deleted, corrupted, unsupported) resolves to an error result
    * with a message in the interface language, rather than rejecting.
@@ -163,7 +165,7 @@ const api: TankobonApi = {
     openLink: (link) => ipcRenderer.invoke('app:open-link', link),
   },
   comic: {
-    pickFile: () => ipcRenderer.invoke('comic:pick-file'),
+    pickFile: (addToLibrary) => ipcRenderer.invoke('comic:pick-file', addToLibrary),
     open: (filePath) => ipcRenderer.invoke('comic:open', filePath),
     readPage: (id, index) => ipcRenderer.invoke('comic:read-page', id, index),
     close: (id) => ipcRenderer.invoke('comic:close', id),
