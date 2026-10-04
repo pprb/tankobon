@@ -20,6 +20,10 @@ export default {
     modeContinuous: 'Continuous scroll (pages follow one another)',
     pageSpacing: 'Spacing between pages',
     pixels: 'px',
+    autoAdd: 'Library',
+    autoAddLabel: 'Add a book to the library when it is opened',
+    autoAddHint:
+      'When unchecked, a book that is not in the library is read anonymously: nothing is saved, and it starts again from the first page each time it is opened.',
   },
   appearance: {
     language: 'Language',

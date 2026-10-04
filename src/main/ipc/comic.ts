@@ -5,6 +5,7 @@ import { dirname } from 'node:path';
 import { SUPPORTED_COMIC_EXTENSIONS, type OpenComicResult } from '../../shared/comic';
 import { t } from '../../shared/i18n';
 import type { LibraryRepository } from '../db/library-repository';
+import type { SettingsRepository } from '../db/settings-repository';
 import type { DecoderClient } from '../decoder/decoder-client';
 import { openErrorMessage } from '../services/open-error';
 import type { NotifyDataChange } from './data-changes';
@@ -41,6 +42,7 @@ async function lastOpenedDirectory(libraryRepo: LibraryRepository): Promise<stri
 
 export function registerComicIpc(
   libraryRepo: LibraryRepository,
+  settingsRepo: SettingsRepository,
   decoder: DecoderClient,
   notify: NotifyDataChange,
 ): void {
@@ -73,6 +75,11 @@ export function registerComicIpc(
     }
     try {
       const comic = await decoder.open(filePath);
+      // Anonymous read: with the option off, a book the library doesn't know is not added, so nothing
+      // is saved for it (no entry, no progress, no cover) and it reopens from its first page.
+      if (!settingsRepo.getAll().addOpenedBooksToLibrary && !libraryRepo.hasPath(comic.path)) {
+        return { status: 'ok', comic: { ...comic, libraryId: null, resumePage: 0 } };
+      }
       const { size } = await stat(comic.path);
       const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
       // Opening bumps `lastOpenedAt` (and may refresh the title and page count).

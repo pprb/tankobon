@@ -22,6 +22,10 @@ const settings: Translation<typeof en> = {
     modeContinuous: 'Défilement continu (pages qui se suivent)',
     pageSpacing: 'Espacement entre les pages',
     pixels: 'px',
+    autoAdd: 'Bibliothèque',
+    autoAddLabel: "Ajouter un livre à la bibliothèque quand il est ouvert",
+    autoAddHint:
+      "Décoché, un livre absent de la bibliothèque est lu de façon anonyme : rien n'est enregistré, et il repart de la première page à chaque ouverture.",
   },
   appearance: {
     language: 'Langue',

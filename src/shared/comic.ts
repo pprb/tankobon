@@ -19,9 +19,9 @@ export interface ArchiveInfo {
 
 /** What `comic:open` resolves to: the opened archive merged with its library entry. */
 export interface ComicInfo extends ArchiveInfo {
-  /** Id of the matching entry in the library database. */
-  libraryId: string;
-  /** Page to resume reading at, from the library database. */
+  /** Id of the matching entry in the library database; `null` for an anonymous read (the book isn't in the library). */
+  libraryId: string | null;
+  /** Page to resume reading at, from the library database (0 for an anonymous read). */
   resumePage: number;
 }
 

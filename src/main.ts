@@ -83,7 +83,7 @@ app.whenReady().then(() => {
   registerReadingListIpc(readingListRepo, broadcastDataChange);
   registerSettingsIpc(settingsRepo, broadcastDataChange);
   registerDataIpc(db, libraryRepo, settingsRepo, readingListRepo, decoder, broadcastDataChange);
-  registerComicIpc(libraryRepo, decoder, broadcastDataChange);
+  registerComicIpc(libraryRepo, settingsRepo, decoder, broadcastDataChange);
   registerDatabaseIpc();
   registerMetadataIpc(settingsRepo);
   registerAppIpc();
