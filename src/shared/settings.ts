@@ -28,6 +28,10 @@ export interface AppSettings {
   googleBooksEnabled: boolean;
   /** Optional Google Books API key; without one, requests share Google's anonymous quota. */
   googleBooksApiKey: string;
+  /** Whether the library is resynchronized with its folders in the background at every start. */
+  resyncOnStartup: boolean;
+  /** When the last resynchronization finished (ISO 8601); empty when there has been none. */
+  lastResyncAt: string;
 }
 
 /**
@@ -46,6 +50,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   comicVineApiKey: '',
   googleBooksEnabled: true,
   googleBooksApiKey: '',
+  resyncOnStartup: false,
+  lastResyncAt: '',
 };
 
 /** A reader background preset; its label is the `settings:appearance.backgrounds.<name>` translation. */
@@ -91,6 +97,8 @@ export const SETTING_VALIDATORS: SettingValidators = {
   comicVineApiKey: isString,
   googleBooksEnabled: isBoolean,
   googleBooksApiKey: isString,
+  resyncOnStartup: isBoolean,
+  lastResyncAt: (value): value is string => isString(value) && (value === '' || !Number.isNaN(Date.parse(value))),
 };
 
 /** Whether `key` names a setting of {@link AppSettings}. */
