@@ -5,9 +5,6 @@
 import { useEffect, useState } from 'react';
 import type Upscaler from 'upscaler';
 
-/** Fixed upscale factor of `@upscalerjs/default-model` (a lightweight ESRGAN model). */
-export const UPSCALE_FACTOR = 2;
-
 // TensorFlow.js and the model are only pulled in (as a separate chunk) the first time
 // upscaling actually runs, so opening the reader never pays for this unless it's used.
 // A single instance is then reused for the app's lifetime — loading it is the slow part.
