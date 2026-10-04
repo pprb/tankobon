@@ -27,8 +27,25 @@ globals.Image ??= Image;
 type PdfjsModule = typeof import('pdfjs-dist/legacy/build/pdf.mjs');
 let pdfjsPromise: Promise<PdfjsModule> | undefined;
 function getPdfjs(): Promise<PdfjsModule> {
-  pdfjsPromise ??= import('pdfjs-dist/legacy/build/pdf.mjs');
+  pdfjsPromise ??= importPdfjs();
   return pdfjsPromise;
+}
+
+// pdf.js decides once, when its module is evaluated, whether it runs in Node (`isNodeJS`): it says no
+// in an Electron process whose `process.type` isn't `browser`, which is the case of a utilityProcess
+// (`utility`). It then takes the browser paths: a worker it can't find ("No GlobalWorkerOptions.workerSrc
+// specified") and fetch/DOM canvas for fonts and images, so no PDF opened in the packaged app. The decoder
+// is plain Node as far as pdf.js is concerned, so `process.type` is hidden for the duration of the import.
+async function importPdfjs(): Promise<PdfjsModule> {
+  // `process.type` may be a read-only property, so it is redefined rather than assigned.
+  const original = Object.getOwnPropertyDescriptor(process, 'type');
+  Object.defineProperty(process, 'type', { value: undefined, configurable: true, writable: true });
+  try {
+    return await import('pdfjs-dist/legacy/build/pdf.mjs');
+  } finally {
+    if (original) Object.defineProperty(process, 'type', original);
+    else delete (process as { type?: string }).type;
+  }
 }
 
 type PDFDocumentProxy = import('pdfjs-dist').PDFDocumentProxy;
