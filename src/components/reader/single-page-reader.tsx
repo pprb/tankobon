@@ -262,7 +262,7 @@ export function SinglePageReader({
         ref={containerRef}
         className={cn(
           'relative flex min-h-0 flex-1',
-          isFit ? 'items-center justify-center' : 'items-start justify-start overflow-auto',
+          isFit ? 'items-center justify-center' : 'overflow-auto',
         )}
       >
         {pageUrl && (
@@ -270,7 +270,7 @@ export function SinglePageReader({
             src={displayUrl ?? undefined}
             alt={t('pageAlt', { page: page + 1 })}
             draggable={false}
-            className={isFit ? 'h-full w-full object-contain' : 'max-w-none'}
+            className={isFit ? 'h-full w-full object-contain' : 'm-auto max-w-none'}
             style={
               zoomFraction === null
                 ? undefined
