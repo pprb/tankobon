@@ -1,6 +1,9 @@
+import { stat } from 'node:fs/promises';
+
 import { t } from '../../shared/i18n';
 import type { ScanResult } from '../../shared/library';
 import type { LibraryRepository } from '../db/library-repository';
+import type { SettingsRepository } from '../db/settings-repository';
 import type { DecoderClient } from '../decoder/decoder-client';
 import { scanIntoLibrary } from '../services/library-scanner';
 import type { NotifyDataChange } from './data-changes';
@@ -22,8 +25,25 @@ export const LIBRARY_CHANNELS = {
   thumbnail: 'library:thumbnail',
 } as const;
 
+/**
+ * The folder last scanned, if it still exists: Electron's behaviour with a stale `defaultPath`
+ * is platform-dependent, so a folder that's gone (unplugged drive, moved) means the OS default.
+ */
+async function lastScanDirectory(settings: SettingsRepository): Promise<string | undefined> {
+  const directory = settings.getAll().lastScanDirectory;
+  if (!directory) {
+    return undefined;
+  }
+  try {
+    return (await stat(directory)).isDirectory() ? directory : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function registerLibraryIpc(
   repo: LibraryRepository,
+  settings: SettingsRepository,
   decoder: DecoderClient,
   notify: NotifyDataChange,
 ): void {
@@ -39,6 +59,7 @@ export function registerLibraryIpc(
     const options: Electron.OpenDialogOptions = {
       title: t('dialogs:addFolder'),
       properties: ['openDirectory'],
+      defaultPath: await lastScanDirectory(settings),
     };
     const { canceled, filePaths } = await openDialogFor(event, options);
     if (canceled || filePaths.length === 0) {
@@ -46,6 +67,8 @@ export function registerLibraryIpc(
     }
 
     const directory = filePaths[0];
+    settings.set('lastScanDirectory', directory);
+    notify({ scope: 'settings', values: { lastScanDirectory: directory } });
     const summary = await scanIntoLibrary(
       repo,
       directory,

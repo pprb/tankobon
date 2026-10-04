@@ -20,6 +20,8 @@ export interface AppSettings {
   pageSpacing: number;
   /** CSS color behind the pages in the reader (any `<input type="color">` value, i.e. `#rrggbb`). */
   readerBackground: string;
+  /** Folder last picked by "Ajouter un dossier…", where its dialog opens next time (empty: the OS default). */
+  lastScanDirectory: string;
   /** Whether metadata lookups query Comic Vine (only when `comicVineApiKey` is set too). */
   comicVineEnabled: boolean;
   /** Personal Comic Vine API key (free, from comicvine.gamespot.com/api); Comic Vine refuses requests without one. */
@@ -42,6 +44,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   readingMode: 'single',
   pageSpacing: 16,
   readerBackground: '#000000',
+  lastScanDirectory: '',
   comicVineEnabled: true,
   comicVineApiKey: '',
   googleBooksEnabled: true,
@@ -87,6 +90,7 @@ export const SETTING_VALIDATORS: SettingValidators = {
   pageSpacing: (value): value is number =>
     typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= MAX_PAGE_SPACING,
   readerBackground: (value): value is string => isString(value) && /^#[0-9a-fA-F]{6}$/.test(value),
+  lastScanDirectory: isString,
   comicVineEnabled: isBoolean,
   comicVineApiKey: isString,
   googleBooksEnabled: isBoolean,
