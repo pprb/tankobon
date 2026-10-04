@@ -1,10 +1,11 @@
-import { BrowserWindow, dialog, ipcMain } from 'electron';
-
 import { t } from '../../shared/i18n';
-import type { MetadataUpdate, ScanResult } from '../../shared/library';
+import type { ScanResult } from '../../shared/library';
 import type { LibraryRepository } from '../db/library-repository';
 import { scanIntoLibrary } from '../services/library-scanner';
+import { openDialogFor } from './dialogs';
 import type { ThumbnailCache } from '../services/thumbnail-cache';
+import { handle } from './handle';
+import { args, expectInteger, expectMetadataUpdate, expectStringArray, idArg, pageIndexArg } from './validate';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const LIBRARY_CHANNELS = {
@@ -21,17 +22,14 @@ export const LIBRARY_CHANNELS = {
 } as const;
 
 export function registerLibraryIpc(repo: LibraryRepository, thumbnails: ThumbnailCache): void {
-  ipcMain.handle(LIBRARY_CHANNELS.list, () => repo.list());
+  handle(LIBRARY_CHANNELS.list, args(), () => repo.list());
 
-  ipcMain.handle(LIBRARY_CHANNELS.addFolder, async (event): Promise<ScanResult> => {
+  handle(LIBRARY_CHANNELS.addFolder, args(), async (event): Promise<ScanResult> => {
     const options: Electron.OpenDialogOptions = {
       title: t('dialogs:addFolder'),
       properties: ['openDirectory'],
     };
-    const window = BrowserWindow.fromWebContents(event.sender);
-    const { canceled, filePaths } = window
-      ? await dialog.showOpenDialog(window, options)
-      : await dialog.showOpenDialog(options);
+    const { canceled, filePaths } = await openDialogFor(event, options);
     if (canceled || filePaths.length === 0) {
       return { status: 'cancelled' };
     }
@@ -51,7 +49,7 @@ export function registerLibraryIpc(repo: LibraryRepository, thumbnails: Thumbnai
     return { status: 'ok', directory, ...summary };
   });
 
-  ipcMain.handle(LIBRARY_CHANNELS.remove, async (_event, id: string) => {
+  handle(LIBRARY_CHANNELS.remove, args(idArg), async (_event, id) => {
     const entry = repo.get(id);
     repo.remove(id);
     if (entry) {
@@ -59,24 +57,30 @@ export function registerLibraryIpc(repo: LibraryRepository, thumbnails: Thumbnai
     }
   });
 
-  ipcMain.handle(LIBRARY_CHANNELS.updateProgress, (_event, id: string, currentPage: number) =>
+  handle(LIBRARY_CHANNELS.updateProgress, args(idArg, pageIndexArg), (_event, id, currentPage) =>
     repo.updateProgress(id, currentPage),
   );
 
-  ipcMain.handle(LIBRARY_CHANNELS.updateRating, (_event, id: string, rating: number) =>
-    repo.updateRating(id, rating),
+  handle(
+    LIBRARY_CHANNELS.updateRating,
+    args(idArg, (rating) => expectInteger(rating, 'rating', 0, 5)),
+    (_event, id, rating) => repo.updateRating(id, rating),
   );
 
-  ipcMain.handle(LIBRARY_CHANNELS.updateTags, (_event, id: string, tags: string[]) => repo.updateTags(id, tags));
+  handle(
+    LIBRARY_CHANNELS.updateTags,
+    args(idArg, (tags) => expectStringArray(tags, 'tags')),
+    (_event, id, tags) => repo.updateTags(id, tags),
+  );
 
   // Generated on the spot when missing: books added before thumbnails existed, or by an import
   // whose rebuild hasn't reached them yet.
-  ipcMain.handle(LIBRARY_CHANNELS.thumbnail, (_event, id: string) => {
+  handle(LIBRARY_CHANNELS.thumbnail, args(idArg), (_event, id) => {
     const entry = repo.get(id);
     return entry ? thumbnails.ensure(entry.path) : null;
   });
 
-  ipcMain.handle(LIBRARY_CHANNELS.updateMetadata, (_event, id: string, update: MetadataUpdate) =>
+  handle(LIBRARY_CHANNELS.updateMetadata, args(idArg, expectMetadataUpdate), (_event, id, update) =>
     repo.updateMetadata(id, update),
   );
 }

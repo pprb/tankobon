@@ -21,10 +21,28 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** Options of {@link useComic}. */
+export interface UseComicOptions {
+  /**
+   * Whether the hook fetches the current page's image (default `true`). The continuous reader
+   * loads its own pages, so it passes `false` to avoid a redundant render of the resume page.
+   */
+  loadPages?: boolean;
+}
+
 /** Owns the currently opened comic: file picking, page loading, cleanup. */
-export function useComic() {
+export function useComic({ loadPages = true }: UseComicOptions = {}) {
   const [state, setState] = useState<ComicState>(initialState);
   const currentUrl = useRef<string | null>(null);
+  const mounted = useRef(false);
+  const openRequest = useRef(0);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const revokeCurrentUrl = () => {
     if (currentUrl.current) {
@@ -42,21 +60,34 @@ export function useComic() {
     }
   }, [state.comic?.id]);
 
-  const openFile = useCallback(async (filePath: string) => {
+  const openFile = useCallback(async (ref: string) => {
+    const request = ++openRequest.current;
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
-      const comic = await window.tankobon.comic.open(filePath);
+      const result = await window.tankobon.comic.open(ref);
+      const stale = !mounted.current || request !== openRequest.current;
+      if (result.status === 'error') {
+        if (!stale) setState((s) => ({ ...s, loading: false, error: result.message }));
+        return;
+      }
+      const { comic } = result;
+      if (stale) {
+        // The reader was left or another open started meanwhile: nobody will use this archive.
+        void window.tankobon.comic.close(comic.id);
+        return;
+      }
       revokeCurrentUrl();
-      setState({ comic, page: comic.resumePage, pageUrl: null, error: null, loading: true });
+      setState({ comic, page: comic.resumePage, pageUrl: null, error: null, loading: loadPages });
     } catch (error) {
+      if (!mounted.current || request !== openRequest.current) return;
       setState((s) => ({ ...s, loading: false, error: errorMessage(error) }));
     }
-  }, []);
+  }, [loadPages]);
 
   const pickAndOpen = useCallback(async () => {
-    const filePath = await window.tankobon.comic.pickFile();
-    if (filePath) {
-      await openFile(filePath);
+    const token = await window.tankobon.comic.pickFile();
+    if (token) {
+      await openFile(token);
     }
   }, [openFile]);
 
@@ -72,7 +103,7 @@ export function useComic() {
   const comicId = state.comic?.id;
   const page = state.page;
   useEffect(() => {
-    if (!comicId) return;
+    if (!comicId || !loadPages) return;
     let cancelled = false;
 
     window.tankobon.comic
@@ -93,7 +124,7 @@ export function useComic() {
     return () => {
       cancelled = true;
     };
-  }, [comicId, page]);
+  }, [comicId, page, loadPages]);
 
   // Persist reading progress to the library database so it can be resumed later.
   const libraryId = state.comic?.libraryId;

@@ -26,6 +26,7 @@ export default {
   lookupHint: 'Look up details (series, authors…)',
   addToList: 'Add to a reading list',
   remove: 'Remove from the library',
+  confirmRemove: "Remove “{{title}}” from the library? Its rating, tags and details will be lost; the file stays on disk.",
   rating: '{{rating}} / 5',
   notRated: 'Not rated',
   rate_one: 'Rate {{count}} star',

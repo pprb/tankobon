@@ -3,6 +3,7 @@ import type { Translation } from '../types';
 
 const errors: Translation<typeof en> = {
   archive: {
+    unknownBook: 'Ce livre n’est pas dans la bibliothèque : choisissez à nouveau le fichier.',
     unsupportedFormat: 'Format non supporté : {{extension}}',
     noExtension: '(sans extension)',
     unknown: 'Archive inconnue : {{id}}',
@@ -13,9 +14,15 @@ const errors: Translation<typeof en> = {
     closed: 'Archive fermée : {{path}}',
     entryTooLarge: "Page trop volumineuse pour être lue : {{entry}}",
     imageTooLarge: "Image trop grande pour être affichée : {{entry}} ({{width}} × {{height}} px)",
+    fileNotFound: 'Fichier introuvable : il a été déplacé ou supprimé.',
+    openFailed: "Impossible d'ouvrir ce fichier : {{message}}",
   },
   database: {
     notWritable: "Impossible d'écrire dans {{directory}}.",
+  },
+  data: {
+    exportFailed: "Impossible d'écrire l'export : {{message}}",
+    clearFailed: 'Impossible de vider la bibliothèque : {{message}}',
   },
   import: {
     notJson: "Fichier illisible : ce n'est pas du JSON valide.",
