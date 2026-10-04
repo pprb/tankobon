@@ -15,6 +15,7 @@ const library: Translation<typeof en> = {
   scanNoneFound: 'Aucune BD trouvée dans {{directory}}',
   scanning: 'Recherche des BD…',
   scanProgress: "Progression de l'analyse",
+  scanClose: 'Fermer',
   empty: 'Aucune BD dans la bibliothèque pour le moment.',
   noMatch: 'Aucune BD ne correspond à la recherche.',
   dragHint: 'Glisser vers une liste de lecture du panneau latéral',
