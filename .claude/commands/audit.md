@@ -64,7 +64,7 @@ Duplicated logic (between the three archive implementations, the metadata client
 
 ### Best practices
 
-Against the project's own conventions first (`CLAUDE.md` "Conventions" and "Documentation rule"): French user-facing strings and English code, `@/` imports in the renderer only, result unions for user errors, `addColumnIfMissing()` for new columns, TSDoc on exports in the TypeDoc scope, colocated tests. Then general ones: missing tests for pure logic that has branches, accessibility of the UI (labels, keyboard access, focus in dialogs), error messages a user can act on, performance traps (N+1 queries, a whole library re-rendered on each keystroke, archives opened in parallel).
+Against the project's own conventions first (`CLAUDE.md` "Conventions" and "Documentation rule"): French user-facing strings and English code, `@/` imports in the renderer only, result unions for user errors, a new `MIGRATIONS` entry (`addColumnIfMissing()` for columns) for schema changes, TSDoc on exports in the TypeDoc scope, colocated tests. Then general ones: missing tests for pure logic that has branches, accessibility of the UI (labels, keyboard access, focus in dialogs), error messages a user can act on, performance traps (N+1 queries, a whole library re-rendered on each keystroke, archives opened in parallel).
 
 ### Architecture evolutions
 
