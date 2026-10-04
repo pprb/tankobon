@@ -2,6 +2,44 @@
 
 All notable changes to this project are documented here. This file is maintained by [release-please](https://github.com/googleapis/release-please) from the [Conventional Commits](https://www.conventionalcommits.org/) merged into `master`: don't edit released entries by hand. New versions are inserted above the previous ones.
 
+## [0.4.0](https://github.com/pprb/tankobon/compare/v0.3.0...v0.4.0) (2026-10-04)
+
+
+### Features
+
+* **db:** versioned schema migrations with PRAGMA user_version ([#54](https://github.com/pprb/tankobon/issues/54)) ([086f981](https://github.com/pprb/tankobon/commit/086f981cd4d5b4b0f1cc767c73cf848a85a365b8))
+* **decoder:** decode comic files in a utility process ([#56](https://github.com/pprb/tankobon/issues/56)) ([640d119](https://github.com/pprb/tankobon/commit/640d1196a001cfffce1354cc1d81248f6df60693))
+* **ipc:** validate renderer arguments and stop taking paths from it ([#53](https://github.com/pprb/tankobon/issues/53)) ([9a77747](https://github.com/pprb/tankobon/commit/9a777470e07412782b9b9e3f775bcbb4c591e161))
+* **library:** add a drag handle to library rows ([#66](https://github.com/pprb/tankobon/issues/66)) ([caaba2a](https://github.com/pprb/tankobon/commit/caaba2a0b9a41c7d9989f01bafc30c89bb6ea73e))
+* **library:** confirm before removing a book ([#46](https://github.com/pprb/tankobon/issues/46)) ([82fada0](https://github.com/pprb/tankobon/commit/82fada068d3bd22f6600659f556b89ad6443b6f2))
+* **library:** let the user close the scan progress bar ([#63](https://github.com/pprb/tankobon/issues/63)) ([3a4ccaf](https://github.com/pprb/tankobon/commit/3a4ccafbd69e5a4c7786321fb07c0075e13f4487))
+* **library:** open the add-folder dialog in the previously scanned directory ([#62](https://github.com/pprb/tankobon/issues/62)) ([fe0dc55](https://github.com/pprb/tankobon/commit/fe0dc551bdef71e520d85d68bc8139242b771c23))
+* **library:** resynchronize the library with its folders ([#67](https://github.com/pprb/tankobon/issues/67)) ([72ca859](https://github.com/pprb/tankobon/commit/72ca8597e5477b0c18b993958f3b64fe513c30dc))
+* **library:** show the file format (CBZ, CBR, PDF) in the library ([#65](https://github.com/pprb/tankobon/issues/65)) ([79e346c](https://github.com/pprb/tankobon/commit/79e346cf6f925f9286e1d23704ee7003d4eef047))
+* **reader:** option to add opened books to the library, anonymous reading otherwise ([#64](https://github.com/pprb/tankobon/issues/64)) ([6fb93bd](https://github.com/pprb/tankobon/commit/6fb93bd3aa1c15541af114cf4decca1d2d18ee64))
+* **renderer:** single data store fed by a data:changed push, virtualized library ([#59](https://github.com/pprb/tankobon/issues/59)) ([6717519](https://github.com/pprb/tankobon/commit/6717519e3c771fb226e4b46f94995d4ce1f56302))
+* **ui:** confirm destructive actions in an in-app dialog ([#71](https://github.com/pprb/tankobon/issues/71)) ([1178b45](https://github.com/pprb/tankobon/commit/1178b45da4ccf8fd1a5ac2ff2d7bdd8d05854cb2))
+
+
+### Bug Fixes
+
+* **archive:** refuse images with huge dimensions before decoding them ([#55](https://github.com/pprb/tankobon/issues/55)) ([27682c5](https://github.com/pprb/tankobon/commit/27682c531d491fe474d17fe6cd972102af3b79e2))
+* **data:** report export and clear failures to the user ([#43](https://github.com/pprb/tankobon/issues/43)) ([145fed1](https://github.com/pprb/tankobon/commit/145fed1111376ab428a572e44b12d5b40d7a791e))
+* **db:** run the JSON import and multi-statement writes in transactions ([#39](https://github.com/pprb/tankobon/issues/39)) ([5845aa6](https://github.com/pprb/tankobon/commit/5845aa6c78193a0b3a0d2ce375722b0e194ac3c9))
+* **ipc:** validate renderer arguments in the main process ([#49](https://github.com/pprb/tankobon/issues/49)) ([da2d9c3](https://github.com/pprb/tankobon/commit/da2d9c39376d459484f56bcd88fc35101ab0a4ad))
+* **library:** add a single file to the library without opening the reader ([#69](https://github.com/pprb/tankobon/issues/69)) ([21dba9b](https://github.com/pprb/tankobon/commit/21dba9b6a29bb20c8e6cbfed68fe17c9b343b90d))
+* **lists:** reset the reading list page when switching lists ([#38](https://github.com/pprb/tankobon/issues/38)) ([62350b3](https://github.com/pprb/tankobon/commit/62350b3f635a050eb81551b5a126e183da4b9ab6))
+* **pdf:** cap the rendered page size ([#40](https://github.com/pprb/tankobon/issues/40)) ([624a5bc](https://github.com/pprb/tankobon/commit/624a5bcfb9fb8050c2661a5711f8709f0a7ec373))
+* **pdf:** make pdf.js run its Node code paths in the decoder process ([#70](https://github.com/pprb/tankobon/issues/70)) ([04c145f](https://github.com/pprb/tankobon/commit/04c145f8ff80d17050cb5971bee2a27b428a43bf))
+* **reader:** close an archive opened after the reader left or switched books ([#42](https://github.com/pprb/tankobon/issues/42)) ([a8138a0](https://github.com/pprb/tankobon/commit/a8138a059a2215d384f096bb6bff7d8caf2fd384))
+* **reader:** keep the UI responsive during AI upscaling ([#60](https://github.com/pprb/tankobon/issues/60)) ([9f8b37e](https://github.com/pprb/tankobon/commit/9f8b37e2367f44dde468413a4476af5a448b3413))
+* **reader:** keep the zoomed page centered when smaller than the viewport ([#61](https://github.com/pprb/tankobon/issues/61)) ([bfa8342](https://github.com/pprb/tankobon/commit/bfa8342adfbc9e9f75622f1e792be8b0da1aca26))
+* **reader:** show a French message when a book cannot be opened ([#44](https://github.com/pprb/tankobon/issues/44)) ([3eb0455](https://github.com/pprb/tankobon/commit/3eb0455c3c4dfbdbbef2ea188983ec0fc4d253f3))
+* **reader:** track the active page in continuous mode whatever its height ([#36](https://github.com/pprb/tankobon/issues/36)) ([ba75a66](https://github.com/pprb/tankobon/commit/ba75a660d947e0c9f51c5dda1f80bb3da84c4706))
+* **security:** block navigation, new windows and file drops on the main window ([#37](https://github.com/pprb/tankobon/issues/37)) ([7c49795](https://github.com/pprb/tankobon/commit/7c4979559f547b514cf956c25fae3a7fc361ce46))
+* **settings:** reload every settings view after an import ([#48](https://github.com/pprb/tankobon/issues/48)) ([7ff21cd](https://github.com/pprb/tankobon/commit/7ff21cd617818f185e0ba7097b2c91b7c9e94870))
+* **thumbnails:** queue thumbnail removal behind a running generation ([#57](https://github.com/pprb/tankobon/issues/57)) ([eddd15e](https://github.com/pprb/tankobon/commit/eddd15eab078ac5f7c639710330d6123c7bba209))
+
 ## [0.3.0](https://github.com/pprb/tankobon/compare/v0.2.1...v0.3.0) (2026-10-02)
 
 
