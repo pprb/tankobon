@@ -47,6 +47,13 @@ function toCredits(value: unknown): CreditInput[] {
   );
 }
 
+/** The measured average page size, or nulls (to be measured again) unless both are positive numbers. */
+function toPageSize(width: unknown, height: unknown): Pick<LibraryEntry, 'avgPageWidth' | 'avgPageHeight'> {
+  const w = Math.trunc(toNumber(width, 0));
+  const h = Math.trunc(toNumber(height, 0));
+  return w > 0 && h > 0 ? { avgPageWidth: w, avgPageHeight: h } : { avgPageWidth: null, avgPageHeight: null };
+}
+
 function toEntry(value: unknown): LibraryEntry | null {
   if (!isRecord(value) || typeof value.path !== 'string' || value.path === '') {
     return null;
@@ -72,6 +79,8 @@ function toEntry(value: unknown): LibraryEntry | null {
     volume: toNullableString(value.volume),
     releaseDate: toNullableString(value.releaseDate),
     language: toNullableString(value.language),
+    // Both or neither: a half-measured pair would be shown as a size of 0.
+    ...toPageSize(value.avgPageWidth, value.avgPageHeight),
     credits: toCredits(value.credits).map((credit) => ({ ...credit, personId: '' })),
   };
 }

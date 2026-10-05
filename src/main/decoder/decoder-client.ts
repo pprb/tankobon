@@ -11,6 +11,7 @@ import type {
   DecoderMethods,
   DecoderRequest,
   DecoderResponse,
+  PageSizeAverage,
 } from './protocol';
 
 /** A running decoder process, as the client sees it: Electron's `utilityProcess` in the app, a fake in tests. */
@@ -66,6 +67,11 @@ export class DecoderClient {
   /** Counts a file's pages (and caches its cover); see `DecoderMethods.inspect`. */
   inspect(filePath: string): Promise<ArchiveSummary> {
     return this.call('inspect', filePath);
+  }
+
+  /** Averages a file's page dimensions; see `DecoderMethods.measure`. */
+  measure(filePath: string): Promise<PageSizeAverage | null> {
+    return this.call('measure', filePath);
   }
 
   /** A book's thumbnail, generated when missing; null when it has no cover. */

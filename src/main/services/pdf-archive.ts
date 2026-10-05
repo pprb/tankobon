@@ -9,6 +9,7 @@ import path from 'node:path';
 import type { ComicPage } from '../../shared/comic';
 import { t } from '../../shared/i18n';
 import type { ComicArchive } from './comic-archive';
+import type { ImageSize } from './image-size';
 
 // pdf.js's rendering code (the `legacy` build, meant for non-browser environments) references
 // DOMMatrix/Path2D/ImageData/Image as bare globals, assuming a browser. @napi-rs/canvas is the
@@ -133,6 +134,21 @@ export class PdfArchive implements ComicArchive {
       // Node-native implementation of that same API (pdf.js's own optional dependency for it).
       await page.render({ canvas: canvas as unknown as HTMLCanvasElement, viewport }).promise;
       return { data: new Uint8Array(canvas.toBuffer('image/png')), mimeType: 'image/png' };
+    } finally {
+      page.cleanup();
+    }
+  }
+
+  /** Size in pixels page `index` is rendered at, from its box, without rendering it. */
+  async pageSize(index: number): Promise<ImageSize | null> {
+    if (index < 0 || index >= this.pages.length) {
+      return null;
+    }
+    const page = await this.doc.getPage(index + 1);
+    try {
+      const { width, height } = page.getViewport({ scale: 1 });
+      const scale = pageRenderScale(width, height);
+      return { width: Math.ceil(width * scale), height: Math.ceil(height * scale) };
     } finally {
       page.cleanup();
     }
