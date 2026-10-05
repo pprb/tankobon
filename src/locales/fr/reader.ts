@@ -5,6 +5,7 @@ const reader: Translation<typeof en> = {
   title: 'Lecteur',
   intro: 'Ouvre un fichier CBZ, CBR ou PDF pour commencer la lecture.',
   openFile: 'Ouvrir un fichier',
+  removeFromLibrary: 'Retirer de la bibliothèque',
   openAnother: 'Ouvrir un autre fichier',
   close: 'Fermer',
   zoom: 'Zoom',
