@@ -48,7 +48,7 @@ const settings: Translation<typeof en> = {
     noFolders: 'Aucun dossier pour le moment : ajoutez-en un depuis la page Bibliothèque.',
     removeFolder: 'Oublier ce dossier',
     resync: 'Resynchronisation',
-    resyncHint: 'Ajoute les nouvelles BD trouvées dans ces dossiers et retire de la bibliothèque celles dont le fichier n’existe plus (avec leur progression, note, étiquettes et place dans les listes de lecture). Les fichiers sur le disque ne sont jamais touchés, et un dossier illisible (disque débranché) est ignoré.',
+    resyncHint: 'Ajoute les nouvelles BD trouvées dans ces dossiers et retire de la bibliothèque celles dont le fichier n’existe plus, y compris les fichiers ajoutés un par un (avec leur progression, note, étiquettes et place dans les listes de lecture). Les fichiers sur le disque ne sont jamais touchés, et un dossier ou répertoire illisible (disque débranché) est ignoré.',
     resyncButton: 'Resynchroniser maintenant',
     resyncRunning: 'Resynchronisation…',
     resyncOnStartup: 'Resynchroniser la bibliothèque au démarrage',
