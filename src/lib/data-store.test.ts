@@ -25,6 +25,8 @@ function entry(id: string, lastOpenedAt: string, extra: Partial<LibraryEntry> = 
     volume: null,
     releaseDate: null,
     language: null,
+    avgPageWidth: null,
+    avgPageHeight: null,
     credits: [],
     ...extra,
   };

@@ -29,6 +29,8 @@ describe('migrate', () => {
       'volume',
       'release_date',
       'language',
+      'avg_page_width',
+      'avg_page_height',
     ]);
     expect(columnNames(db, 'settings')).toEqual(['key', 'value']);
     expect(columnNames(db, 'people')).toEqual(['id', 'first_name', 'last_name', 'nationality']);
@@ -75,7 +77,7 @@ describe('migrate', () => {
     db.exec("INSERT INTO settings VALUES ('theme', '\"dark\"')");
 
     expect(() => migrate(db)).not.toThrow();
-    expect(columnNames(db, 'library')).toHaveLength(16);
+    expect(columnNames(db, 'library')).toHaveLength(18);
     expect(db.prepare('SELECT value FROM settings').get()).toEqual({ value: '"dark"' });
   });
 });
@@ -91,7 +93,7 @@ describe('versioned migrations', () => {
     const db = new DatabaseSync(':memory:');
     migrate(db);
 
-    expect(userVersion(db)).toBe(3);
+    expect(userVersion(db)).toBe(4);
     expect(indexNames(db)).toEqual(['idx_credits_person_id']);
   });
 
@@ -103,7 +105,7 @@ describe('versioned migrations', () => {
 
     migrate(db);
 
-    expect(userVersion(db)).toBe(3);
+    expect(userVersion(db)).toBe(4);
     expect(indexNames(db)).toEqual(['idx_credits_person_id']);
     expect(db.prepare('SELECT value FROM settings').get()).toEqual({ value: '"dark"' });
   });

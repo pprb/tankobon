@@ -37,6 +37,13 @@ export interface LibraryEntry {
   releaseDate: string | null;
   /** Language of the book, as an ISO 639-1 code ("fr", "en"). */
   language: string | null;
+  /**
+   * Simple average width of the pages' images, in pixels, once the background scan has measured
+   * the book (see `ImageScanProgress`); null until then. For a PDF, the size pages are rendered at.
+   */
+  avgPageWidth: number | null;
+  /** Simple average height of the pages' images, in pixels; null until measured. */
+  avgPageHeight: number | null;
   /** People credited on the book, with their role. */
   credits: Credit[];
 }
@@ -108,6 +115,19 @@ export interface ScanProgress {
   total: number;
   /** Absolute path currently being handled, for the progress label. */
   currentFile: string;
+}
+
+/**
+ * State of the background scan that measures the pages of the library's books, pushed from the
+ * main process while it runs (and returned by `library.imageScanStatus()`).
+ */
+export interface ImageScanProgress {
+  /** Whether books are being measured; false once the queue is empty. */
+  running: boolean;
+  /** Books measured (or given up on) since the scan started. */
+  processed: number;
+  /** Books to measure in this run, those added while it runs included. */
+  total: number;
 }
 
 /** Outcome of `library.addFolder()`. */

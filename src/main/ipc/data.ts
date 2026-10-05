@@ -7,6 +7,7 @@ import { buildExport, exportFileName } from '../db/export-service';
 import { applyImport, parseExport } from '../db/import-service';
 import type { DecoderClient } from '../decoder/decoder-client';
 import type { LibraryRepository } from '../db/library-repository';
+import type { ImageStatsScanner } from '../services/image-stats-scanner';
 import type { ReadingListRepository } from '../db/reading-list-repository';
 import type { SettingsRepository } from '../db/settings-repository';
 import { applyMainLanguage } from '../language';
@@ -33,6 +34,7 @@ export function registerDataIpc(
   readingListRepo: ReadingListRepository,
   decoder: DecoderClient,
   notify: NotifyDataChange,
+  imageScanner: ImageStatsScanner,
 ): void {
   handle(DATA_CHANNELS.export, args(), async (event): Promise<ExportResult> => {
     const options: Electron.SaveDialogOptions = {
@@ -76,6 +78,8 @@ export function registerDataIpc(
       // Thumbnails aren't part of an export: rebuild the cache in the background, without making
       // the import wait for every archive to be opened.
       void decoder.rebuildThumbnails(libraryRepo.list().map((entry) => entry.path)).catch(() => undefined);
+      // Same for the pages' sizes of the books the snapshot doesn't carry them for.
+      void imageScanner.kick();
       return { status: 'imported', filePath: filePaths[0], ...counts };
     } catch (error) {
       return { status: 'error', message: error instanceof Error ? error.message : String(error) };
