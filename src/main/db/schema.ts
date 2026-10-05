@@ -104,6 +104,14 @@ const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Average size of a book's page images, filled in by the background scan (NULL until measured).
+    version: 4,
+    run: (db) => {
+      addColumnIfMissing(db, 'library', 'avg_page_width', 'INTEGER');
+      addColumnIfMissing(db, 'library', 'avg_page_height', 'INTEGER');
+    },
+  },
 ];
 
 /**

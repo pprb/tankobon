@@ -1,13 +1,21 @@
+import { BrowserWindow } from 'electron';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import { SUPPORTED_COMIC_EXTENSIONS } from '../../shared/comic';
 import { t } from '../../shared/i18n';
-import type { AddFileResult, ResyncResult, ScanProgress, ScanResult } from '../../shared/library';
+import type {
+  AddFileResult,
+  ImageScanProgress,
+  ResyncResult,
+  ScanProgress,
+  ScanResult,
+} from '../../shared/library';
 import type { LibraryFolderRepository } from '../db/library-folder-repository';
 import type { LibraryRepository } from '../db/library-repository';
 import type { SettingsRepository } from '../db/settings-repository';
 import type { DecoderClient } from '../decoder/decoder-client';
+import type { ImageStatsScanner } from '../services/image-stats-scanner';
 import { openErrorMessage } from '../services/open-error';
 import { scanIntoLibrary } from '../services/library-scanner';
 import { resyncLibrary } from '../services/library-sync';
@@ -42,7 +50,19 @@ export const LIBRARY_CHANNELS = {
   updateTags: 'library:update-tags',
   updateMetadata: 'library:update-metadata',
   thumbnail: 'library:thumbnail',
+  imageScanStatus: 'library:image-scan-status',
+  /** Main → renderer, while the background measure of the pages runs. */
+  imageScanProgress: 'library:image-scan-progress',
 } as const;
+
+/** Sends the state of the background measure to every open window (one being closed is skipped). */
+export function broadcastImageScanProgress(progress: ImageScanProgress): void {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+      window.webContents.send(LIBRARY_CHANNELS.imageScanProgress, progress);
+    }
+  }
+}
 
 /** Everything a resynchronization needs; built once in `main.ts`. */
 export interface Resynchronizer {
@@ -60,6 +80,7 @@ export function createResynchronizer(
   settings: SettingsRepository,
   decoder: DecoderClient,
   notify: NotifyDataChange,
+  imageScanner: ImageStatsScanner,
 ): Resynchronizer {
   let running = false;
 
@@ -74,6 +95,7 @@ export function createResynchronizer(
 
         notify({ scope: 'library' });
         notify({ scope: 'settings', values: { lastResyncAt: finishedAt } });
+        void imageScanner.kick();
         if (summary.removed > 0) {
           // The removed books left the reading lists they were in, and their covers are useless.
           notify({ scope: 'readingLists' });
@@ -103,6 +125,7 @@ export function registerLibraryIpc(
   settingsRepo: SettingsRepository,
   decoder: DecoderClient,
   notify: NotifyDataChange,
+  imageScanner: ImageStatsScanner,
 ): void {
   /** Announces the new state of entries a handler just wrote (the ones that still exist). */
   const notifyUpserted = (...ids: string[]) => {
@@ -139,6 +162,7 @@ export function registerLibraryIpc(
     }
     // New row: the library slice reloads (a targeted upsert would need the entry's id).
     notify({ scope: 'library' });
+    void imageScanner.kick();
     return { status: 'added', title };
   });
 
@@ -170,6 +194,8 @@ export function registerLibraryIpc(
     );
     folders.add(directory);
     notify({ scope: 'library' });
+    // The files are in: their pages are measured in the background, after the import.
+    void imageScanner.kick();
     return { status: 'ok', directory, ...summary };
   });
 
@@ -229,6 +255,8 @@ export function registerLibraryIpc(
     const entry = repo.get(id);
     return entry ? decoder.thumbnail(entry.path).catch(() => null) : null;
   });
+
+  handle(LIBRARY_CHANNELS.imageScanStatus, args(), () => imageScanner.status());
 
   handle(LIBRARY_CHANNELS.updateMetadata, args(idArg, expectMetadataUpdate), (_event, id, update) => {
     const updated = repo.updateMetadata(id, update);

@@ -36,6 +36,20 @@ describe('LibraryRepository', () => {
     expect(repo.list()).toHaveLength(1);
   });
 
+  it('stores the average page size, and lists the books still to measure', () => {
+    const a = repo.touch('/comics/a.cbz', 'A', 20, 22, 1);
+    const b = repo.touch('/comics/b.cbz', 'B', 20, 22, 1);
+    expect(a).toMatchObject({ avgPageWidth: null, avgPageHeight: null });
+    expect(repo.unmeasured().map((entry) => entry.id).sort()).toEqual([a.id, b.id].sort());
+
+    expect(repo.updateImageStats(a.id, 1200, 1800)).toMatchObject({ avgPageWidth: 1200, avgPageHeight: 1800 });
+
+    expect(repo.unmeasured()).toEqual([{ id: b.id, path: '/comics/b.cbz' }]);
+    // Opening the book again refreshes its other fields, not its measure.
+    expect(repo.touch('/comics/a.cbz', 'A', 20, 22, 1)).toMatchObject({ avgPageWidth: 1200, avgPageHeight: 1800 });
+    expect(repo.updateImageStats('unknown', 1, 1)).toBeNull();
+  });
+
   it('reuses the existing entry for the same path', () => {
     const first = repo.touch('/comics/one.cbz', 'One', 20, 22, 123456);
     const second = repo.touch('/comics/one.cbz', 'One', 20, 22, 123456);

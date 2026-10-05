@@ -63,6 +63,25 @@ describe('parseExport', () => {
     });
   });
 
+  it('keeps a valid measured page size and drops a half-written one (to be measured again)', () => {
+    const parsed = parseExport(
+      JSON.stringify({
+        version: 1,
+        library: [
+          { path: '/a.cbz', avgPageWidth: 1200.7, avgPageHeight: 1800 },
+          { path: '/b.cbz', avgPageWidth: 1200 },
+          { path: '/c.cbz' },
+        ],
+      }),
+    );
+
+    expect(parsed.library.map((entry) => [entry.avgPageWidth, entry.avgPageHeight])).toEqual([
+      [1200, 1800],
+      [null, null],
+      [null, null],
+    ]);
+  });
+
   it('refuses out-of-range setting values, keeping the defaults', () => {
     const parsed = parseExport(
       JSON.stringify({

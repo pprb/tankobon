@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { directionalControls, disabledControls } from './reader-navigation';
+import { directionalControls, disabledControls, scrollEdgeAfterTurn } from './reader-navigation';
 
 describe('directionalControls', () => {
   it('advances forward and retreats backward in left-to-right order', () => {
@@ -26,5 +26,15 @@ describe('disabledControls', () => {
 
   it('disables both on a single-page book', () => {
     expect(disabledControls('ltr', 0, 1)).toEqual({ isPrevDisabled: true, isNextDisabled: true });
+  });
+});
+
+describe('scrollEdgeAfterTurn', () => {
+  it('lands on the top when moving toward the end of the book', () => {
+    expect(scrollEdgeAfterTurn(3, 4)).toBe('top');
+  });
+
+  it('lands on the bottom when going back', () => {
+    expect(scrollEdgeAfterTurn(4, 3)).toBe('bottom');
   });
 });

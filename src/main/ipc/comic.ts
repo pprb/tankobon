@@ -7,6 +7,7 @@ import { t } from '../../shared/i18n';
 import type { LibraryRepository } from '../db/library-repository';
 import type { SettingsRepository } from '../db/settings-repository';
 import type { DecoderClient } from '../decoder/decoder-client';
+import type { ImageStatsScanner } from '../services/image-stats-scanner';
 import { openErrorMessage } from '../services/open-error';
 import type { NotifyDataChange } from './data-changes';
 import { existingDirectory, openDialogFor } from './dialogs';
@@ -32,6 +33,7 @@ export function registerComicIpc(
   settingsRepo: SettingsRepository,
   decoder: DecoderClient,
   notify: NotifyDataChange,
+  imageScanner: ImageStatsScanner,
 ): void {
   // The files the user picked in the open dialog, by the opaque token `comic:pick-file` returned,
   // with whether the pick came from the library's "add a file" (such a book is always added).
@@ -75,6 +77,8 @@ export function registerComicIpc(
       const entry = libraryRepo.touch(comic.path, comic.title, comic.pageCount, comic.fileCount, size);
       // Opening bumps `lastOpenedAt` (and may refresh the title and page count).
       notify({ scope: 'library', upserted: [entry] });
+      // A book new to the library (or never measured) joins the background measure of the pages.
+      if (entry.avgPageWidth === null) void imageScanner.kick();
       // In the background, from the archive just opened: opening the book must not wait for its cover.
       if (comic.pageCount > 0) {
         void decoder.thumbnail(comic.path, comic.id).catch(() => undefined);

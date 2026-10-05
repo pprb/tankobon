@@ -3,6 +3,7 @@
  * @module
  */
 import { ComicService, openArchive } from '../services/comic-service';
+import { measureArchive } from '../services/image-stats';
 import { ThumbnailCache } from '../services/thumbnail-cache';
 import type { DecoderMethods } from './protocol';
 
@@ -25,6 +26,14 @@ export function createDecoderHandlers(thumbnailsDirectory: string): DecoderHandl
         // A book without a cover only goes without a thumbnail: not a reason to refuse it.
         await thumbnails.storeFromArchive(archive).catch(() => undefined);
         return { pageCount: archive.pages.length, fileCount: archive.fileCount };
+      } finally {
+        await archive.close();
+      }
+    },
+    async measure(filePath) {
+      const archive = await openArchive(filePath);
+      try {
+        return await measureArchive(archive);
       } finally {
         await archive.close();
       }

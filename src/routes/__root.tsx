@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { useFullscreen } from '@/hooks/use-fullscreen';
+import { useImageScan } from '@/hooks/use-image-scan';
 import { useReadingLists } from '@/hooks/use-reading-lists';
 import { useSettings } from '@/hooks/use-settings';
 import {
@@ -14,6 +15,7 @@ import {
   LIBRARY_ENTRY_DRAG_TYPE,
   moveItem,
 } from '@/lib/reading-list';
+import { imageScanPercent } from '@/lib/image-scan';
 import { SETTINGS_SECTIONS } from '@/lib/settings-nav';
 import { cn } from '@/lib/utils';
 import type { ReadingList } from '@/shared/reading-list';
@@ -49,7 +51,8 @@ function RootLayout() {
   const { fullscreen } = useFullscreen();
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full flex-col">
+      <div className="flex min-h-0 flex-1">
       <aside
         className={cn(
           'flex shrink-0 flex-col gap-1 overflow-y-auto border-r bg-sidebar p-3 text-sidebar-foreground transition-[width] duration-150',
@@ -90,6 +93,32 @@ function RootLayout() {
       <main className="flex-1 overflow-auto">
         <Outlet />
       </main>
+      </div>
+      {!fullscreen && <ImageScanBar />}
+    </div>
+  );
+}
+
+/** The bar at the bottom of the window while the pages of the books are being measured in the background. */
+function ImageScanBar() {
+  const { t } = useTranslation('library');
+  const progress = useImageScan();
+  if (!progress.running) return null;
+  const percent = imageScanPercent(progress);
+
+  return (
+    <div role="status" className="flex shrink-0 items-center gap-3 border-t bg-sidebar px-4 py-1.5 text-xs text-muted-foreground">
+      <span className="truncate">{t('imageScan', { processed: progress.processed, total: progress.total })}</span>
+      <div
+        role="progressbar"
+        aria-label={t('imageScanLabel')}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+        className="h-1.5 w-48 shrink-0 overflow-hidden rounded-full bg-muted"
+      >
+        <div className="h-full bg-primary transition-[width] duration-150" style={{ width: `${percent}%` }} />
+      </div>
     </div>
   );
 }
