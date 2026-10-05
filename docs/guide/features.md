@@ -45,6 +45,15 @@ The mouse pointer turns into a hand over everything that can be clicked (buttons
 - **Fullscreen**: the header button, `F` or `F11` toggle fullscreen; `Escape` leaves it. In fullscreen the sidebar is hidden and the header only appears when the mouse reaches the top of the screen.
 - **Keyboard** (page-by-page mode): `→`, `Page Down` and `Space` act like the right click zone; `←` and `Page Up` like the left one.
 
+## Statistics
+
+"Statistiques" in the sidebar shows how the library is used.
+
+- **Totals**: the number of books, the size of the library on disk, the number of books read (last page reached or "Lu" tag, whenever that happened) and the total reading time.
+- **Charts**: "Livres lus" and "Temps de lecture", as bars per month (the last twelve) or per year (since the first one with data), switched with the "Mois"/"Année" buttons. Months and years with nothing keep an empty slot.
+- **What is recorded, and since when**: a book is dated the first time its last page is reached or it is tagged "Lu" (it is not dated again later). Reading time counts while a book of the library is open in the reader and the window is visible and focused, and is added to the day it was read (local time). Both are recorded from the version that introduced this page: books read before are in the totals but not in the charts, and have no reading time. A book opened anonymously (see "Reader") leaves no trace.
+- **Your data**: the history is not part of the JSON export, and "Vider la bibliothèque" deletes it. Removing a single book keeps the time already spent reading it.
+
 ## Language
 
 The interface is available in English and French. By default it follows the operating system's language: the first of the system's preferred languages that the app supports, or English when none is. Paramètres › Affichage › "Langue" forces one of them instead ("Langue du système" goes back to following the system). The change applies at once, including the native dialogs (open a comic, add a folder, export…) and the error messages. The setting is part of the exported settings.

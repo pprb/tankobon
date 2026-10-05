@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { applyLanguage } from '@/shared/i18n';
-import type { LibraryEntry } from '@/shared/library';
+import { READ_TAG, type LibraryEntry } from '@/shared/library';
 
 import type { ReadingList } from '@/shared/reading-list';
 
@@ -15,7 +15,6 @@ import {
   moveItem,
   moveUnfinished,
   nextToRead,
-  READ_TAG,
   tagLabel,
 } from './reading-list';
 

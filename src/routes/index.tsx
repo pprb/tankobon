@@ -22,10 +22,10 @@ import {
   type RatingFilter,
 } from '@/lib/library-filter';
 import { creditRoleLabel } from '@/lib/metadata-review';
-import { encodeDraggedEntry, LIBRARY_ENTRY_DRAG_TYPE, READ_TAG, tagLabel, TO_READ_TAG } from '@/lib/reading-list';
+import { encodeDraggedEntry, LIBRARY_ENTRY_DRAG_TYPE, tagLabel, TO_READ_TAG } from '@/lib/reading-list';
 import { cn, formatFileSize, formatLanguage } from '@/lib/utils';
 import { comicFormat } from '@/shared/comic';
-import { CREDIT_ROLES, type LibraryEntry, type ScanProgress } from '@/shared/library';
+import { CREDIT_ROLES, READ_TAG, type LibraryEntry, type ScanProgress } from '@/shared/library';
 import { formatPersonName } from '@/shared/title-parsing';
 
 export const Route = createFileRoute('/')({

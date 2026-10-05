@@ -11,5 +11,6 @@ import metadata from './metadata';
 import nav from './nav';
 import reader from './reader';
 import settings from './settings';
+import stats from './stats';
 
-export default { book, bookEdit, common, dialogs, errors, library, lists, metadata, nav, reader, settings };
+export default { book, bookEdit, common, dialogs, errors, library, lists, metadata, nav, reader, settings, stats };

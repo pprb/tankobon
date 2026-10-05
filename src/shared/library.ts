@@ -3,6 +3,13 @@
  * @module
  */
 
+/**
+ * The tag that marks a book as read, also one of the library page's quick tags. It is stored as
+ * is whatever the interface language (existing libraries and exports carry it); only its label
+ * is translated.
+ */
+export const READ_TAG = 'Lu';
+
 /** A comic registered in the local library database. */
 export interface LibraryEntry {
   id: string;

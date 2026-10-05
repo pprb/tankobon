@@ -5,15 +5,8 @@
  * @module
  */
 import { t } from '@/shared/i18n';
-import type { LibraryEntry } from '@/shared/library';
+import { READ_TAG, type LibraryEntry } from '@/shared/library';
 import type { ReadingList, ReadingListResult } from '@/shared/reading-list';
-
-/**
- * The tag that marks a book as read, also one of the library page's quick tags. It is stored as
- * is whatever the interface language (existing libraries and exports carry it); only its label
- * is translated, see {@link tagLabel}.
- */
-export const READ_TAG = 'Lu';
 
 /** The library page's other quick tag, stored untranslated like {@link READ_TAG}. */
 export const TO_READ_TAG = 'À lire';
