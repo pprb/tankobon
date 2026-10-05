@@ -228,6 +228,8 @@ The whole library is in the [data store](#renderer-data-store) and is filtered c
 - read/unread is a **tag** filter: `Lu`/`À lire` are the library page's `QUICK_TAGS`. `availableTags()` keeps them pinned in front even before anything carries them; selecting several tags requires *all* of them;
 - the rating filter is a *minimum* (3 stars keeps 3–5).
 
+`AppSettings.libraryView` (`full`/`medium`/`compact`, persisted like any setting) picks how much each row shows; the toolbar's `ViewModePicker` writes it through `useSettings()`, and the virtualizer's estimated row height depends on it (rows are measured anyway).
+
 The library page (`src/routes/index.tsx`) draws only the rows near the viewport (`@tanstack/react-virtual`, which measures each row since their height varies with wrapping tags and the optional metadata line), inside its own scroll container below the toolbar; it filters with `useDeferredValue` so the search field never waits for the list, and scrolls back to the top when the filters change. A row scrolled out of view is unmounted, with its local state (a half-typed tag).
 
 ### Folder scanning

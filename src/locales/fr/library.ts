@@ -48,6 +48,10 @@ const library: Translation<typeof en> = {
   ratingFilter: 'Note',
   atLeast_one: 'Au moins {{count}} étoile',
   atLeast_other: 'Au moins {{count}} étoiles',
+  viewMode: "Mode d'affichage",
+  viewFull: 'Complet : toutes les informations',
+  viewMedium: 'Intermédiaire : couverture et informations de base',
+  viewCompact: 'Compact : titre, volume et série',
   tags: {
     read: 'Lu',
     toRead: 'À lire',
