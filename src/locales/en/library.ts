@@ -49,6 +49,10 @@ export default {
   ratingFilter: 'Rating',
   atLeast_one: 'At least {{count}} star',
   atLeast_other: 'At least {{count}} stars',
+  viewMode: 'Display mode',
+  viewFull: 'Full: all the information',
+  viewMedium: 'Medium: cover and basic information',
+  viewCompact: 'Compact: title, volume and series',
   tags: {
     read: 'Read',
     toRead: 'To read',

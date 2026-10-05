@@ -15,6 +15,11 @@ export interface AppSettings {
    * the library is read anonymously: nothing is saved, and it reopens from its first page.
    */
   addOpenedBooksToLibrary: boolean;
+  /**
+   * How much each row of the library shows: `full` (cover, details, credits, file information, tags),
+   * `medium` (cover, title, series and volume, progress) or `compact` (title, volume and series only).
+   */
+  libraryView: 'full' | 'medium' | 'compact';
   /** Whether the sidebar is collapsed to an icon-only rail. */
   sidebarCollapsed: boolean;
   /** Mouse/trackpad wheel direction in the reader: scrolling down advances or retreats a page. */
@@ -49,6 +54,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   language: 'system',
   readingDirection: 'ltr',
   addOpenedBooksToLibrary: true,
+  libraryView: 'full',
   sidebarCollapsed: false,
   scrollDirection: 'standard',
   readingMode: 'single',
@@ -97,6 +103,8 @@ export const SETTING_VALIDATORS: SettingValidators = {
   language: (value): value is LanguageSetting => value === 'system' || (isString(value) && isSupportedLanguage(value)),
   readingDirection: (value): value is AppSettings['readingDirection'] => value === 'ltr' || value === 'rtl',
   addOpenedBooksToLibrary: isBoolean,
+  libraryView: (value): value is AppSettings['libraryView'] =>
+    value === 'full' || value === 'medium' || value === 'compact',
   sidebarCollapsed: isBoolean,
   scrollDirection: (value): value is AppSettings['scrollDirection'] => value === 'standard' || value === 'inverted',
   readingMode: (value): value is AppSettings['readingMode'] => value === 'single' || value === 'continuous',
