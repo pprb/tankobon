@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, FolderOpen, Loader2, X, ZoomIn } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { FullscreenButton } from '@/components/reader/fullscreen-button';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { useImageUpscaler } from '@/hooks/use-image-upscaler';
 import type { NextInList } from '@/hooks/use-next-in-list';
 import { useReadingPace } from '@/hooks/use-reading-pace';
-import { directionalControls, disabledControls } from '@/lib/reader-navigation';
+import { directionalControls, disabledControls, scrollEdgeAfterTurn } from '@/lib/reader-navigation';
 import { cn } from '@/lib/utils';
 import { createWheelPager } from '@/lib/wheel-pager';
 import type { ComicInfo } from '@/shared/comic';
@@ -110,6 +110,25 @@ export function SinglePageReader({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // After a page turn, a zoomed page starts at its top (forward) or bottom (backward) edge
+  // instead of keeping the previous page's scroll position. The new image only has its size
+  // once decoded, so the edge is remembered here and applied when `naturalSize` arrives.
+  const lastPage = useRef(page);
+  const pendingEdge = useRef<'top' | 'bottom' | null>(null);
+  useEffect(() => {
+    if (page !== lastPage.current) {
+      pendingEdge.current = scrollEdgeAfterTurn(lastPage.current, page);
+      lastPage.current = page;
+    }
+  }, [page]);
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    const edge = pendingEdge.current;
+    if (!el || !naturalSize || !edge) return;
+    pendingEdge.current = null;
+    el.scrollTo({ top: edge === 'top' ? 0 : el.scrollHeight, left: 0 });
+  }, [naturalSize]);
 
   // Wheel-to-turn-page: while zoomed in, a scroll that can still pan the image is left
   // alone; only once the pan hits the edge (or in "fit" mode, where there's no pan at

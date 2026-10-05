@@ -15,12 +15,13 @@ import { registerAppIpc } from './main/ipc/app';
 import { registerComicIpc } from './main/ipc/comic';
 import { registerDatabaseIpc } from './main/ipc/database';
 import { registerDataIpc } from './main/ipc/data';
-import { createResynchronizer, registerLibraryIpc } from './main/ipc/library';
+import { broadcastImageScanProgress, createResynchronizer, registerLibraryIpc } from './main/ipc/library';
 import { registerMetadataIpc } from './main/ipc/metadata';
 import { registerReadingListIpc } from './main/ipc/reading-lists';
 import { registerStatsIpc } from './main/ipc/stats';
 import { registerSettingsIpc } from './main/ipc/settings';
 import { applyMainLanguage, onMainLanguageApplied } from './main/language';
+import { createImageStatsScanner } from './main/services/image-stats-scanner';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -84,13 +85,26 @@ app.whenReady().then(() => {
   // Leftovers of another database (its location changed) or of a crash between two writes.
   void decoder.pruneThumbnails(libraryRepo.list().map((entry) => entry.path)).catch(() => undefined);
 
-  const resynchronizer = createResynchronizer(libraryRepo, folderRepo, settingsRepo, decoder, broadcastDataChange);
-  registerLibraryIpc(libraryRepo, folderRepo, resynchronizer, settingsRepo, decoder, broadcastDataChange);
+  // Measures the pages of the books (average width and height) in the background, one book at a time.
+  const imageScanner = createImageStatsScanner(libraryRepo, {
+    measure: (filePath) => decoder.measure(filePath),
+    onProgress: broadcastImageScanProgress,
+    onUpdated: (entries) => broadcastDataChange({ scope: 'library', upserted: entries }),
+  });
+  const resynchronizer = createResynchronizer(
+    libraryRepo,
+    folderRepo,
+    settingsRepo,
+    decoder,
+    broadcastDataChange,
+    imageScanner,
+  );
+  registerLibraryIpc(libraryRepo, folderRepo, resynchronizer, settingsRepo, decoder, broadcastDataChange, imageScanner);
   registerReadingListIpc(readingListRepo, broadcastDataChange);
   registerStatsIpc(statsRepo);
   registerSettingsIpc(settingsRepo, broadcastDataChange);
-  registerDataIpc(db, libraryRepo, settingsRepo, readingListRepo, decoder, broadcastDataChange);
-  registerComicIpc(libraryRepo, settingsRepo, decoder, broadcastDataChange);
+  registerDataIpc(db, libraryRepo, settingsRepo, readingListRepo, decoder, broadcastDataChange, imageScanner);
+  registerComicIpc(libraryRepo, settingsRepo, decoder, broadcastDataChange, imageScanner);
   registerDatabaseIpc();
   registerMetadataIpc(settingsRepo);
   registerAppIpc();
@@ -106,6 +120,8 @@ app.whenReady().then(() => {
   if (settingsRepo.getAll().resyncOnStartup) {
     void resynchronizer.run();
   }
+  // Books left unmeasured by an earlier session (or a database from before the measure existed).
+  void imageScanner.kick();
 });
 
 // Quit when all windows are closed, except on macOS where apps stay active

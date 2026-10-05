@@ -27,6 +27,8 @@ function entry(overrides: Partial<LibraryEntry>): LibraryEntry {
     releaseDate: null,
     language: null,
     credits: [],
+    avgPageWidth: null,
+    avgPageHeight: null,
     ...overrides,
   };
 }

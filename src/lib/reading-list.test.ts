@@ -36,6 +36,8 @@ function entry(id: string, overrides: Partial<LibraryEntry> = {}): LibraryEntry 
     volume: null,
     releaseDate: null,
     language: null,
+    avgPageWidth: null,
+    avgPageHeight: null,
     credits: [],
     ...overrides,
   };

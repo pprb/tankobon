@@ -55,8 +55,9 @@ async function isMissing(filePath: string): Promise<boolean> {
  * Safety rules, because a removal loses the user's progress, rating and tags: a folder that can't
  * be read as a directory is skipped entirely (an unplugged drive must not empty the library), and an
  * entry goes only when `stat` says the file is gone (`ENOENT`), not merely absent from the walk,
- * which skips the subfolders it can't read. Entries outside every folder (a file opened on its own)
- * are never touched. The files on disk are never touched either.
+ * which skips the subfolders it can't read. Entries outside every folder (a file added on its own)
+ * are checked one by one afterwards: they go when their file is gone and the directory that held it
+ * is still readable, so a vanished drive or folder keeps them. The files on disk are never touched.
  */
 export async function resyncLibrary(
   repo: LibraryRepository,
@@ -88,6 +89,15 @@ export async function resyncLibrary(
         summary.removed += 1;
         summary.removedEntries.push({ id: entry.id, path: entry.path });
       }
+    }
+  }
+
+  for (const entry of repo.list()) {
+    if (folders.some((folder) => isInside(folder, entry.path))) continue;
+    if ((await isMissing(entry.path)) && (await isReadableDirectory(path.dirname(entry.path)))) {
+      repo.remove(entry.id);
+      summary.removed += 1;
+      summary.removedEntries.push({ id: entry.id, path: entry.path });
     }
   }
 

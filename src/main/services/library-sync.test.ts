@@ -58,7 +58,20 @@ describe('resyncLibrary', () => {
     expect(summary.removedEntries.map((entry) => path.basename(entry.path))).toEqual(['gone.cbz']);
   });
 
-  it('leaves entries outside the folders alone', async () => {
+  it('removes a standalone entry whose file is gone from a directory that still exists', async () => {
+    const root = await tree(['a.cbz']);
+    const alone = await tree(['present.cbz']);
+    const repo = repository();
+    repo.register(path.join(alone, 'present.cbz'), 'present', 10, 10, 0);
+    repo.register(path.join(alone, 'gone.cbz'), 'gone', 10, 10, 0);
+
+    const summary = await resyncLibrary(repo, [root], noProgress, inspect);
+
+    expect(summary.removedEntries.map((entry) => path.basename(entry.path))).toEqual(['gone.cbz']);
+    expect(repo.hasPath(path.join(alone, 'present.cbz'))).toBe(true);
+  });
+
+  it('keeps a standalone entry whose directory is unreachable', async () => {
     const root = await tree(['a.cbz']);
     const repo = repository();
     repo.register('/elsewhere/missing.cbz', 'elsewhere', 10, 10, 0);
@@ -67,6 +80,17 @@ describe('resyncLibrary', () => {
 
     expect(summary.removed).toBe(0);
     expect(repo.hasPath('/elsewhere/missing.cbz')).toBe(true);
+  });
+
+  it('checks standalone entries even when there is no folder', async () => {
+    const alone = await tree([]);
+    const repo = repository();
+    repo.register(path.join(alone, 'gone.cbz'), 'gone', 10, 10, 0);
+
+    const summary = await resyncLibrary(repo, [], noProgress, inspect);
+
+    expect(summary.removed).toBe(1);
+    expect(repo.list()).toHaveLength(0);
   });
 
   it('skips a folder that cannot be read instead of emptying it', async () => {

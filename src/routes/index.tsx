@@ -21,8 +21,10 @@ import {
   type LibraryFilters,
   type RatingFilter,
 } from '@/lib/library-filter';
+import { formatPageSize } from '@/lib/image-scan';
 import { creditRoleLabel } from '@/lib/metadata-review';
 import { encodeDraggedEntry, LIBRARY_ENTRY_DRAG_TYPE, tagLabel, TO_READ_TAG } from '@/lib/reading-list';
+import { currentLanguage } from '@/shared/i18n';
 import { cn, formatFileSize, formatLanguage } from '@/lib/utils';
 import { comicFormat } from '@/shared/comic';
 import { CREDIT_ROLES, READ_TAG, type LibraryEntry, type ScanProgress } from '@/shared/library';
@@ -159,6 +161,7 @@ function LibraryPage() {
           <ul className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
             {virtualizer.getVirtualItems().map((item) => {
               const entry = visible[item.index];
+              const pageSize = formatPageSize(entry, currentLanguage());
               return (
             <li
               key={entry.id}
@@ -215,6 +218,7 @@ function LibraryPage() {
                         comicFormat(entry.path),
                         t('fileCount', { count: entry.fileCount }),
                         formatFileSize(entry.fileSize),
+                        pageSize && t('pageSize', { size: pageSize }),
                       ].filter(Boolean).join(' · ')}
                     </p>
                   </div>

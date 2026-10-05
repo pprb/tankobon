@@ -33,6 +33,8 @@ interface LibraryRow {
   volume: string | null;
   release_date: string | null;
   language: string | null;
+  avg_page_width: number | null;
+  avg_page_height: number | null;
 }
 
 interface CreditRow {
@@ -61,6 +63,8 @@ function fromRow(row: LibraryRow, credits: Credit[]): LibraryEntry {
     volume: row.volume,
     releaseDate: row.release_date,
     language: row.language,
+    avgPageWidth: row.avg_page_width,
+    avgPageHeight: row.avg_page_height,
     credits,
   };
 }
@@ -163,6 +167,8 @@ export class LibraryRepository {
       volume: null,
       release_date: null,
       language: null,
+      avg_page_width: null,
+      avg_page_height: null,
     };
     this.db
       .prepare(
@@ -239,7 +245,8 @@ export class LibraryRepository {
           `UPDATE library
            SET title = ?, page_count = ?, current_page = ?, added_at = ?, last_opened_at = ?,
                file_count = ?, file_size = ?, rating = ?, tags = ?,
-               title_locked = ?, series = ?, volume = ?, release_date = ?, language = ?
+               title_locked = ?, series = ?, volume = ?, release_date = ?, language = ?,
+               avg_page_width = ?, avg_page_height = ?
            WHERE id = ?`,
         )
         .run(
@@ -257,6 +264,8 @@ export class LibraryRepository {
           entry.volume,
           entry.releaseDate,
           entry.language,
+          entry.avgPageWidth,
+          entry.avgPageHeight,
           existing.id,
         );
       this.setCredits(existing.id, entry.credits);
@@ -269,8 +278,8 @@ export class LibraryRepository {
       .prepare(
         `INSERT INTO library
            (id, path, title, page_count, current_page, added_at, last_opened_at, file_count, file_size, rating, tags,
-            title_locked, series, volume, release_date, language)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            title_locked, series, volume, release_date, language, avg_page_width, avg_page_height)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -289,6 +298,8 @@ export class LibraryRepository {
         entry.volume,
         entry.releaseDate,
         entry.language,
+        entry.avgPageWidth,
+        entry.avgPageHeight,
       );
     this.setCredits(id, entry.credits);
     return 'created';
@@ -325,6 +336,19 @@ export class LibraryRepository {
   /** Sets the user rating: 0 (unrated) to 5. The value is stored as given, not clamped. */
   updateRating(id: string, rating: number): void {
     this.db.prepare('UPDATE library SET rating = ? WHERE id = ?').run(rating, id);
+  }
+
+  /** Stores the average page size measured by the background scan; returns the updated entry, or null if the id is unknown. */
+  updateImageStats(id: string, width: number, height: number): LibraryEntry | null {
+    this.db.prepare('UPDATE library SET avg_page_width = ?, avg_page_height = ? WHERE id = ?').run(width, height, id);
+    return this.get(id);
+  }
+
+  /** The entries the background scan has yet to measure (id and path), most recently opened first. */
+  unmeasured(): { id: string; path: string }[] {
+    return this.db
+      .prepare('SELECT id, path FROM library WHERE avg_page_width IS NULL ORDER BY last_opened_at DESC')
+      .all() as unknown as { id: string; path: string }[];
   }
 
   /** Replaces the entry's tags. Tagging a book `Lu` also records its first completion date, like reaching its last page. */

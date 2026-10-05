@@ -18,6 +18,7 @@ import type {
 } from './shared/data';
 import type {
   AddFileResult,
+  ImageScanProgress,
   LibraryEntry,
   MetadataUpdate,
   ResyncResult,
@@ -72,6 +73,10 @@ export interface LibraryApi {
   resync(): Promise<ResyncResult>;
   /** Subscribes to the progress of `addFolder` and `resync`; returns the unsubscribe function. */
   onScanProgress(listener: (progress: ScanProgress) => void): () => void;
+  /** Where the background measure of the books' page sizes is now (it runs after an import, a resync or the first opening of a book); resolves with the state a window that loads late missed. */
+  imageScanStatus(): Promise<ImageScanProgress>;
+  /** Subscribes to the progress of that background measure; returns the unsubscribe function. */
+  onImageScanProgress(listener: (progress: ImageScanProgress) => void): () => void;
   /** Removes an entry from the library; the file on disk is left untouched. */
   remove(id: string): Promise<void>;
   /** Saves the last page read (0-based) of a library entry. */
@@ -205,6 +210,14 @@ const api: TankobonApi = {
       ipcRenderer.on('library:scan-progress', handler);
       return () => {
         ipcRenderer.removeListener('library:scan-progress', handler);
+      };
+    },
+    imageScanStatus: () => ipcRenderer.invoke('library:image-scan-status'),
+    onImageScanProgress: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: ImageScanProgress) => listener(progress);
+      ipcRenderer.on('library:image-scan-progress', handler);
+      return () => {
+        ipcRenderer.removeListener('library:image-scan-progress', handler);
       };
     },
     listFolders: () => ipcRenderer.invoke('library:list-folders'),

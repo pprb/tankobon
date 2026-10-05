@@ -46,7 +46,7 @@ export default {
     noFolders: 'No folder yet: add one from the library page.',
     removeFolder: 'Forget this folder',
     resync: 'Resynchronization',
-    resyncHint: 'Adds the new comics found in these folders and removes from the library the comics whose file no longer exists (with their progress, rating, tags and reading-list places). Files on disk are never touched, and a folder that can’t be read (unplugged drive) is skipped.',
+    resyncHint: 'Adds the new comics found in these folders and removes from the library the comics whose file no longer exists, including those added one by one (with their progress, rating, tags and reading-list places). Files on disk are never touched, and a folder or directory that can’t be read (unplugged drive) is skipped.',
     resyncButton: 'Resynchronize now',
     resyncRunning: 'Resynchronizing…',
     resyncOnStartup: 'Resynchronize the library at startup',

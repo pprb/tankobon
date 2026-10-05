@@ -13,6 +13,12 @@ export interface ArchiveSummary {
   fileCount: number;
 }
 
+/** Average size, in pixels, of the pages of an archive: see `DecoderMethods.measure`. */
+export interface PageSizeAverage {
+  width: number;
+  height: number;
+}
+
 /**
  * The calls the decoder process answers, as the main process sees them (the arguments, and what the
  * call resolves to). Everything that opens an archive, decodes an image or touches the thumbnail
@@ -27,6 +33,11 @@ export interface DecoderMethods {
   close(id: string): void;
   /** Opens a file just long enough to count its pages, caching its cover on the way. */
   inspect(filePath: string): ArchiveSummary;
+  /**
+   * Opens a file just long enough to average its pages' dimensions (read from the image headers;
+   * a PDF's from its page boxes). Pages that can't be read are left out of the average; null when none could be.
+   */
+  measure(filePath: string): PageSizeAverage | null;
   /** A book's cover thumbnail, generated first when missing (from the open archive `archiveId`, if any). */
   thumbnail(filePath: string, archiveId?: string): Uint8Array<ArrayBuffer> | null;
   /** Deletes a book's thumbnail. */

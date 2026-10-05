@@ -105,9 +105,17 @@ const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Average size of a book's page images, filled in by the background scan (NULL until measured).
+    version: 4,
+    run: (db) => {
+      addColumnIfMissing(db, 'library', 'avg_page_width', 'INTEGER');
+      addColumnIfMissing(db, 'library', 'avg_page_height', 'INTEGER');
+    },
+  },
+  {
     // Reading statistics: when a book was finished, and the time spent reading, kept as history
     // (nothing is derived for the books read before this version).
-    version: 4,
+    version: 5,
     run: (db) => {
       addColumnIfMissing(db, 'library', 'finished_at', 'TEXT');
       db.exec(`

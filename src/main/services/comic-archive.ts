@@ -6,6 +6,7 @@
 import path from 'node:path';
 
 import type { ComicPage } from '../../shared/comic';
+import type { ImageSize } from './image-size';
 
 /** An opened comic file, whatever its format. */
 export interface ComicArchive {
@@ -16,6 +17,12 @@ export interface ComicArchive {
   readonly fileCount: number;
   /** Reads page `index` (0-based, in `pages` order); rejects with a `RangeError` when out of range. */
   readPage(index: number): Promise<ComicPage>;
+  /**
+   * Size in pixels of page `index`, when the archive can tell without reading the whole page
+   * (a PDF knows it from the page's box). Absent for the formats whose pages are image files:
+   * the measure then reads their headers.
+   */
+  pageSize?(index: number): Promise<ImageSize | null>;
   /** Releases the underlying resources; the archive must not be used afterwards. */
   close(): Promise<void>;
 }
