@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { FolderOpen, FolderTree, GripVertical, ListPlus, Pencil, ScanSearch, Search, Star, Trash2, X } from 'lucide-react';
+import { FolderOpen, FolderTree, GripVertical, LayoutList, ListPlus, Rows2, Rows3, Pencil, ScanSearch, Search, Star, Trash2, X } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 
 import { AddToListDialog } from '@/components/add-to-list-dialog';
 import { BookCover } from '@/components/book-cover';
@@ -12,6 +13,7 @@ import { MetadataDialog } from '@/components/metadata-dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useLibrary } from '@/hooks/use-library';
+import { useSettings } from '@/hooks/use-settings';
 import { appData } from '@/lib/app-data';
 import {
   availableTags,
@@ -28,6 +30,7 @@ import { currentLanguage } from '@/shared/i18n';
 import { cn, formatFileSize, formatLanguage } from '@/lib/utils';
 import { comicFormat } from '@/shared/comic';
 import { CREDIT_ROLES, READ_TAG, type LibraryEntry, type ScanProgress } from '@/shared/library';
+import { type AppSettings } from '@/shared/settings';
 import { formatPersonName } from '@/shared/title-parsing';
 
 export const Route = createFileRoute('/')({
@@ -39,14 +42,18 @@ const QUICK_TAGS = [READ_TAG, TO_READ_TAG];
 
 const NO_ENTRIES: LibraryEntry[] = [];
 
-/** Height guessed for a row before it is measured: cover, then the tag line. */
-const ESTIMATED_ROW_HEIGHT = 128;
+type LibraryView = AppSettings['libraryView'];
+
+/** Height guessed for a row before it is measured, per display mode. */
+const ESTIMATED_ROW_HEIGHT: Record<LibraryView, number> = { full: 128, medium: 104, compact: 49 };
 
 function LibraryPage() {
   const { t } = useTranslation(['library', 'common']);
   const { confirm, dialog: confirmDialog } = useConfirm();
   const navigate = useNavigate();
   const library = useLibrary();
+  const { settings, update } = useSettings();
+  const view = settings.libraryView;
   const entries = library ?? NO_ENTRIES;
   const [filters, setFilters] = useState<LibraryFilters>(EMPTY_FILTERS);
   const [scan, setScan] = useState<ScanProgress | null>(null);
@@ -119,7 +126,7 @@ function LibraryPage() {
   const virtualizer = useVirtualizer({
     count: visible.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ESTIMATED_ROW_HEIGHT,
+    estimateSize: () => ESTIMATED_ROW_HEIGHT[view],
     getItemKey: (index) => visible[index].id,
     overscan: 6,
   });
@@ -149,6 +156,8 @@ function LibraryPage() {
           tags={tags}
           shown={visible.length}
           total={entries.length}
+          view={view}
+          onViewChange={(next) => update('libraryView', next)}
         />
       )}
 
@@ -168,7 +177,7 @@ function LibraryPage() {
               ref={virtualizer.measureElement}
               data-index={item.index}
               style={{ transform: `translateY(${item.start}px)` }}
-              className="absolute top-0 left-0 flex w-full flex-col gap-2 border-b px-3 py-3"
+              className={cn('absolute top-0 left-0 flex w-full flex-col gap-2 border-b px-3', view === 'compact' ? 'py-2' : 'py-3')}
             >
               <div className="flex items-center gap-3">
                 {/* Only the grip drags the book onto a reading list of the sidebar; the rest of the
@@ -195,35 +204,55 @@ function LibraryPage() {
                   onClick={() => navigate({ to: '/reader', search: { book: entry.id } })}
                   className="flex min-w-0 flex-1 cursor-pointer items-center gap-3"
                 >
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      void navigate({ to: '/reader', search: { book: entry.id } });
-                    }}
-                    title={t('common:open')}
-                    aria-label={t('openNamed', { title: entry.title })}
-                    className="shrink-0 rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                  >
-                    <BookCover entryId={entry.id} title={entry.title} className="h-20 w-14" />
-                  </button>
+                  {view !== 'compact' && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void navigate({ to: '/reader', search: { book: entry.id } });
+                      }}
+                      title={t('common:open')}
+                      aria-label={t('openNamed', { title: entry.title })}
+                      className="shrink-0 rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    >
+                      <BookCover entryId={entry.id} title={entry.title} className="h-20 w-14" />
+                    </button>
+                  )}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium" title={entry.path}>
-                      {entry.title}
-                    </p>
-                    <EntryMetadata entry={entry} />
-                    <p className="text-xs text-muted-foreground">
-                      {[
-                        t('common:pageOf', { page: entry.currentPage + 1, total: entry.pageCount }),
-                        comicFormat(entry.path),
-                        t('fileCount', { count: entry.fileCount }),
-                        formatFileSize(entry.fileSize),
-                        pageSize && t('pageSize', { size: pageSize }),
-                      ].filter(Boolean).join(' · ')}
-                    </p>
+                    {view === 'compact' ? (
+                      <p className="truncate" title={entry.path}>
+                        <span className="font-medium">{entry.title}</span>
+                        <span className="text-xs text-muted-foreground">{seriesLine(entry, t) && ` — ${seriesLine(entry, t)}`}</span>
+                      </p>
+                    ) : (
+                      <>
+                        <p className="truncate font-medium" title={entry.path}>
+                          {entry.title}
+                        </p>
+                        {view === 'full' ? (
+                          <EntryMetadata entry={entry} />
+                        ) : (
+                          <p className="truncate text-xs">{seriesLine(entry, t)}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {(view === 'full'
+                            ? [
+                                t('common:pageOf', { page: entry.currentPage + 1, total: entry.pageCount }),
+                                comicFormat(entry.path),
+                                t('fileCount', { count: entry.fileCount }),
+                                formatFileSize(entry.fileSize),
+                                pageSize && t('pageSize', { size: pageSize }),
+                              ]
+                            : [t('common:pageOf', { page: entry.currentPage + 1, total: entry.pageCount })]
+                          ).filter(Boolean).join(' · ')}
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
-                <StarRating rating={entry.rating} onChange={(rating) => setRating(entry.id, rating)} />
+                {view !== 'compact' && (
+                  <StarRating rating={entry.rating} onChange={(rating) => setRating(entry.id, rating)} />
+                )}
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -268,7 +297,7 @@ function LibraryPage() {
                   <Trash2 />
                 </Button>
               </div>
-              <TagEditor entry={entry} onToggle={(tag) => toggleTag(entry, tag)} />
+              {view === 'full' && <TagEditor entry={entry} onToggle={(tag) => toggleTag(entry, tag)} />}
             </li>
               );
             })}
@@ -284,6 +313,11 @@ function LibraryPage() {
       {confirmDialog}
     </div>
   );
+}
+
+/** "Series · Vol. 3": what the medium and compact views show under or next to the title. */
+function seriesLine(entry: LibraryEntry, t: TFunction<['library', 'common']>): string {
+  return [entry.series, entry.volume && t('volumeShort', { volume: entry.volume })].filter(Boolean).join(' · ');
 }
 
 /** Series, volume, date, language and credits found by a metadata lookup; nothing when there are none. */
@@ -413,12 +447,16 @@ function LibraryToolbar({
   tags,
   shown,
   total,
+  view,
+  onViewChange,
 }: {
   filters: LibraryFilters;
   onChange: (filters: LibraryFilters) => void;
   tags: string[];
   shown: number;
   total: number;
+  view: LibraryView;
+  onViewChange: (view: LibraryView) => void;
 }) {
   const { t } = useTranslation('library');
   const active = hasActiveFilters(filters);
@@ -448,6 +486,8 @@ function LibraryToolbar({
           rating={filters.rating}
           onChange={(rating) => onChange({ ...filters, rating })}
         />
+
+        <ViewModePicker view={view} onChange={onViewChange} />
 
         {active && (
           <Button variant="ghost" size="sm" onClick={() => onChange(EMPTY_FILTERS)}>
@@ -484,6 +524,33 @@ function LibraryToolbar({
       {active && (
         <p className="text-xs text-muted-foreground">{t('shownOf', { shown, total })}</p>
       )}
+    </div>
+  );
+}
+
+/** Switches the library's display mode: one icon button per mode. */
+function ViewModePicker({ view, onChange }: { view: LibraryView; onChange: (view: LibraryView) => void }) {
+  const { t } = useTranslation('library');
+  const modes = [
+    { value: 'full', Icon: LayoutList, label: t('viewFull') },
+    { value: 'medium', Icon: Rows2, label: t('viewMedium') },
+    { value: 'compact', Icon: Rows3, label: t('viewCompact') },
+  ] as const;
+  return (
+    <div role="group" aria-label={t('viewMode')} className="flex items-center gap-0.5 rounded-md border p-0.5">
+      {modes.map(({ value, Icon, label }) => (
+        <Button
+          key={value}
+          variant={view === value ? 'secondary' : 'ghost'}
+          size="icon-sm"
+          onClick={() => onChange(value)}
+          aria-pressed={view === value}
+          title={label}
+          aria-label={label}
+        >
+          <Icon />
+        </Button>
+      ))}
     </div>
   );
 }

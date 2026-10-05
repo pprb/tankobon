@@ -36,7 +36,7 @@ The `app:get-system-languages` channel returns the OS's preferred languages, so 
 
 Errors that the user should see come back as a `{ status: 'error', message }` member of a result union (`OpenComicResult`, `ImportResult`, `ExportResult`, `ClearLibraryResult`, `DatabaseLocationResult`, `MetadataSearchResult`, `ReadingListResult`, `ResyncResult`) rather than as a thrown error: an `ipcMain.handle` rejection reaches the renderer wrapped in "Error invoking remote method …".
 
-`ArchiveInfo` is what `ComicService` knows about an opened archive before it's matched to a library entry; the `comic:open` handler (`src/main/ipc/comic.ts`) merges it with the library entry to produce the `ComicInfo` sent to the renderer. A file that can't be opened (moved, deleted, corrupted, unsupported) comes back as an `OpenComicResult` error, translated by `openErrorMessage()` (`src/main/services/open-error.ts`: a dedicated message for `ENOENT`, otherwise the underlying reason), which `useComic()` shows in the reader.
+`ArchiveInfo` is what `ComicService` knows about an opened archive before it's matched to a library entry; the `comic:open` handler (`src/main/ipc/comic.ts`) merges it with the library entry to produce the `ComicInfo` sent to the renderer. A file that can't be opened (moved, deleted, corrupted, unsupported) comes back as an `OpenComicResult` error, translated by `openErrorMessage()` (`src/main/services/open-error.ts`: a dedicated message for `ENOENT`, otherwise the underlying reason), which `useComic()` shows in the reader. When the failed `book` is a library entry id (found in `useLibrary()`), the reader's empty state also offers to remove that entry (`useConfirm()`, then `library.remove()`), then returns to the library.
 
 ## Interface language
 
@@ -236,6 +236,8 @@ The whole library is in the [data store](#renderer-data-store) and is filtered c
 - search matches the title, the file path (so a series folder name finds its albums), the series and the credited people's names, normalized with `NFD` + diacritic stripping ("pokemon" matches "Pokémon"). Each entry's normalized text is cached in a `WeakMap` keyed by the entry object (entries are replaced, never mutated, so it can't go stale), and the search text is normalized once per filtering, not once per entry;
 - read/unread is a **tag** filter: `Lu`/`À lire` are the library page's `QUICK_TAGS`. `availableTags()` keeps them pinned in front even before anything carries them; selecting several tags requires *all* of them;
 - the rating filter is a *minimum* (3 stars keeps 3–5).
+
+`AppSettings.libraryView` (`full`/`medium`/`compact`, persisted like any setting) picks how much each row shows; the toolbar's `ViewModePicker` writes it through `useSettings()`, and the virtualizer's estimated row height depends on it (rows are measured anyway).
 
 The library page (`src/routes/index.tsx`) draws only the rows near the viewport (`@tanstack/react-virtual`, which measures each row since their height varies with wrapping tags and the optional metadata line), inside its own scroll container below the toolbar; it filters with `useDeferredValue` so the search field never waits for the list, and scrolls back to the top when the filters change. A row scrolled out of view is unmounted, with its local state (a half-typed tag).
 
