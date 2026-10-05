@@ -3,6 +3,7 @@ export default {
   title: 'Reader',
   intro: 'Open a CBZ, CBR or PDF file to start reading.',
   openFile: 'Open a file',
+  removeFromLibrary: 'Remove from the library',
   openAnother: 'Open another file',
   close: 'Close',
   zoom: 'Zoom',
