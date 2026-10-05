@@ -40,3 +40,12 @@ export function disabledControls(
     ? { isPrevDisabled: isLast, isNextDisabled: isFirst }
     : { isPrevDisabled: isFirst, isNextDisabled: isLast };
 }
+
+/**
+ * The edge of a zoomed page the view lands on after a page turn: the top when moving toward
+ * the end of the book (index goes up), the bottom when going back, so the reader continues
+ * from where they were instead of keeping the previous page's scroll position.
+ */
+export function scrollEdgeAfterTurn(previousPage: number, page: number): 'top' | 'bottom' {
+  return page < previousPage ? 'bottom' : 'top';
+}
