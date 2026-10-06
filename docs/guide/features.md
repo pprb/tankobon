@@ -48,6 +48,10 @@ The mouse pointer turns into a hand over everything that can be clicked (buttons
 - **Fullscreen**: the header button, `F` or `F11` toggle fullscreen; `Escape` leaves it. In fullscreen the sidebar is hidden and the header only appears when the mouse reaches the top of the screen.
 - **Keyboard** (page-by-page mode): `→`, `Page Down` and `Space` act like the right click zone; `←` and `Page Up` like the left one.
 
+## Application menu
+
+The menu bar only holds entries that work: Fichier (Quitter; Fermer on macOS), Édition (undo, redo, cut, copy, paste, select all), Affichage (full screen, the same as `F11`) and Fenêtre (minimize, close). Reload, zoom and the help links of Electron's default menu are gone. The developer tools entry only appears in development mode (`npm run dev`). The labels follow the interface language and change with it.
+
 ## Language
 
 The interface is available in English and French. By default it follows the operating system's language: the first of the system's preferred languages that the app supports, or English when none is. Paramètres › Affichage › "Langue" forces one of them instead ("Langue du système" goes back to following the system). The change applies at once, including the native dialogs (open a comic, add a folder, export…) and the error messages. The setting is part of the exported settings.
