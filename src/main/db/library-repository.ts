@@ -5,7 +5,14 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 
-import type { Credit, CreditInput, CreditRole, LibraryEntry, MetadataUpdate } from '../../shared/library';
+import {
+  READ_TAG,
+  type Credit,
+  type CreditInput,
+  type CreditRole,
+  type LibraryEntry,
+  type MetadataUpdate,
+} from '../../shared/library';
 import { PeopleRepository } from './people-repository';
 import { withTransaction } from './transaction';
 
@@ -313,9 +320,17 @@ export class LibraryRepository {
     return row?.path ?? null;
   }
 
-  /** Saves the last page read (0-based) for resuming later. */
+  /**
+   * Saves the last page read (0-based) for resuming later. Reaching the last page also records
+   * the book's first completion date (`finished_at`), for the reading statistics.
+   */
   updateProgress(id: string, currentPage: number): void {
     this.db.prepare('UPDATE library SET current_page = ? WHERE id = ?').run(currentPage, id);
+    this.db
+      .prepare(
+        'UPDATE library SET finished_at = ? WHERE id = ? AND finished_at IS NULL AND page_count > 0 AND current_page >= page_count - 1',
+      )
+      .run(new Date().toISOString(), id);
   }
 
   /** Sets the user rating: 0 (unrated) to 5. The value is stored as given, not clamped. */
@@ -336,9 +351,14 @@ export class LibraryRepository {
       .all() as unknown as { id: string; path: string }[];
   }
 
-  /** Replaces the entry's tags. */
+  /** Replaces the entry's tags. Tagging a book `Lu` also records its first completion date, like reaching its last page. */
   updateTags(id: string, tags: string[]): void {
     this.db.prepare('UPDATE library SET tags = ? WHERE id = ?').run(JSON.stringify(tags), id);
+    if (tags.includes(READ_TAG)) {
+      this.db
+        .prepare('UPDATE library SET finished_at = ? WHERE id = ? AND finished_at IS NULL')
+        .run(new Date().toISOString(), id);
+    }
   }
 
   /**
@@ -415,6 +435,7 @@ export class LibraryRepository {
       DELETE FROM credits;
       DELETE FROM people;
       DELETE FROM library;
+      DELETE FROM reading_sessions;
     `);
     return count;
   }

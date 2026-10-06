@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "icons": "node scripts/gen-icons.mjs",
     "docs:gen": "node --disable-warning=ExperimentalWarning scripts/gen-reference.mjs",
     "docs:api": "typedoc",
     "docs:check": "node scripts/check-docs.mjs",

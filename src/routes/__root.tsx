@@ -1,5 +1,16 @@
 import { Link, Outlet, createRootRoute, useRouterState } from '@tanstack/react-router';
-import { Award, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Library, List, ListOrdered, Settings } from 'lucide-react';
+import {
+  Award,
+  BarChart3,
+  BookOpen,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Library,
+  List,
+  ListOrdered,
+  Settings,
+} from 'lucide-react';
 import { type DragEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -30,6 +41,7 @@ const nav = [
   { to: '/', label: 'library', icon: Library },
   { to: '/lists', label: 'readingLists', icon: ListOrdered },
   { to: '/reader', label: 'reader', icon: BookOpen },
+  { to: '/stats', label: 'stats', icon: BarChart3 },
   { to: '/achievements', label: 'achievements', icon: Award },
 ] as const;
 

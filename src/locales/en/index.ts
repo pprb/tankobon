@@ -8,9 +8,11 @@ import dialogs from './dialogs';
 import errors from './errors';
 import lists from './lists';
 import library from './library';
+import menu from './menu';
 import metadata from './metadata';
 import nav from './nav';
 import reader from './reader';
 import settings from './settings';
+import stats from './stats';
 
-export default { achievements, book, bookEdit, common, dialogs, errors, library, lists, metadata, nav, reader, settings };
+export default { achievements, book, bookEdit, common, dialogs, errors, library, lists, menu, metadata, nav, reader, settings, stats };

@@ -7,10 +7,10 @@
  */
 import { comicFormat } from '@/shared/comic';
 import type { AchievementGroup, AchievementId } from '@/shared/achievements';
-import type { LibraryEntry } from '@/shared/library';
+import { READ_TAG, type LibraryEntry } from '@/shared/library';
 import { MAX_READING_LIST_SIZE, type ReadingList } from '@/shared/reading-list';
 
-import { isFinished, READ_TAG, TO_READ_TAG } from './reading-list';
+import { isFinished, TO_READ_TAG } from './reading-list';
 
 /** What the rules count, taken from the library, the reading lists and the folders. */
 export interface AchievementStats {

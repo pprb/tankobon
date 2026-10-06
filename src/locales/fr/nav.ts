@@ -6,6 +6,7 @@ const nav: Translation<typeof en> = {
   readingLists: 'Listes de lecture',
   achievements: 'Accomplissements',
   reader: 'Lecteur',
+  stats: 'Statistiques',
   settings: 'Paramètres',
   expandSidebar: 'Développer le panneau latéral',
   collapseSidebar: 'Réduire le panneau latéral',

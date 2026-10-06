@@ -9,7 +9,7 @@ Achievements reward reading and organizing the library. Most are a count over da
 
 ## Decision
 
-- **The rules live in the renderer** (`src/lib/achievements.ts`), pure and unit-tested, over the store's slices. The main process owns no rule: it only stores which achievements were earned and when (`achievements` table, migration 5) and announces new ones with `data:changed`.
+- **The rules live in the renderer** (`src/lib/achievements.ts`), pure and unit-tested, over the store's slices. The main process owns no rule: it only stores which achievements were earned and when (`achievements` table, migration 6) and announces new ones with `data:changed`.
 - **Only unlocks are persisted.** An achievement stays earned when the books that earned it are removed or the library is cleared, and its date never changes (`INSERT OR IGNORE`).
 - **The renderer asks the main process to record an unlock** (`achievements:unlock`), which accepts only ids of `ACHIEVEMENT_IDS`. The renderer is trusted for *when* (as it already is for reading progress), not for *what*.
 - **Event achievements** are decided from the clock and the reading direction when the reader opens a book, with no stored history.

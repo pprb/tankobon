@@ -113,8 +113,25 @@ const MIGRATIONS: Migration[] = [
     },
   },
   {
-    // The achievements the user has earned, with the moment they were.
+    // Reading statistics: when a book was finished, and the time spent reading, kept as history
+    // (nothing is derived for the books read before this version).
     version: 5,
+    run: (db) => {
+      addColumnIfMissing(db, 'library', 'finished_at', 'TEXT');
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS reading_sessions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          library_id TEXT NOT NULL,
+          day TEXT NOT NULL,
+          seconds INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_reading_sessions_day ON reading_sessions (day);
+      `);
+    },
+  },
+  {
+    // The achievements the user has earned, with the moment they were.
+    version: 6,
     run: (db) => {
       db.exec(`
         CREATE TABLE IF NOT EXISTS achievements (

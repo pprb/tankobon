@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
+import { applyAppMenu } from './main/app-menu';
 import { DecoderClient } from './main/decoder/decoder-client';
 import { spawnDecoderProcess } from './main/decoder/spawn-decoder';
 import { AchievementRepository } from './main/db/achievement-repository';
@@ -9,6 +10,7 @@ import { openDatabase } from './main/db/database';
 import { LibraryFolderRepository } from './main/db/library-folder-repository';
 import { LibraryRepository } from './main/db/library-repository';
 import { ReadingListRepository } from './main/db/reading-list-repository';
+import { StatsRepository } from './main/db/stats-repository';
 import { SettingsRepository } from './main/db/settings-repository';
 import { broadcastDataChange } from './main/ipc/data-changes';
 import { registerAchievementsIpc } from './main/ipc/achievements';
@@ -19,6 +21,7 @@ import { registerDataIpc } from './main/ipc/data';
 import { broadcastImageScanProgress, createResynchronizer, registerLibraryIpc } from './main/ipc/library';
 import { registerMetadataIpc } from './main/ipc/metadata';
 import { registerReadingListIpc } from './main/ipc/reading-lists';
+import { registerStatsIpc } from './main/ipc/stats';
 import { registerSettingsIpc } from './main/ipc/settings';
 import { applyMainLanguage, onMainLanguageApplied } from './main/language';
 import { createImageStatsScanner } from './main/services/image-stats-scanner';
@@ -31,6 +34,12 @@ if (started) {
 // Development mode (`npm run dev`, see forge.config.ts): only there are DevTools opened.
 const isDevMode = !app.isPackaged && process.env.TANKOBON_DEV === '1';
 
+// The window icon (taskbar and title bar on Linux; Windows and macOS take the executable's own).
+// Packaged, the PNG is copied next to the app by `extraResource` (forge.config.ts).
+const windowIcon = app.isPackaged
+  ? path.join(process.resourcesPath, 'icon.png')
+  : path.join(app.getAppPath(), 'assets', 'icon.png');
+
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
     width: 1280,
@@ -38,6 +47,7 @@ const createWindow = () => {
     minWidth: 800,
     minHeight: 600,
     title: 'Tankōbon',
+    icon: windowIcon,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -76,11 +86,13 @@ app.whenReady().then(() => {
   const settingsRepo = new SettingsRepository(db);
   const readingListRepo = new ReadingListRepository(db);
   const achievementRepo = new AchievementRepository(db);
+  const statsRepo = new StatsRepository(db);
   // Archives and covers are decoded in their own process: a booby-trapped file can only take that one down.
   // The thumbnails are a cache, so they stay in userData even when the database lives elsewhere.
   const decoder = new DecoderClient(spawnDecoderProcess, path.join(app.getPath('userData'), 'thumbnails'));
   onMainLanguageApplied((language) => decoder.setLanguage(language));
   // Before anything can show a dialog or return an error message.
+  onMainLanguageApplied(() => applyAppMenu(isDevMode));
   applyMainLanguage(settingsRepo.getAll().language);
   // Leftovers of another database (its location changed) or of a crash between two writes.
   void decoder.pruneThumbnails(libraryRepo.list().map((entry) => entry.path)).catch(() => undefined);
@@ -101,6 +113,7 @@ app.whenReady().then(() => {
   );
   registerLibraryIpc(libraryRepo, folderRepo, resynchronizer, settingsRepo, decoder, broadcastDataChange, imageScanner);
   registerReadingListIpc(readingListRepo, broadcastDataChange);
+  registerStatsIpc(statsRepo);
   registerSettingsIpc(settingsRepo, broadcastDataChange);
   registerDataIpc(db, libraryRepo, settingsRepo, readingListRepo, decoder, broadcastDataChange, imageScanner);
   registerComicIpc(libraryRepo, settingsRepo, decoder, broadcastDataChange, imageScanner);

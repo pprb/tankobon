@@ -12,6 +12,7 @@ import { useComic } from '@/hooks/use-comic';
 import { useLibrary } from '@/hooks/use-library';
 import { useNextInList } from '@/hooks/use-next-in-list';
 import { useReaderFullscreen } from '@/hooks/use-reader-fullscreen';
+import { useReadingTime } from '@/hooks/use-reading-time';
 import { useSettings } from '@/hooks/use-settings';
 
 interface ReaderSearch {
@@ -43,6 +44,7 @@ function ReaderPage() {
   const { fullscreen, toggle: toggleFullscreen } = useReaderFullscreen(comic !== null);
   const nextInList = useNextInList(list, comic?.libraryId ?? undefined);
   useOpeningAchievements(comic?.id ?? null);
+  useReadingTime(comic?.libraryId ?? null);
 
   useEffect(() => {
     if (book) void openFile(book);
