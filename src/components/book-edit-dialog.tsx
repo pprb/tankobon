@@ -15,6 +15,7 @@ import {
   validateForm,
 } from '@/lib/book-edit';
 import { creditRoleLabel, reviewFieldLabel } from '@/lib/metadata-review';
+import { LanguageFlag } from '@/components/language-flag';
 import { cn, formatLanguage } from '@/lib/utils';
 import { CREDIT_ROLES, type CreditRole, type LibraryEntry } from '@/shared/library';
 
@@ -129,7 +130,9 @@ export function BookEditDialog({
           </Field>
           <Field label={reviewFieldLabel('language')}>
             {(props) => (
-              <select
+              <div className="flex items-center gap-2">
+<LanguageFlag code={form.language} className="h-4" />
+<select
                 {...props}
                 className={cn(INPUT_CLASS, 'w-56')}
                 value={form.language}
@@ -142,6 +145,7 @@ export function BookEditDialog({
                   </option>
                 ))}
               </select>
+</div>
             )}
           </Field>
         </div>

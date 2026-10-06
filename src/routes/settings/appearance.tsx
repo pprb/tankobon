@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
+import { LanguageFlag } from '@/components/language-flag';
 import { SETTINGS_SELECT_CLASS, SettingsSection } from '@/components/settings-section';
 import { systemLanguage, useSettings } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
@@ -18,6 +19,8 @@ function AppearanceSettingsPage() {
   return (
     <>
     <SettingsSection title={t('language')} htmlFor="language">
+      <div className="flex items-center gap-2">
+      <LanguageFlag code={settings.language === 'system' ? systemLanguage() : settings.language} className="h-4" />
       <select
         id="language"
         className={SETTINGS_SELECT_CLASS}
@@ -31,6 +34,7 @@ function AppearanceSettingsPage() {
           </option>
         ))}
       </select>
+      </div>
       <p className="text-sm text-muted-foreground">{t('languageHint')}</p>
     </SettingsSection>
 
