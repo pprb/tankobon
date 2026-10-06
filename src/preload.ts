@@ -28,6 +28,7 @@ import type {
 import type { MetadataPageResult, MetadataQuery, MetadataSearchResult } from './shared/metadata';
 import type { ReadingList, ReadingListOrderResult, ReadingListResult } from './shared/reading-list';
 import type { ApiKeys, AppSettings, PublicSettings } from './shared/settings';
+import type { ReadingStats } from './shared/stats';
 
 /** The app itself (versions, OS languages, project links), as `window.tankobon.app`. */
 export interface AppApi {
@@ -128,6 +129,14 @@ export interface SettingsApi {
   set<K extends keyof AppSettings>(key: K, value: AppSettings[K]): Promise<void>;
 }
 
+/** Reading history for the statistics page, as `window.tankobon.stats`. */
+export interface StatsApi {
+  /** The reading history: the dates at which books were finished and the reading time per day, oldest first. */
+  get(): Promise<ReadingStats>;
+  /** Adds seconds (1 to 3600) of reading time on a library entry to today; the reader reports it every few minutes while a book is open. */
+  addReadingTime(libraryId: string, seconds: number): Promise<void>;
+}
+
 /** JSON export and import of the library and settings, and clearing the library, as `window.tankobon.data`. */
 export interface DataApi {
   /** Opens a native save dialog and writes a JSON export there; an error (full or read-only disk…) comes back as a result, not a rejection. */
@@ -166,6 +175,8 @@ export interface TankobonApi {
   library: LibraryApi;
   /** Reading lists. */
   readingLists: ReadingListApi;
+  /** Reading statistics. */
+  stats: StatsApi;
   /** The user's settings. */
   settings: SettingsApi;
   /** JSON export and import. */
@@ -228,6 +239,10 @@ const api: TankobonApi = {
     removeEntry: (id, libraryId) => ipcRenderer.invoke('reading-lists:remove-entry', id, libraryId),
     reorder: (id, entryIds) => ipcRenderer.invoke('reading-lists:reorder', id, entryIds),
     reorderLists: (listIds) => ipcRenderer.invoke('reading-lists:reorder-lists', listIds),
+  },
+  stats: {
+    get: () => ipcRenderer.invoke('stats:get'),
+    addReadingTime: (libraryId, seconds) => ipcRenderer.invoke('stats:add-reading-time', libraryId, seconds),
   },
   settings: {
     getAll: () => ipcRenderer.invoke('settings:get-all'),

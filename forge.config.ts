@@ -48,6 +48,10 @@ function restartOnMainRebuild(): void {
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    // Packager adds the extension of the platform: assets/icon.ico (Windows), assets/icon.icns (macOS).
+    icon: 'assets/icon',
+    // The PNG is also read at run time, for the window icon on Linux (see src/main.ts).
+    extraResource: ['assets/icon.png'],
     // Packager names the Linux binary after `productName` ("Tankōbon"), but the deb and rpm makers
     // look for one named after `name`: without this, `make` fails on Linux with "could not find
     // the Electron app binary". Windows and macOS keep their product-named executables.
@@ -55,10 +59,10 @@ const config: ForgeConfig = {
   },
   rebuildConfig: {},
   makers: [
-    new MakerSquirrel({}),
+    new MakerSquirrel({ setupIcon: 'assets/icon.ico' }),
     new MakerZIP({}, ['darwin']),
-    new MakerRpm({}),
-    new MakerDeb({}),
+    new MakerRpm({ options: { icon: 'assets/icon.png' } }),
+    new MakerDeb({ options: { icon: 'assets/icon.png' } }),
   ],
   plugins: [
     // `@napi-rs/canvas` (used for PDF rendering, see pdf-archive.ts) ships a native `.node`

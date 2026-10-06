@@ -5,6 +5,7 @@ const nav: Translation<typeof en> = {
   library: 'Bibliothèque',
   readingLists: 'Listes de lecture',
   reader: 'Lecteur',
+  stats: 'Statistiques',
   settings: 'Paramètres',
   expandSidebar: 'Développer le panneau latéral',
   collapseSidebar: 'Réduire le panneau latéral',

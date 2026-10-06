@@ -31,7 +31,9 @@ describe('migrate', () => {
       'language',
       'avg_page_width',
       'avg_page_height',
+      'finished_at',
     ]);
+    expect(columnNames(db, 'reading_sessions')).toEqual(['id', 'library_id', 'day', 'seconds']);
     expect(columnNames(db, 'settings')).toEqual(['key', 'value']);
     expect(columnNames(db, 'people')).toEqual(['id', 'first_name', 'last_name', 'nationality']);
     expect(columnNames(db, 'credits')).toEqual(['library_id', 'person_id', 'role', 'position']);
@@ -77,7 +79,7 @@ describe('migrate', () => {
     db.exec("INSERT INTO settings VALUES ('theme', '\"dark\"')");
 
     expect(() => migrate(db)).not.toThrow();
-    expect(columnNames(db, 'library')).toHaveLength(18);
+    expect(columnNames(db, 'library')).toHaveLength(19);
     expect(db.prepare('SELECT value FROM settings').get()).toEqual({ value: '"dark"' });
   });
 });
@@ -93,21 +95,33 @@ describe('versioned migrations', () => {
     const db = new DatabaseSync(':memory:');
     migrate(db);
 
-    expect(userVersion(db)).toBe(4);
-    expect(indexNames(db)).toEqual(['idx_credits_person_id']);
+    expect(userVersion(db)).toBe(5);
+    expect(indexNames(db)).toEqual(['idx_credits_person_id', 'idx_reading_sessions_day']);
   });
 
   it('upgrades an installed, unversioned database without touching its rows', () => {
     const db = new DatabaseSync(':memory:');
     migrate(db);
     db.exec("INSERT INTO settings VALUES ('theme', '\"dark\"')");
-    db.exec('DROP INDEX idx_credits_person_id; PRAGMA user_version = 0');
+    db.exec('DROP INDEX idx_credits_person_id; DROP INDEX idx_reading_sessions_day; PRAGMA user_version = 0');
 
     migrate(db);
 
-    expect(userVersion(db)).toBe(4);
-    expect(indexNames(db)).toEqual(['idx_credits_person_id']);
+    expect(userVersion(db)).toBe(5);
+    expect(indexNames(db)).toEqual(['idx_credits_person_id', 'idx_reading_sessions_day']);
     expect(db.prepare('SELECT value FROM settings').get()).toEqual({ value: '"dark"' });
+  });
+
+  it('adds the statistics columns to a database already at version 4', () => {
+    const db = new DatabaseSync(':memory:');
+    migrate(db);
+    db.exec('DROP TABLE reading_sessions; ALTER TABLE library DROP COLUMN finished_at; PRAGMA user_version = 4');
+
+    migrate(db);
+
+    expect(userVersion(db)).toBe(5);
+    expect(columnNames(db, 'library')).toContain('finished_at');
+    expect(columnNames(db, 'reading_sessions')).toEqual(['id', 'library_id', 'day', 'seconds']);
   });
 
   it('leaves a database from a newer release alone', () => {
