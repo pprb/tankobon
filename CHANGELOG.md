@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented here. This file is maintained by [release-please](https://github.com/googleapis/release-please) from the [Conventional Commits](https://www.conventionalcommits.org/) merged into `master`: don't edit released entries by hand. New versions are inserted above the previous ones.
 
+## [0.5.0](https://github.com/pprb/tankobon/compare/v0.4.0...v0.5.0) (2026-10-06)
+
+
+### Features
+
+* **achievements:** add achievements with manga-style badges and unlock toasts ([#81](https://github.com/pprb/tankobon/issues/81)) ([3ac6ca1](https://github.com/pprb/tankobon/commit/3ac6ca11cd4b60cb617b0502892b70f455fa7b36))
+* **app:** add the application icon ([#79](https://github.com/pprb/tankobon/issues/79)) ([92e5b74](https://github.com/pprb/tankobon/commit/92e5b747cc0986ad21ac1576f825067d318109e9))
+* **app:** replace the default menu bar with a minimal translated one ([#80](https://github.com/pprb/tankobon/issues/80)) ([87fff94](https://github.com/pprb/tankobon/commit/87fff94e03278c3fa194d2d853db9002289e5681))
+* **i18n:** show country flags in language pickers and book languages ([#82](https://github.com/pprb/tankobon/issues/82)) ([89fa8cf](https://github.com/pprb/tankobon/commit/89fa8cf319e6fdb8f31104587346560ccc566b7c))
+* **library:** add full, medium and compact display modes ([#74](https://github.com/pprb/tankobon/issues/74)) ([be4ef08](https://github.com/pprb/tankobon/commit/be4ef0881268becad7c48b83d612b7c0b0920c92))
+* **library:** measure average page size in the background ([#75](https://github.com/pprb/tankobon/issues/75)) ([84f382c](https://github.com/pprb/tankobon/commit/84f382c6ce0c0ac3669666b16f3b4362e39938e3))
+* **library:** resync also checks files added individually ([#73](https://github.com/pprb/tankobon/issues/73)) ([0b8ee57](https://github.com/pprb/tankobon/commit/0b8ee5792ddab2b2fb28d4e2742136f62f9e395b))
+* **reader:** offer to remove a library book that fails to open ([#72](https://github.com/pprb/tankobon/issues/72)) ([b5d2bbe](https://github.com/pprb/tankobon/commit/b5d2bbe5bd0ec91ca5c20becd7f00b34c308c5dd))
+* **stats:** add a reading statistics page ([#77](https://github.com/pprb/tankobon/issues/77)) ([bfa718f](https://github.com/pprb/tankobon/commit/bfa718f1a615b59e3e6268b65c64d73460eace02))
+
+
+### Bug Fixes
+
+* **reader:** start a zoomed page at its top or bottom edge after a page turn ([#76](https://github.com/pprb/tankobon/issues/76)) ([692ba36](https://github.com/pprb/tankobon/commit/692ba36005ccd6b83c009653d829e077726c8493))
+
 ## [0.4.0](https://github.com/pprb/tankobon/compare/v0.3.0...v0.4.0) (2026-10-04)
 
 
