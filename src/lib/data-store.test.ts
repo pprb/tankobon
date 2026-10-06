@@ -78,6 +78,7 @@ function fakeSource(overrides: Partial<{ library: LibraryEntry[]; lists: Reading
   const source = {
     library: { list: vi.fn(async () => overrides.library ?? []) },
     readingLists: { list: vi.fn(async () => overrides.lists ?? []) },
+    achievements: { list: vi.fn(async () => []) },
     settings: { getAll: vi.fn(async () => ({ ...toPublicSettings(DEFAULT_SETTINGS), pageSpacing: 7 })) },
     data: {
       onChanged: (l: (change: DataChange) => void) => {
@@ -180,5 +181,19 @@ describe('DataStore', () => {
     await write;
     emit({ scope: 'settings', values: { pageSpacing: 30 } });
     expect(store.getSettings().pageSpacing).toBe(30);
+  });
+
+  it('adds newly earned achievements once, and notifies its own slice', async () => {
+    const { source, emit } = fakeSource();
+    const store = new DataStore(source);
+    store.start();
+    await flush();
+    const listener = vi.fn();
+    store.subscribe('achievements', listener);
+    const firstBook = { id: 'firstBook', unlockedAt: '2026-01-01T00:00:00.000Z' } as const;
+    emit({ scope: 'achievements', unlocked: [firstBook] });
+    emit({ scope: 'achievements', unlocked: [firstBook] });
+    expect(store.getAchievements()).toEqual([firstBook]);
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 });

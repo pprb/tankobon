@@ -93,7 +93,7 @@ describe('versioned migrations', () => {
     const db = new DatabaseSync(':memory:');
     migrate(db);
 
-    expect(userVersion(db)).toBe(4);
+    expect(userVersion(db)).toBe(5);
     expect(indexNames(db)).toEqual(['idx_credits_person_id']);
   });
 
@@ -105,7 +105,7 @@ describe('versioned migrations', () => {
 
     migrate(db);
 
-    expect(userVersion(db)).toBe(4);
+    expect(userVersion(db)).toBe(5);
     expect(indexNames(db)).toEqual(['idx_credits_person_id']);
     expect(db.prepare('SELECT value FROM settings').get()).toEqual({ value: '"dark"' });
   });

@@ -1,9 +1,11 @@
 import { Link, Outlet, createRootRoute, useRouterState } from '@tanstack/react-router';
-import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, Library, List, ListOrdered, Settings } from 'lucide-react';
+import { Award, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Library, List, ListOrdered, Settings } from 'lucide-react';
 import { type DragEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { AchievementToasts } from '@/components/achievement-toasts';
 import { Button } from '@/components/ui/button';
+import { useAchievementTracker } from '@/hooks/use-achievements';
 import { useFullscreen } from '@/hooks/use-fullscreen';
 import { useImageScan } from '@/hooks/use-image-scan';
 import { useReadingLists } from '@/hooks/use-reading-lists';
@@ -28,6 +30,7 @@ const nav = [
   { to: '/', label: 'library', icon: Library },
   { to: '/lists', label: 'readingLists', icon: ListOrdered },
   { to: '/reader', label: 'reader', icon: BookOpen },
+  { to: '/achievements', label: 'achievements', icon: Award },
 ] as const;
 
 const linkClass = (collapsed: boolean) =>
@@ -49,6 +52,7 @@ function RootLayout() {
   // Fullscreen reading (toggled from the reader) hides the sidebar entirely; the
   // collapsed/expanded preference is untouched and comes back on exit.
   const { fullscreen } = useFullscreen();
+  useAchievementTracker();
 
   return (
     <div className="flex h-full flex-col">
@@ -95,6 +99,7 @@ function RootLayout() {
       </main>
       </div>
       {!fullscreen && <ImageScanBar />}
+      <AchievementToasts />
     </div>
   );
 }

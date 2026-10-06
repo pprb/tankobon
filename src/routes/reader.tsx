@@ -7,6 +7,7 @@ import { useConfirm } from '@/components/confirm-dialog';
 import { ContinuousReader } from '@/components/reader/continuous-reader';
 import { SinglePageReader } from '@/components/reader/single-page-reader';
 import { Button } from '@/components/ui/button';
+import { useOpeningAchievements } from '@/hooks/use-achievements';
 import { useComic } from '@/hooks/use-comic';
 import { useLibrary } from '@/hooks/use-library';
 import { useNextInList } from '@/hooks/use-next-in-list';
@@ -41,6 +42,7 @@ function ReaderPage() {
   });
   const { fullscreen, toggle: toggleFullscreen } = useReaderFullscreen(comic !== null);
   const nextInList = useNextInList(list, comic?.libraryId ?? undefined);
+  useOpeningAchievements(comic?.id ?? null);
 
   useEffect(() => {
     if (book) void openFile(book);

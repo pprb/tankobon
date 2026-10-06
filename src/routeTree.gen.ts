@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AchievementsRouteImport } from './routes/achievements'
 import { Route as ReaderRouteImport } from './routes/reader'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ListsIndexRouteImport } from './routes/lists/index'
@@ -25,6 +26,11 @@ import { Route as SettingsReadingRouteImport } from './routes/settings/reading'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AchievementsRoute = AchievementsRouteImport.update({
+  id: '/achievements',
+  path: '/achievements',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReaderRoute = ReaderRouteImport.update({
@@ -85,6 +91,7 @@ const SettingsReadingRoute = SettingsReadingRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/achievements': typeof AchievementsRoute
   '/reader': typeof ReaderRoute
   '/settings': typeof SettingsRouteWithChildren
   '/lists/$listId': typeof ListsListIdRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/achievements': typeof AchievementsRoute
   '/reader': typeof ReaderRoute
   '/lists/$listId': typeof ListsListIdRoute
   '/settings/about': typeof SettingsAboutRoute
@@ -113,6 +121,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/achievements': typeof AchievementsRoute
   '/reader': typeof ReaderRoute
   '/settings': typeof SettingsRouteWithChildren
   '/lists/$listId': typeof ListsListIdRoute
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/achievements'
     | '/reader'
     | '/settings'
     | '/lists/$listId'
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/achievements'
     | '/reader'
     | '/lists/$listId'
     | '/settings/about'
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/achievements'
     | '/reader'
     | '/settings'
     | '/lists/$listId'
@@ -171,6 +183,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AchievementsRoute: typeof AchievementsRoute
   ReaderRoute: typeof ReaderRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   ListsListIdRoute: typeof ListsListIdRoute
@@ -184,6 +197,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/achievements': {
+      id: '/achievements'
+      path: '/achievements'
+      fullPath: '/achievements'
+      preLoaderRoute: typeof AchievementsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reader': {
@@ -292,6 +312,7 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AchievementsRoute: AchievementsRoute,
   ReaderRoute: ReaderRoute,
   SettingsRoute: SettingsRouteWithChildren,
   ListsListIdRoute: ListsListIdRoute,

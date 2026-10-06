@@ -1,5 +1,6 @@
 // Every namespace of this locale. A namespace is one area of the app (a page, a dialog, the main
 // process's messages), so each file stays small and a change touches only the area it is about.
+import achievements from './achievements';
 import book from './book';
 import bookEdit from './book-edit';
 import common from './common';
@@ -12,4 +13,4 @@ import nav from './nav';
 import reader from './reader';
 import settings from './settings';
 
-export default { book, bookEdit, common, dialogs, errors, library, lists, metadata, nav, reader, settings };
+export default { achievements, book, bookEdit, common, dialogs, errors, library, lists, metadata, nav, reader, settings };

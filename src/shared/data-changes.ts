@@ -3,6 +3,7 @@
  * push channel), shared between both sides.
  * @module
  */
+import type { UnlockedAchievement } from './achievements';
 import type { LibraryEntry } from './library';
 import type { PublicSettings } from './settings';
 
@@ -33,5 +34,12 @@ export interface SettingsChange {
   values?: Partial<PublicSettings>;
 }
 
+/** Achievements were earned: `unlocked` holds the new ones, so the renderer needs no extra request. */
+export interface AchievementsChange {
+  scope: 'achievements';
+  /** The achievements earned by this write. */
+  unlocked: UnlockedAchievement[];
+}
+
 /** The payload of a `data:changed` event, sent to the renderer after every database write. */
-export type DataChange = LibraryChange | ReadingListsChange | SettingsChange;
+export type DataChange = LibraryChange | ReadingListsChange | SettingsChange | AchievementsChange;

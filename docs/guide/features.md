@@ -32,6 +32,17 @@ The mouse pointer turns into a hand over everything that can be clicked (buttons
 - **Reordering**: unread books are moved by drag and drop or with the up/down arrows. Read books stay where they are: they can't be moved, and the unread books move around them.
 - **Next book**: a book opened from a list (its "Lire"/"Ouvrir" buttons) offers "Suivant : …" in the reader header on its last page, which opens the list's next unread book; when every other book is read, the header says "Liste terminée".
 
+## Achievements
+
+"Accomplissements" in the sidebar lists 20 achievements in four groups (reading, library, organization, fun), each with a manga-style badge in the app's accent colour: greyed out until earned, then in colour with the date it was earned. Tiered ones (10, 50, 200 books finished; 100, 1 000, 5 000 books in the library…) are separate badges marked with one to three stars. An achievement still to earn shows a progress bar (for example 7/10) when it is a matter of counting.
+
+- **Reading**: finishing 1, 10, 50 and 200 books (a book counts as finished like in the reading lists); opening a book after 10 pm (until 5 am) or between 5 am and 7 am.
+- **Library**: 100, 1 000 and 5 000 books; having a CBZ, a CBR and a PDF; adding a folder.
+- **Organization**: creating a reading list, creating 5 or filling one with 50 books; rating 10 and 50 books; using 10 different tags (the "Lu" and "À lire" quick tags don't count); filling in the credits of 1 and 10 books.
+- **Fun**: opening a book in right-to-left reading direction; having books in 2 different languages.
+
+A toast at the bottom right announces an achievement as it is earned (several earned at once, as when an existing library is first scanned for them, are summed up in one toast). An earned achievement stays earned when the books that earned it are removed, and clearing the library keeps them; they are not part of the JSON export.
+
 ## Reader
 
 - **Resume**: a comic reopens at the last page read.

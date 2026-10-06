@@ -112,6 +112,18 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, 'library', 'avg_page_height', 'INTEGER');
     },
   },
+  {
+    // The achievements the user has earned, with the moment they were.
+    version: 5,
+    run: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS achievements (
+          id TEXT PRIMARY KEY,
+          unlocked_at TEXT NOT NULL
+        )
+      `);
+    },
+  },
 ];
 
 /**

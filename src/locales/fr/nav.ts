@@ -4,6 +4,7 @@ import type { Translation } from '../types';
 const nav: Translation<typeof en> = {
   library: 'Bibliothèque',
   readingLists: 'Listes de lecture',
+  achievements: 'Accomplissements',
   reader: 'Lecteur',
   settings: 'Paramètres',
   expandSidebar: 'Développer le panneau latéral',
