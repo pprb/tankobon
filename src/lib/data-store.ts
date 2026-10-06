@@ -5,13 +5,14 @@
  * push keeps it current, whoever made the write.
  * @module
  */
+import type { UnlockedAchievement } from '@/shared/achievements';
 import type { DataChange, LibraryChange } from '@/shared/data-changes';
 import type { LibraryEntry } from '@/shared/library';
 import type { ReadingList } from '@/shared/reading-list';
 import { DEFAULT_SETTINGS, toPublicSettings, type PublicSettings } from '@/shared/settings';
 
 /** The slices of the store, each with its own subscribers: a progress update doesn't wake the settings' readers. */
-export type DataSlice = 'library' | 'readingLists' | 'settings';
+export type DataSlice = 'library' | 'readingLists' | 'settings' | 'achievements';
 
 /** The part of `window.tankobon` the store reads from; a fake in tests. */
 export interface DataSource {
@@ -24,6 +25,11 @@ export interface DataSource {
   readingLists: {
     /** Every list, in the user's order. */
     list(): Promise<ReadingList[]>;
+  };
+  /** The achievements earned. */
+  achievements: {
+    /** Every achievement earned, the earliest first. */
+    list(): Promise<UnlockedAchievement[]>;
   };
   /** The settings. */
   settings: {
@@ -72,11 +78,13 @@ export function applyLibraryChange(entries: LibraryEntry[], change: LibraryChang
 export class DataStore {
   private library: LibraryEntry[] | null = null;
   private readingLists: ReadingList[] | null = null;
+  private achievements: UnlockedAchievement[] | null = null;
   private settings: PublicSettings = toPublicSettings(DEFAULT_SETTINGS);
   private readonly listeners: Record<DataSlice, Set<() => void>> = {
     library: new Set(),
     readingLists: new Set(),
     settings: new Set(),
+    achievements: new Set(),
   };
   /**
    * Writes this renderer made that the main process hasn't answered yet, by key (`entry:<id>`,
@@ -100,12 +108,15 @@ export class DataStore {
     this.ready = this.reloadSettings().catch(() => undefined);
     void this.reloadLibrary();
     void this.reloadReadingLists();
+    void this.reloadAchievements();
   }
 
   /** The library, most recently opened first; `null` until loaded. The array is replaced, never mutated. */
   getLibrary = (): LibraryEntry[] | null => this.library;
   /** The reading lists in the user's order; `null` until loaded. */
   getReadingLists = (): ReadingList[] | null => this.readingLists;
+  /** The achievements earned, the earliest first; `null` until loaded. */
+  getAchievements = (): UnlockedAchievement[] | null => this.achievements;
   /** The settings. */
   getSettings = (): PublicSettings => this.settings;
 
@@ -131,6 +142,12 @@ export class DataStore {
     this.emit('readingLists');
   }
 
+  /** Fetches the earned achievements again. */
+  async reloadAchievements(): Promise<void> {
+    this.achievements = await this.source.achievements.list();
+    this.emit('achievements');
+  }
+
   /** Fetches the settings again. */
   async reloadSettings(): Promise<void> {
     this.settings = await this.source.settings.getAll();
@@ -154,6 +171,15 @@ export class DataStore {
       case 'readingLists':
         void this.reloadReadingLists();
         return;
+      case 'achievements': {
+        if (!this.achievements) return; // The first load will bring the final state.
+        const known = new Set(this.achievements.map((achievement) => achievement.id));
+        const added = change.unlocked.filter((achievement) => !known.has(achievement.id));
+        if (added.length === 0) return;
+        this.achievements = [...this.achievements, ...added];
+        this.emit('achievements');
+        return;
+      }
       case 'settings': {
         if (!change.values) {
           void this.reloadSettings();

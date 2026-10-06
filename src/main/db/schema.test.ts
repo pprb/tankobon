@@ -95,7 +95,7 @@ describe('versioned migrations', () => {
     const db = new DatabaseSync(':memory:');
     migrate(db);
 
-    expect(userVersion(db)).toBe(5);
+    expect(userVersion(db)).toBe(6);
     expect(indexNames(db)).toEqual(['idx_credits_person_id', 'idx_reading_sessions_day']);
   });
 
@@ -107,7 +107,7 @@ describe('versioned migrations', () => {
 
     migrate(db);
 
-    expect(userVersion(db)).toBe(5);
+    expect(userVersion(db)).toBe(6);
     expect(indexNames(db)).toEqual(['idx_credits_person_id', 'idx_reading_sessions_day']);
     expect(db.prepare('SELECT value FROM settings').get()).toEqual({ value: '"dark"' });
   });
@@ -119,9 +119,20 @@ describe('versioned migrations', () => {
 
     migrate(db);
 
-    expect(userVersion(db)).toBe(5);
+    expect(userVersion(db)).toBe(6);
     expect(columnNames(db, 'library')).toContain('finished_at');
     expect(columnNames(db, 'reading_sessions')).toEqual(['id', 'library_id', 'day', 'seconds']);
+  });
+
+  it('adds the achievements table to a database already at version 5', () => {
+    const db = new DatabaseSync(':memory:');
+    migrate(db);
+    db.exec('DROP TABLE achievements; PRAGMA user_version = 5');
+
+    migrate(db);
+
+    expect(userVersion(db)).toBe(6);
+    expect(columnNames(db, 'achievements')).toEqual(['id', 'unlocked_at']);
   });
 
   it('leaves a database from a newer release alone', () => {

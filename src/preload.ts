@@ -6,6 +6,7 @@
  */
 import { contextBridge, ipcRenderer } from 'electron';
 
+import type { AchievementId, UnlockedAchievement } from './shared/achievements';
 import type { AppInfo, AppLink } from './shared/app';
 import type { ComicPage, OpenComicResult } from './shared/comic';
 import type { DataChange } from './shared/data-changes';
@@ -111,6 +112,14 @@ export interface ReadingListApi {
   reorderLists(listIds: string[]): Promise<ReadingListOrderResult>;
 }
 
+/** The achievements the user has earned, as `window.tankobon.achievements`. */
+export interface AchievementsApi {
+  /** Every achievement earned so far, with the moment it was earned. */
+  list(): Promise<UnlockedAchievement[]>;
+  /** Records achievements as earned (the renderer evaluates the rules); ones already earned are left as they are, an unknown id is refused. Resolves with those that are new, which `data:changed` announces too. */
+  unlock(ids: AchievementId[]): Promise<UnlockedAchievement[]>;
+}
+
 /** Book information lookups in public APIs, as `window.tankobon.metadata`. */
 export interface MetadataApi {
   /** Looks a book up in the public APIs enabled in the settings (Comic Vine, Google Books). */
@@ -185,6 +194,8 @@ export interface TankobonApi {
   database: DatabaseApi;
   /** Book information lookups. */
   metadata: MetadataApi;
+  /** Achievements earned. */
+  achievements: AchievementsApi;
 }
 
 // Mirror of the CHANNELS constants in main/ipc/*.ts (preload cannot import main code). The method
@@ -270,6 +281,10 @@ const api: TankobonApi = {
   metadata: {
     search: (query) => ipcRenderer.invoke('metadata:search', query),
     fromPage: (url) => ipcRenderer.invoke('metadata:from-page', url),
+  },
+  achievements: {
+    list: () => ipcRenderer.invoke('achievements:list'),
+    unlock: (ids) => ipcRenderer.invoke('achievements:unlock', ids),
   },
 };
 

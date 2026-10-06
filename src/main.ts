@@ -5,6 +5,7 @@ import started from 'electron-squirrel-startup';
 import { applyAppMenu } from './main/app-menu';
 import { DecoderClient } from './main/decoder/decoder-client';
 import { spawnDecoderProcess } from './main/decoder/spawn-decoder';
+import { AchievementRepository } from './main/db/achievement-repository';
 import { openDatabase } from './main/db/database';
 import { LibraryFolderRepository } from './main/db/library-folder-repository';
 import { LibraryRepository } from './main/db/library-repository';
@@ -12,6 +13,7 @@ import { ReadingListRepository } from './main/db/reading-list-repository';
 import { StatsRepository } from './main/db/stats-repository';
 import { SettingsRepository } from './main/db/settings-repository';
 import { broadcastDataChange } from './main/ipc/data-changes';
+import { registerAchievementsIpc } from './main/ipc/achievements';
 import { registerAppIpc } from './main/ipc/app';
 import { registerComicIpc } from './main/ipc/comic';
 import { registerDatabaseIpc } from './main/ipc/database';
@@ -83,6 +85,7 @@ app.whenReady().then(() => {
   const folderRepo = new LibraryFolderRepository(db);
   const settingsRepo = new SettingsRepository(db);
   const readingListRepo = new ReadingListRepository(db);
+  const achievementRepo = new AchievementRepository(db);
   const statsRepo = new StatsRepository(db);
   // Archives and covers are decoded in their own process: a booby-trapped file can only take that one down.
   // The thumbnails are a cache, so they stay in userData even when the database lives elsewhere.
@@ -116,6 +119,7 @@ app.whenReady().then(() => {
   registerComicIpc(libraryRepo, settingsRepo, decoder, broadcastDataChange, imageScanner);
   registerDatabaseIpc();
   registerMetadataIpc(settingsRepo);
+  registerAchievementsIpc(achievementRepo, broadcastDataChange);
   registerAppIpc();
 
   app.on('will-quit', () => {

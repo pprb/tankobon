@@ -2,6 +2,7 @@
 export default {
   library: 'Library',
   readingLists: 'Reading lists',
+  achievements: 'Achievements',
   reader: 'Reader',
   stats: 'Statistics',
   settings: 'Settings',

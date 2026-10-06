@@ -1,1 +1,0 @@
-import{r as e}from"./rolldown-runtime-hePW80VL.js";import{a as t}from"./useTranslation-BXVHadM2.js";import{t as n}from"./app-data-CGz_gh_z.js";var r=e(t()),i=e=>n.subscribe(`library`,e);function a(){return(0,r.useSyncExternalStore)(i,n.getLibrary)}export{a as t};
