@@ -27,6 +27,7 @@ import { formatPageSize } from '@/lib/image-scan';
 import { creditRoleLabel } from '@/lib/metadata-review';
 import { encodeDraggedEntry, LIBRARY_ENTRY_DRAG_TYPE, tagLabel, TO_READ_TAG } from '@/lib/reading-list';
 import { currentLanguage } from '@/shared/i18n';
+import { languageFlag } from '@/lib/language-flag';
 import { cn, formatFileSize, formatLanguage } from '@/lib/utils';
 import { comicFormat } from '@/shared/comic';
 import { CREDIT_ROLES, READ_TAG, type LibraryEntry, type ScanProgress } from '@/shared/library';
@@ -324,7 +325,7 @@ function seriesLine(entry: LibraryEntry, t: TFunction<['library', 'common']>): s
 function EntryMetadata({ entry }: { entry: LibraryEntry }) {
   const { t } = useTranslation(['library', 'common']);
   const series = [entry.series, entry.volume && t('volumeShort', { volume: entry.volume })].filter(Boolean).join(' · ');
-  const details = [series, entry.releaseDate?.slice(0, 4), formatLanguage(entry.language)].filter(Boolean);
+  const details = [series, entry.releaseDate?.slice(0, 4), languageFlag(entry.language) ?? formatLanguage(entry.language)].filter(Boolean);
   const credits = CREDIT_ROLES.flatMap((role) => {
     const names = entry.credits.filter((credit) => credit.role === role).map(formatPersonName);
     return names.length > 0 ? [t('common:labelValue', { label: creditRoleLabel(role), value: names.join(', ') })] : [];

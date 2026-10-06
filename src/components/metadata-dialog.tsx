@@ -13,6 +13,7 @@ import {
   reviewFieldLabel,
   reviewToUpdate,
 } from '@/lib/metadata-review';
+import { languageFlag } from '@/lib/language-flag';
 import { cn, formatLanguage } from '@/lib/utils';
 import { CREDIT_ROLES, type CreditRole, type LibraryEntry } from '@/shared/library';
 import {
@@ -235,7 +236,7 @@ function CandidateList({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{candidateHeading(candidate, t)}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {[candidate.releaseDate, formatLanguage(candidate.language), METADATA_SOURCE_LABELS[candidate.source]]
+                    {[candidate.releaseDate, languageFlag(candidate.language) ?? formatLanguage(candidate.language), METADATA_SOURCE_LABELS[candidate.source]]
                       .filter(Boolean)
                       .join(' · ')}
                   </p>

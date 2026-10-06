@@ -74,7 +74,7 @@ The menu bar only holds entries that work: Fichier (Quitter; Fermer on macOS), �
 
 ## Language
 
-The interface is available in English and French. By default it follows the operating system's language: the first of the system's preferred languages that the app supports, or English when none is. Paramètres › Affichage › "Langue" forces one of them instead ("Langue du système" goes back to following the system). The change applies at once, including the native dialogs (open a comic, add a folder, export…) and the error messages. The setting is part of the exported settings.
+The interface is available in English and French. By default it follows the operating system's language: the first of the system's preferred languages that the app supports, or English when none is. Paramètres › Affichage › "Langue" forces one of them instead ("Langue du système" goes back to following the system). The change applies at once, including the native dialogs (open a comic, add a folder, export…) and the error messages. The setting is part of the exported settings. Each language is preceded by its country's flag in this picker, and a book's language is shown as a flag (rather than its name) in the library and in the metadata lookup results, and next to its name in the book edit form's language list (languages without a known flag show their name; on Windows, which has no flag emoji, the flag appears as the country's two letters).
 
 ## Sidebar
 

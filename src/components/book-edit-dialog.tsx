@@ -15,6 +15,7 @@ import {
   validateForm,
 } from '@/lib/book-edit';
 import { creditRoleLabel, reviewFieldLabel } from '@/lib/metadata-review';
+import { withFlag } from '@/lib/language-flag';
 import { cn, formatLanguage } from '@/lib/utils';
 import { CREDIT_ROLES, type CreditRole, type LibraryEntry } from '@/shared/library';
 
@@ -138,7 +139,7 @@ export function BookEditDialog({
                 <option value="">—</option>
                 {languages.map((code) => (
                   <option key={code} value={code}>
-                    {formatLanguage(code)} ({code})
+                    {withFlag(code, `${formatLanguage(code)} (${code})`)}
                   </option>
                 ))}
               </select>

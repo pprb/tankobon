@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { SETTINGS_SELECT_CLASS, SettingsSection } from '@/components/settings-section';
 import { systemLanguage, useSettings } from '@/hooks/use-settings';
+import { withFlag } from '@/lib/language-flag';
 import { cn } from '@/lib/utils';
 import { LANGUAGE_NAMES, SUPPORTED_LANGUAGES, type LanguageSetting } from '@/shared/i18n';
 import { READER_BACKGROUND_PRESETS } from '@/shared/settings';
@@ -24,10 +25,10 @@ function AppearanceSettingsPage() {
         value={settings.language}
         onChange={(event) => update('language', event.target.value as LanguageSetting)}
       >
-        <option value="system">{t('languageSystem', { language: LANGUAGE_NAMES[systemLanguage()] })}</option>
+        <option value="system">{t('languageSystem', { language: withFlag(systemLanguage(), LANGUAGE_NAMES[systemLanguage()]) })}</option>
         {SUPPORTED_LANGUAGES.map((language) => (
           <option key={language} value={language} lang={language}>
-            {LANGUAGE_NAMES[language]}
+            {withFlag(language, LANGUAGE_NAMES[language])}
           </option>
         ))}
       </select>
