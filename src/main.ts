@@ -31,6 +31,12 @@ if (started) {
 // Development mode (`npm run dev`, see forge.config.ts): only there are DevTools opened.
 const isDevMode = !app.isPackaged && process.env.TANKOBON_DEV === '1';
 
+// The window icon (taskbar and title bar on Linux; Windows and macOS take the executable's own).
+// Packaged, the PNG is copied next to the app by `extraResource` (forge.config.ts).
+const windowIcon = app.isPackaged
+  ? path.join(process.resourcesPath, 'icon.png')
+  : path.join(app.getAppPath(), 'assets', 'icon.png');
+
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
     width: 1280,
@@ -38,6 +44,7 @@ const createWindow = () => {
     minWidth: 800,
     minHeight: 600,
     title: 'Tankōbon',
+    icon: windowIcon,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,

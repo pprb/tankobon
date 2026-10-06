@@ -22,6 +22,7 @@ Every text file uses LF. `.editorconfig` tells editors so, and `.gitattributes` 
 | `npm run test:e2e` | Playwright smoke tests of the packaged app (run `npm run package` first; on a headless Linux, prefix with `xvfb-run`). See [Smoke tests](#smoke-tests-of-the-packaged-app). |
 | `npm run package` | `electron-forge package`: builds the app into `out/`. |
 | `npm run make` | `electron-forge make`: builds installers for the current platform (Squirrel, ZIP on macOS, deb, rpm). |
+| `npm run icons` | Renders `assets/icon.svg` into `assets/icon.png`, `icon.ico` and `icon.icns` (committed; run it after editing the SVG). |
 | `npm run docs:gen` | Generates the database schema and IPC references, and checks the IPC channels of preload and main agree. |
 | `npm run docs:api` | Generates the API reference with TypeDoc; fails on an undocumented export or a broken `{@link}`. |
 | `npm run docs:check` | Checks that the npm scripts, file paths and relative links cited in the docs exist. |
