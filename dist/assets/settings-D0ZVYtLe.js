@@ -1,0 +1,1 @@
+import{i as e,t}from"./useTranslation-BXVHadM2.js";import{w as n}from"./index-BfBycbHf.js";var r=e();function i(){let{t:e}=t(`settings`);return(0,r.jsxs)(`div`,{className:`flex flex-col gap-6 p-6`,children:[(0,r.jsx)(`h1`,{className:`text-2xl font-semibold tracking-tight`,children:e(`title`)}),(0,r.jsx)(n,{})]})}export{i as component};

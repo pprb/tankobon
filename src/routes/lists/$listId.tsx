@@ -8,9 +8,9 @@ import { ReadingListProgress } from '@/components/reading-list-progress';
 import { Button } from '@/components/ui/button';
 import { useLibrary } from '@/hooks/use-library';
 import { useReadingLists } from '@/hooks/use-reading-lists';
-import { isFinished, listEntries, listProgress, moveUnfinished, nextToRead, READ_TAG, tagLabel } from '@/lib/reading-list';
+import { isFinished, listEntries, listProgress, moveUnfinished, nextToRead, tagLabel } from '@/lib/reading-list';
 import { cn } from '@/lib/utils';
-import type { LibraryEntry } from '@/shared/library';
+import { READ_TAG, type LibraryEntry } from '@/shared/library';
 import { MAX_READING_LIST_SIZE, type ReadingListResult } from '@/shared/reading-list';
 
 export const Route = createFileRoute('/lists/$listId')({

@@ -25,11 +25,11 @@ import {
 } from '@/lib/library-filter';
 import { formatPageSize } from '@/lib/image-scan';
 import { creditRoleLabel } from '@/lib/metadata-review';
-import { encodeDraggedEntry, LIBRARY_ENTRY_DRAG_TYPE, READ_TAG, tagLabel, TO_READ_TAG } from '@/lib/reading-list';
+import { encodeDraggedEntry, LIBRARY_ENTRY_DRAG_TYPE, tagLabel, TO_READ_TAG } from '@/lib/reading-list';
 import { currentLanguage } from '@/shared/i18n';
 import { cn, formatFileSize, formatLanguage } from '@/lib/utils';
 import { comicFormat } from '@/shared/comic';
-import { CREDIT_ROLES, type LibraryEntry, type ScanProgress } from '@/shared/library';
+import { CREDIT_ROLES, READ_TAG, type LibraryEntry, type ScanProgress } from '@/shared/library';
 import { type AppSettings } from '@/shared/settings';
 import { formatPersonName } from '@/shared/title-parsing';
 
