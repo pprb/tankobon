@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
+import { applyAppMenu } from './main/app-menu';
 import { DecoderClient } from './main/decoder/decoder-client';
 import { spawnDecoderProcess } from './main/decoder/spawn-decoder';
 import { openDatabase } from './main/db/database';
@@ -88,6 +89,7 @@ app.whenReady().then(() => {
   const decoder = new DecoderClient(spawnDecoderProcess, path.join(app.getPath('userData'), 'thumbnails'));
   onMainLanguageApplied((language) => decoder.setLanguage(language));
   // Before anything can show a dialog or return an error message.
+  onMainLanguageApplied(() => applyAppMenu(isDevMode));
   applyMainLanguage(settingsRepo.getAll().language);
   // Leftovers of another database (its location changed) or of a crash between two writes.
   void decoder.pruneThumbnails(libraryRepo.list().map((entry) => entry.path)).catch(() => undefined);
