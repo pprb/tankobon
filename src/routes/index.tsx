@@ -27,7 +27,8 @@ import { formatPageSize } from '@/lib/image-scan';
 import { creditRoleLabel } from '@/lib/metadata-review';
 import { encodeDraggedEntry, LIBRARY_ENTRY_DRAG_TYPE, tagLabel, TO_READ_TAG } from '@/lib/reading-list';
 import { currentLanguage } from '@/shared/i18n';
-import { languageFlag } from '@/lib/language-flag';
+import { LanguageFlag } from '@/components/language-flag';
+import { languageCountry } from '@/lib/language-flag';
 import { cn, formatFileSize, formatLanguage } from '@/lib/utils';
 import { comicFormat } from '@/shared/comic';
 import { CREDIT_ROLES, READ_TAG, type LibraryEntry, type ScanProgress } from '@/shared/library';
@@ -325,7 +326,15 @@ function seriesLine(entry: LibraryEntry, t: TFunction<['library', 'common']>): s
 function EntryMetadata({ entry }: { entry: LibraryEntry }) {
   const { t } = useTranslation(['library', 'common']);
   const series = [entry.series, entry.volume && t('volumeShort', { volume: entry.volume })].filter(Boolean).join(' · ');
-  const details = [series, entry.releaseDate?.slice(0, 4), languageFlag(entry.language) ?? formatLanguage(entry.language)].filter(Boolean);
+  const languageName = formatLanguage(entry.language);
+  const language = languageCountry(entry.language) ? (
+    <span key="language" title={languageName ?? undefined}>
+      <LanguageFlag code={entry.language} className="align-[-1px]" />
+    </span>
+  ) : (
+    languageName
+  );
+  const details = [series, entry.releaseDate?.slice(0, 4), language].filter(Boolean);
   const credits = CREDIT_ROLES.flatMap((role) => {
     const names = entry.credits.filter((credit) => credit.role === role).map(formatPersonName);
     return names.length > 0 ? [t('common:labelValue', { label: creditRoleLabel(role), value: names.join(', ') })] : [];
@@ -334,7 +343,7 @@ function EntryMetadata({ entry }: { entry: LibraryEntry }) {
 
   return (
     <p className="truncate text-xs" title={credits.join('\n') || undefined}>
-      {details.join(' · ')}
+      {details.flatMap((detail, index) => (index === 0 ? [detail] : [' · ', detail]))}
       {details.length > 0 && credits.length > 0 && ' — '}
       <span className="text-muted-foreground">{credits.join(' · ')}</span>
     </p>
