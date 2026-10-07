@@ -1,5 +1,5 @@
-import { FolderOpen, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { FolderOpen, X, ZoomIn } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ContinuousPage } from '@/components/reader/continuous-page';
@@ -12,6 +12,9 @@ import type { NextInList } from '@/hooks/use-next-in-list';
 import { useReadingPace } from '@/hooks/use-reading-pace';
 import { useResumeScroll } from '@/hooks/use-resume-scroll';
 import type { ComicInfo } from '@/shared/comic';
+
+/** Width of the page column as a fraction of the reading area; 1 fits the pages to its width. */
+const WIDTH_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 interface ContinuousReaderProps {
   comic: ComicInfo;
@@ -41,6 +44,29 @@ export function ContinuousReader({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const columnRef = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(1);
+  const scrollRatio = useRef<{ top: number; left: number } | null>(null);
+
+  // Resizing the column changes every page's height: keep the same relative position, so
+  // the reader stays on the page being read instead of landing somewhere else in the book.
+  const changeZoom = (value: number) => {
+    const el = scrollRef.current;
+    if (el) {
+      scrollRatio.current = {
+        top: el.scrollTop / Math.max(el.scrollHeight, 1),
+        left: el.scrollLeft / Math.max(el.scrollWidth, 1),
+      };
+    }
+    setZoom(value);
+  };
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    const ratio = scrollRatio.current;
+    if (!el || !ratio) return;
+    scrollRatio.current = null;
+    el.scrollTop = ratio.top * el.scrollHeight;
+    el.scrollLeft = ratio.left * el.scrollWidth;
+  }, [zoom]);
 
   useResumeScroll(scrollRef, columnRef, comic.resumePage);
 
@@ -73,6 +99,21 @@ export function ContinuousReader({
         </span>
         <ReadingProgress percent={percent} remainingMinutes={remainingMinutes} />
         {visiblePage === comic.pageCount - 1 && <NextInListButton nextInList={nextInList} />}
+        <label className="flex items-center gap-1.5 text-white/60">
+          <ZoomIn className="size-4" />
+          <span className="sr-only">{t('zoom')}</span>
+          <select
+            value={String(zoom)}
+            onChange={(event) => changeZoom(Number(event.target.value))}
+            className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white"
+          >
+            {WIDTH_OPTIONS.map((option) => (
+              <option key={option} value={option} className="text-foreground">
+                {option === 1 ? t('zoomFitWidth') : t('zoomPercent', { percent: Math.round(option * 100) })}
+              </option>
+            ))}
+          </select>
+        </label>
         <Button variant="ghost" size="icon-sm" onClick={pickAndOpen} title={t('openAnother')}>
           <FolderOpen />
         </Button>
@@ -82,8 +123,8 @@ export function ContinuousReader({
         </Button>
       </ReaderHeader>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-        <div ref={columnRef} className="mx-auto flex flex-col items-center" style={{ rowGap: spacing }}>
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
+        <div ref={columnRef} className="mx-auto flex flex-col items-center" style={{ rowGap: spacing, width: `${zoom * 100}%` }}>
           {Array.from({ length: comic.pageCount }, (_, index) => (
             <ContinuousPage key={index} comicId={comic.id} index={index} onActive={handleActive} />
           ))}

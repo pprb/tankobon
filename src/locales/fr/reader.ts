@@ -10,6 +10,7 @@ const reader: Translation<typeof en> = {
   close: 'Fermer',
   zoom: 'Zoom',
   zoomFit: 'Ajuster à la fenêtre',
+  zoomFitWidth: 'Ajuster à la largeur',
   zoomActual: 'Taille réelle (100 %)',
   zoomPercent: '{{percent}} %',
   remainingTime: 'Temps de lecture restant estimé : {{time}}',
