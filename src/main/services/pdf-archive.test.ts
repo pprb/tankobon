@@ -74,6 +74,23 @@ describe('PdfArchive', () => {
     }
   });
 
+  it('serves a page it already rendered from its cache', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'tankobon-pdf-'));
+    const filePath = join(dir, 'book.pdf');
+    await writeFile(filePath, buildTestPdf(['One', 'Two', 'Three']), 'latin1');
+
+    const archive = await PdfArchive.open(filePath);
+    try {
+      const first = await archive.readPage(1);
+      expect(await archive.readPage(1)).toBe(first);
+      // The neighbours were rendered in the background: reading them keeps working.
+      expect(Array.from((await archive.readPage(2)).data.slice(0, 4))).toEqual(PNG_MAGIC);
+      expect(Array.from((await archive.readPage(0)).data.slice(0, 4))).toEqual(PNG_MAGIC);
+    } finally {
+      await archive.close();
+    }
+  });
+
   it('rejects an out-of-range page index', async () => {
     dir = await mkdtemp(join(tmpdir(), 'tankobon-pdf-'));
     const filePath = join(dir, 'book.pdf');
