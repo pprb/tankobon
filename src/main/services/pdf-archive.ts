@@ -65,6 +65,9 @@ const RENDER_SCALE = 200 / 72;
  */
 export const MAX_PAGE_PIXELS = 40_000_000;
 
+/** Rendered pages (PNG bytes) a `PdfArchive` keeps: the current page and its neighbours, plus a little history. */
+const PAGE_CACHE_SIZE = 5;
+
 /**
  * The scale to render a page of `width` × `height` points at: `RENDER_SCALE`, lowered when the
  * result would exceed `MAX_PAGE_PIXELS`.
@@ -91,6 +94,9 @@ function pdfjsAssetDir(name: string): string {
 /** A PDF, each page rendered to PNG at `200 DPI when read. `fileCount` always equals the page count. */
 export class PdfArchive implements ComicArchive {
   readonly fileCount: number;
+  /** Renders by page index, least recently used first (a Map iterates in insertion order). */
+  private readonly rendered = new Map<number, Promise<ComicPage>>();
+  private closing = false;
 
   private constructor(
     readonly path: string,
@@ -120,11 +126,50 @@ export class PdfArchive implements ComicArchive {
     return new PdfArchive(filePath, pages, doc, loadingTask);
   }
 
-  /** Renders page `index` (0-based) to PNG; throws a `RangeError` when out of range. */
+  /**
+   * Renders page `index` (0-based) to PNG; throws a `RangeError` when out of range. Rendered pages
+   * are kept (`PAGE_CACHE_SIZE` most recent) and the next and previous pages are rendered in the
+   * background, so turning a page usually finds it ready.
+   */
   async readPage(index: number): Promise<ComicPage> {
     if (index < 0 || index >= this.pages.length) {
       throw new RangeError(t('errors:archive.pageOutOfRange', { index, last: this.pages.length - 1 }));
     }
+    const result = await this.cachedRender(index);
+    this.prefetch(index + 1);
+    this.prefetch(index - 1);
+    return result;
+  }
+
+  /** The render of page `index`, from the cache or started now; concurrent calls share one render. */
+  private cachedRender(index: number): Promise<ComicPage> {
+    const cached = this.rendered.get(index);
+    if (cached) {
+      // Re-insert to mark it as the most recently used.
+      this.rendered.delete(index);
+      this.rendered.set(index, cached);
+      return cached;
+    }
+    const render = this.render(index);
+    this.rendered.set(index, render);
+    // A failed render isn't kept: the next read retries it.
+    render.catch(() => {
+      if (this.rendered.get(index) === render) this.rendered.delete(index);
+    });
+    while (this.rendered.size > PAGE_CACHE_SIZE) {
+      const oldest = this.rendered.keys().next().value as number;
+      this.rendered.delete(oldest);
+    }
+    return render;
+  }
+
+  /** Renders page `index` in the background, if it exists and isn't cached yet; errors are ignored. */
+  private prefetch(index: number): void {
+    if (this.closing || index < 0 || index >= this.pages.length || this.rendered.has(index)) return;
+    this.cachedRender(index).catch(() => undefined);
+  }
+
+  private async render(index: number): Promise<ComicPage> {
     const page = await this.doc.getPage(index + 1);
     try {
       const { width, height } = page.getViewport({ scale: 1 });
@@ -156,6 +201,8 @@ export class PdfArchive implements ComicArchive {
 
   /** Destroys the pdf.js document. */
   async close(): Promise<void> {
+    this.closing = true;
+    this.rendered.clear();
     await this.loadingTask.destroy();
   }
 }
