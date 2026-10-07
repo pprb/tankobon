@@ -8,6 +8,7 @@ export default {
   close: 'Close',
   zoom: 'Zoom',
   zoomFit: 'Fit to window',
+  zoomFitWidth: 'Fit to width',
   zoomActual: 'Actual size (100%)',
   zoomPercent: '{{percent}}%',
   remainingTime: 'Estimated reading time left: {{time}}',
