@@ -7,9 +7,44 @@
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://comicvine.gamespot.com https://books.google.com https://www.bedetheque.com; base-uri 'none'; form-action 'none'; object-src 'none'"
     />
     <title>Tankōbon</title>
+    <style>
+      /* Start-up loader: static, so it shows before the bundle runs; React replaces it on first render. */
+      .startup-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+      }
+      .startup-loader::after {
+        content: '';
+        width: 2rem;
+        height: 2rem;
+        border: 3px solid rgb(128 128 128 / 30%);
+        border-top-color: #737373;
+        border-radius: 50%;
+        animation: startup-spin 0.8s linear infinite;
+      }
+      @media (prefers-color-scheme: dark) {
+        .startup-loader {
+          background: #0a0a0a;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .startup-loader::after {
+          animation-duration: 2.4s;
+        }
+      }
+      @keyframes startup-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="startup-loader" role="status" aria-busy="true"></div></div>
     <script type="module" src="/src/renderer.tsx"></script>
   </body>
 </html>
