@@ -40,6 +40,8 @@ export interface AppSettings {
   googleBooksApiKey: string;
   /** Whether the library is resynchronized with its folders in the background at every start. */
   resyncOnStartup: boolean;
+  /** Whether the app asks GitHub at every start if a newer release exists, and offers to download it. */
+  checkUpdatesOnStartup: boolean;
   /** When the last resynchronization finished (ISO 8601); empty when there has been none. */
   lastResyncAt: string;
   /** Folder last added with "Ajouter un dossier…" (empty before the first one): where the next folder dialog opens. */
@@ -65,6 +67,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   googleBooksEnabled: true,
   googleBooksApiKey: '',
   resyncOnStartup: false,
+  checkUpdatesOnStartup: true,
   lastResyncAt: '',
   lastScanFolder: '',
 };
@@ -116,6 +119,7 @@ export const SETTING_VALIDATORS: SettingValidators = {
   googleBooksEnabled: isBoolean,
   googleBooksApiKey: isString,
   resyncOnStartup: isBoolean,
+  checkUpdatesOnStartup: isBoolean,
   lastResyncAt: (value): value is string => isString(value) && (value === '' || !Number.isNaN(Date.parse(value))),
   lastScanFolder: isString,
 };

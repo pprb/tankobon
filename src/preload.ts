@@ -7,7 +7,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 import type { AchievementId, UnlockedAchievement } from './shared/achievements';
-import type { AppInfo, AppLink } from './shared/app';
+import type { AppInfo, AppLink, UpdateCheckResult } from './shared/app';
 import type { ComicPage, OpenComicResult } from './shared/comic';
 import type { DataChange } from './shared/data-changes';
 import type {
@@ -39,6 +39,8 @@ export interface AppApi {
   getSystemLanguages(): Promise<string[]>;
   /** Opens one of the project's pages (repository, documentation…) in the default browser. */
   openLink(link: AppLink): Promise<void>;
+  /** Asks GitHub whether a release newer than the running version is published; a network failure comes back as an `error` result, not a rejection. */
+  checkUpdate(): Promise<UpdateCheckResult>;
 }
 
 /** Opening and reading comics, as `window.tankobon.comic`. */
@@ -205,6 +207,7 @@ const api: TankobonApi = {
     getInfo: () => ipcRenderer.invoke('app:get-info'),
     getSystemLanguages: () => ipcRenderer.invoke('app:get-system-languages'),
     openLink: (link) => ipcRenderer.invoke('app:open-link', link),
+    checkUpdate: () => ipcRenderer.invoke('app:check-update'),
   },
   comic: {
     pickFile: (addToLibrary) => ipcRenderer.invoke('comic:pick-file', addToLibrary),

@@ -1,11 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { BookText, Bug, Check, Code, Copy, Tag, type LucideIcon } from 'lucide-react';
+import { BookText, Bug, Check, Code, Copy, Download, RefreshCw, Tag, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { SettingsSection } from '@/components/settings-section';
 import { Button } from '@/components/ui/button';
-import { formatAppInfo, type AppInfo, type AppLink } from '@/shared/app';
+import { useSettings } from '@/hooks/use-settings';
+import { formatAppInfo, type AppInfo, type AppLink, type UpdateCheckResult } from '@/shared/app';
 
 export const Route = createFileRoute('/settings/about')({
   component: AboutSettingsPage,
@@ -22,7 +23,10 @@ const LINKS: { link: AppLink; icon: LucideIcon }[] = [
 function AboutSettingsPage() {
   const { t } = useTranslation('settings', { keyPrefix: 'about' });
   const [info, setInfo] = useState<AppInfo | null>(null);
+  const { settings, update } = useSettings();
   const [copied, setCopied] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,6 +42,13 @@ function AboutSettingsPage() {
     if (!info) return;
     await navigator.clipboard.writeText(formatAppInfo(info));
     setCopied(true);
+  };
+
+  const checkNow = async () => {
+    setChecking(true);
+    setUpdateResult(null);
+    setUpdateResult(await window.tankobon.app.checkUpdate());
+    setChecking(false);
   };
 
   return (
@@ -70,6 +81,35 @@ function AboutSettingsPage() {
             </div>
           </>
         )}
+      </SettingsSection>
+
+      <SettingsSection title={t('updates')}>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={settings.checkUpdatesOnStartup}
+            onChange={(event) => update('checkUpdatesOnStartup', event.target.checked)}
+          />
+          {t('checkOnStartup')}
+        </label>
+        <p className="text-sm text-muted-foreground">{t('updatesHint')}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="outline" size="sm" disabled={checking} onClick={() => void checkNow()}>
+            <RefreshCw />
+            {checking ? t('checking') : t('checkNow')}
+          </Button>
+          {updateResult?.status === 'up-to-date' && <span className="text-sm">{t('upToDate')}</span>}
+          {updateResult?.status === 'error' && <span className="text-sm text-destructive">{updateResult.message}</span>}
+          {updateResult?.status === 'available' && (
+            <>
+              <span className="text-sm">{t('updateAvailable', { version: updateResult.version })}</span>
+              <Button size="sm" onClick={() => void window.tankobon.app.openLink('releases')}>
+                <Download />
+                {t('download')}
+              </Button>
+            </>
+          )}
+        </div>
       </SettingsSection>
 
       <SettingsSection title={t('links')}>

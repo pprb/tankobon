@@ -1,6 +1,7 @@
-import { app, shell } from 'electron';
+import { app, net, shell } from 'electron';
 
-import { APP_LINKS, isAppLink, type AppInfo } from '../../shared/app';
+import { APP_LINKS, isAppLink, type AppInfo, type UpdateCheckResult } from '../../shared/app';
+import { checkForUpdate } from '../services/update-checker';
 import { handle } from './handle';
 import { IpcArgumentError, args } from './validate';
 
@@ -9,6 +10,7 @@ export const APP_CHANNELS = {
   getInfo: 'app:get-info',
   getSystemLanguages: 'app:get-system-languages',
   openLink: 'app:open-link',
+  checkUpdate: 'app:check-update',
 } as const;
 
 /**
@@ -41,5 +43,19 @@ export function registerAppIpc(): void {
     async (_event, link) => {
       await shell.openExternal(APP_LINKS[link]);
     },
+  );
+
+  // Asks GitHub for the latest release; the answer only says whether a newer version exists. The
+  // renderer opens the releases page through `app:open-link`, so it never handles a URL.
+  handle(
+    APP_CHANNELS.checkUpdate,
+    args(),
+    (): Promise<UpdateCheckResult> =>
+      checkForUpdate(app.getVersion(), {
+        // Chromium's network stack: it honours the system proxy settings.
+        fetch: net.fetch as typeof fetch,
+        userAgent: `Tankobon/${app.getVersion()}`,
+        timeoutMs: 15_000,
+      }),
   );
 }
