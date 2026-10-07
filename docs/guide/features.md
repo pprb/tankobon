@@ -88,6 +88,8 @@ The button at the top of the sidebar collapses it to a column of icons, to give 
 
 Paramètres › À propos shows the app's version, along with the versions of Electron, Chromium, Node.js and V8 and the operating system. "Copier les informations" copies them as text, to paste into a bug report. Buttons open the documentation, the source code on GitHub, the published versions (installers and changelog) and the issue tracker in the default browser.
 
+**Updates**: at every start, the app asks GitHub for the latest published release and, if it is newer than the running version, shows a notice offering to open the releases page to download it (a failed check, when offline for instance, stays silent). "Rechercher une nouvelle version au démarrage" in Paramètres › À propos turns this off (on by default); "Rechercher maintenant" runs the check on demand and reports the result. Only the request to GitHub is made; nothing is downloaded or installed by the app itself.
+
 ## Your data
 
 - **Local only**: the library and the settings are stored in one SQLite file, `tankobon.db`. By default it lives in the app's user data directory; nothing is sent to the cloud. Cover thumbnails are a cache in a `thumbnails` folder of the user data directory; they stay there even when the database is moved, and can be deleted at any time. The only network requests are the information lookups the user starts, which send the search text to the enabled sources.

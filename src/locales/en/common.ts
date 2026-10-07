@@ -10,6 +10,10 @@ export default {
   coverOf: 'Cover of {{title}}',
   // A label and its value ("Writer: …"); French puts a space before the colon.
   labelValue: '{{label}}: {{value}}',
+  update: {
+    available: 'Version {{version}} is available.',
+    download: 'Download',
+  },
   sizeUnits: {
     b: 'B',
     kb: 'KB',

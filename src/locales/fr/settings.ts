@@ -106,6 +106,14 @@ const settings: Translation<typeof en> = {
     repository: 'Code source (GitHub)',
     releases: 'Versions publiées',
     issues: 'Signaler un problème',
+    updates: 'Mises à jour',
+    checkOnStartup: 'Rechercher une nouvelle version au démarrage',
+    updatesHint: "Interroge GitHub au démarrage pour connaître la dernière version publiée et propose de la télécharger. Rien d'autre n'est envoyé.",
+    checkNow: 'Rechercher maintenant',
+    checking: 'Recherche…',
+    upToDate: 'Tu utilises la dernière version.',
+    updateAvailable: 'La version {{version}} est disponible.',
+    download: 'Télécharger',
   },
 };
 

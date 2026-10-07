@@ -104,5 +104,13 @@ export default {
     repository: 'Source code (GitHub)',
     releases: 'Releases',
     issues: 'Report a problem',
+    updates: 'Updates',
+    checkOnStartup: 'Check for a new version at startup',
+    updatesHint: 'Asks GitHub for the latest release when the app starts, and offers to download it. Nothing else is sent.',
+    checkNow: 'Check now',
+    checking: 'Checking…',
+    upToDate: 'You are using the latest version.',
+    updateAvailable: 'Version {{version}} is available.',
+    download: 'Download',
   },
 };

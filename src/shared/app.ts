@@ -61,3 +61,27 @@ export function formatAppInfo(info: AppInfo): string {
     `${info.platform} ${info.arch}`,
   ].join('\n');
 }
+
+/** What `app:check-update` answers: whether a newer release than the running version is published. */
+export type UpdateCheckResult =
+  | { status: 'up-to-date' }
+  | { status: 'available'; version: string }
+  | { status: 'error'; message: string };
+
+/** The numeric parts of a version such as `v1.2.3` or `1.2.3-beta.1` (the pre-release suffix is ignored); null if there are none. */
+export function parseVersion(version: string): number[] | null {
+  const match = /^v?(\d+(?:\.\d+)*)/.exec(version.trim());
+  return match ? match[1].split('.').map(Number) : null;
+}
+
+/** Whether `latest` is a strictly higher version than `current`; false when either can't be read. */
+export function isNewerVersion(current: string, latest: string): boolean {
+  const a = parseVersion(current);
+  const b = parseVersion(latest);
+  if (!a || !b) return false;
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const diff = (b[i] ?? 0) - (a[i] ?? 0);
+    if (diff !== 0) return diff > 0;
+  }
+  return false;
+}

@@ -15,6 +15,7 @@ import { type DragEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AchievementToasts } from '@/components/achievement-toasts';
+import { UpdateToast } from '@/components/update-toast';
 import { Button } from '@/components/ui/button';
 import { useAchievementTracker } from '@/hooks/use-achievements';
 import { useFullscreen } from '@/hooks/use-fullscreen';
@@ -112,6 +113,7 @@ function RootLayout() {
       </div>
       {!fullscreen && <ImageScanBar />}
       <AchievementToasts />
+      <UpdateToast />
     </div>
   );
 }
