@@ -78,6 +78,10 @@ The menu bar only holds entries that work: Fichier (Quitter; Fermer on macOS), �
 
 The interface is available in English and French. By default it follows the operating system's language: the first of the system's preferred languages that the app supports, or English when none is. Paramètres › Affichage › "Langue" forces one of them instead ("Langue du système" goes back to following the system). The change applies at once, including the native dialogs (open a comic, add a folder, export…) and the error messages. The setting is part of the exported settings. A flag (SVG) of the country standing for the language is shown before the language pickers (Paramètres › Affichage and the book edit form), and replaces the language's name in the library rows (the name appears when hovering it); languages without a known flag keep their name.
 
+## Start-up
+
+While the app loads its data (settings and language), the window shows a centered spinner instead of a blank page. It follows the system's light or dark appearance and disappears as soon as the interface is displayed.
+
 ## Sidebar
 
 The button at the top of the sidebar collapses it to a column of icons, to give more room to the reader. The state is remembered like the other settings.

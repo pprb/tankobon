@@ -18,6 +18,8 @@ The window is also locked to the app's own page: `src/main.ts` cancels `will-nav
 
 `src/main.ts` opens the database once, builds the repositories and the thumbnail cache, registers the IPC handlers of `src/main/ipc/*.ts`, then creates the window.
 
+**Start-up loader**: `index.html` ships a static spinner inside `#root` (inline CSS, which the CSP's `style-src 'unsafe-inline'` allows; light/dark through `prefers-color-scheme`, since the settings aren't loaded yet). The window shows it while `src/renderer.tsx` waits for the settings and the language, and React's first `root.render()` replaces it, so there is nothing to hide.
+
 ### IPC channels
 
 Channel-name constants (e.g. `COMIC_CHANNELS`, `LIBRARY_CHANNELS`) live in the main-process IPC files, but the preload can't import them (different process and build target), so the strings are duplicated in `src/preload.ts`. Both sides must be kept in sync by hand; `npm run docs:gen` fails if they diverge, and generates the [IPC reference](./reference/ipc.md).
