@@ -45,9 +45,26 @@ function restartOnMainRebuild(): void {
   mainBundleWatcher.unref();
 }
 
+// Authenticode signing of the Windows executables, so SmartScreen/Edge stop flagging the download
+// as unknown (see docs/development.md). It's opt-in: the release workflow sets these two variables
+// from repository secrets, and a local `npm run make` (or a fork without the secrets) stays unsigned.
+// `certificateFile` is a .pfx path; @electron/windows-sign runs signtool.exe on it, which is why
+// signing only works on the Windows runner.
+const windowsSign =
+  process.platform === 'win32' && process.env.WINDOWS_CERTIFICATE_FILE
+    ? {
+        certificateFile: process.env.WINDOWS_CERTIFICATE_FILE,
+        certificatePassword: process.env.WINDOWS_CERTIFICATE_PASSWORD,
+        // Signature timestamp: keeps the signature valid after the certificate expires.
+        timestampServer: 'http://timestamp.digicert.com',
+      }
+    : undefined;
+
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    // The app's own executable; the Squirrel maker below signs the installer and the packaged one.
+    windowsSign,
     // Packager adds the extension of the platform: assets/icon.ico (Windows), assets/icon.icns (macOS).
     icon: 'assets/icon',
     // The PNG is also read at run time, for the window icon on Linux (see src/main.ts).
@@ -59,7 +76,7 @@ const config: ForgeConfig = {
   },
   rebuildConfig: {},
   makers: [
-    new MakerSquirrel({ setupIcon: 'assets/icon.ico' }),
+    new MakerSquirrel({ setupIcon: 'assets/icon.ico', windowsSign }),
     new MakerZIP({}, ['darwin']),
     new MakerRpm({ options: { icon: 'assets/icon.png' } }),
     new MakerDeb({ options: { icon: 'assets/icon.png' } }),

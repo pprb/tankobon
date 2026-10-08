@@ -43,6 +43,9 @@ jobs:
         # Squirrel installer on Windows, ZIP on macOS (Apple silicon), deb + rpm on Linux.
         os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      # At job level because a step's `if` can't read secrets directly, only the environment.
+      WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -63,7 +66,17 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y rpm
       - run: npm ci
+      # Windows only, and only when the signing secrets exist (see docs/development.md): the
+      # certificate is decoded to a temporary .pfx that forge.config.ts hands to signtool.
+      - name: Prepare the Windows signing certificate
+        if: runner.os == 'Windows' && env.WINDOWS_CERTIFICATE_BASE64 != ''
+        shell: bash
+        run: |
+          echo "$WINDOWS_CERTIFICATE_BASE64" | base64 --decode > "$RUNNER_TEMP/codesign.pfx"
+          echo "WINDOWS_CERTIFICATE_FILE=$RUNNER_TEMP/codesign.pfx" >> "$GITHUB_ENV"
       - run: npm run make
+        env:
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
       - uses: actions/upload-artifact@v7
         with:
           name: make-${{ matrix.os }}
