@@ -23,6 +23,7 @@ import { registerMetadataIpc } from './main/ipc/metadata';
 import { registerReadingListIpc } from './main/ipc/reading-lists';
 import { registerStatsIpc } from './main/ipc/stats';
 import { registerSettingsIpc } from './main/ipc/settings';
+import { acquireInstanceLock, isRelaunch } from './main/instance-lock';
 import { applyMainLanguage, onMainLanguageApplied } from './main/language';
 import { createImageStatsScanner } from './main/services/image-stats-scanner';
 
@@ -79,7 +80,22 @@ const createWindow = () => {
   }
 };
 
-app.whenReady().then(() => {
+// A second launch hands over to the running window; a relaunch (`database:relaunch`) first waits for
+// the old process to be gone, which otherwise still shares the profile with it.
+app.on('second-instance', () => {
+  const [window] = BrowserWindow.getAllWindows();
+  if (window) {
+    if (window.isMinimized()) window.restore();
+    window.focus();
+  }
+});
+
+const gotLock = acquireInstanceLock(() => app.requestSingleInstanceLock(), isRelaunch(process.argv));
+void Promise.all([app.whenReady(), gotLock]).then(([, locked]) => {
+  if (!locked) {
+    app.quit();
+    return;
+  }
   const db = openDatabase();
   const libraryRepo = new LibraryRepository(db);
   const folderRepo = new LibraryFolderRepository(db);

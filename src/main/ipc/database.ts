@@ -4,6 +4,7 @@ import type { DatabaseLocation, DatabaseLocationResult } from '../../shared/data
 import { t } from '../../shared/i18n';
 import { databaseLocation } from '../db/database';
 import { checkDirectoryUsable, writeLocationPointer } from '../db/db-location';
+import { relaunchArgs } from '../instance-lock';
 import { openDialogFor } from './dialogs';
 import { handle } from './handle';
 import { args } from './validate';
@@ -52,7 +53,8 @@ export function registerDatabaseIpc(): void {
   });
 
   handle(DATABASE_CHANNELS.relaunch, args(), () => {
-    app.relaunch();
+    // The new process waits for this one to release the single-instance lock (see instance-lock.ts).
+    app.relaunch({ args: relaunchArgs(process.argv) });
     // `quit` (not `exit`) so main.ts's `will-quit` still closes the database cleanly.
     app.quit();
   });

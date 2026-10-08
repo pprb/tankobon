@@ -124,7 +124,7 @@ The location can't be an `AppSettings` entry, since the settings are stored *in*
 
 - A missing or malformed pointer silently falls back to `userData` rather than throwing, so a hand-edited (or sync-mangled) file can't stop the app from starting.
 - The functions are pure (they take the `userData` path, never call `app.getPath`), which makes them testable; `database.ts` is the only bridge to Electron.
-- Changing the location only rewrites the pointer: the existing file is *not* moved, because pointing at a directory that already holds a `tankobon.db` (a synced folder, another machine) must keep that database. The open database stays open until the next start (`database:relaunch`).
+- Changing the location only rewrites the pointer: the existing file is *not* moved, because pointing at a directory that already holds a `tankobon.db` (a synced folder, another machine) must keep that database. The open database stays open until the next start (`database:relaunch`). `app.relaunch()` starts the new process while the old one is still shutting down, and the two shared the profile for a moment (a blank window on Windows). `main.ts` therefore takes Electron's single-instance lock (`src/main/instance-lock.ts`): the relaunched process, flagged with `--tankobon-relaunch`, waits up to 15 s for the old one to release it, while a second launch of the app just focuses the open window.
 
 ### Export / import (`export-service.ts`, `import-service.ts`)
 
