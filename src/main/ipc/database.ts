@@ -53,8 +53,12 @@ export function registerDatabaseIpc(): void {
   });
 
   handle(DATABASE_CHANNELS.relaunch, args(), () => {
-    // The new process waits for this one to release the single-instance lock (see instance-lock.ts).
-    app.relaunch({ args: relaunchArgs(process.argv) });
+    // From the sources (`npm start`/`npm run dev`) the window loads the Vite dev server, which Forge stops
+    // when this process exits: a relaunched copy would come up blank. Only quit, the developer restarts.
+    if (app.isPackaged) {
+      // The new process waits for this one to release the single-instance lock (see instance-lock.ts).
+      app.relaunch({ args: relaunchArgs(process.argv) });
+    }
     // `quit` (not `exit`) so main.ts's `will-quit` still closes the database cleanly.
     app.quit();
   });
