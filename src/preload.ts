@@ -22,6 +22,8 @@ import type {
   ImageScanProgress,
   LibraryEntry,
   MetadataUpdate,
+  OrganizeResult,
+  PickOrganizationFolderResult,
   ResyncResult,
   ScanProgress,
   ScanResult,
@@ -64,15 +66,19 @@ export interface ComicApi {
 export interface LibraryApi {
   /** Every library entry, most recently opened first. */
   list(): Promise<LibraryEntry[]>;
-  /** Opens a native file picker, then adds the chosen comic to the library without opening it; an unreadable file resolves to an error result rather than rejecting. */
+  /** Opens a native file picker, then adds the chosen comic to the library without opening it; an unreadable file resolves to an error result rather than rejecting. The library organization then moves it, or offers to (`organization`). */
   addFile(): Promise<AddFileResult>;
-  /** Opens a native directory picker, then adds every comic found under it, recursively. */
+  /** Opens a native directory picker, then adds every comic found under it, recursively. The library organization then moves them, or offers to (`organization`). */
   addFolder(): Promise<ScanResult>;
+  /** Opens a native directory picker and makes the chosen folder the library organization's folder (the `libraryOrganizationFolder` setting, which `settings.set` refuses), also remembered among the folders `resync` walks. */
+  pickOrganizationFolder(): Promise<PickOrganizationFolderResult>;
+  /** Moves into the organized folder the comics an addition offered to move (`organization.pending.token` of its result), each into its own subfolder; a token works once. */
+  organize(token: string): Promise<OrganizeResult>;
   /** The folders added with `addFolder`, which `resync` walks again, in the order they were added. */
   listFolders(): Promise<string[]>;
   /** Forgets one of those folders (a path returned by `listFolders`); its comics stay in the library. */
   removeFolder(folder: string): Promise<void>;
-  /** Walks the remembered folders again: new comics are added, and comics whose file no longer exists are removed from the library (with their progress, rating, tags and reading-list places; the files on disk are never touched). A folder that can't be read is skipped and counted as `unreachable`. Stores the date as the `lastResyncAt` setting. Reports through `onScanProgress`; an error result when one is already running. */
+  /** Walks the remembered folders (and the organized folder, when the organization is on) again: new comics are added (then moved or offered by the organization, a comic dropped in the organized folder being moved into place), and comics whose file no longer exists are removed from the library (with their progress, rating, tags and reading-list places; the files on disk are never touched). A folder that can't be read is skipped and counted as `unreachable`. Stores the date as the `lastResyncAt` setting. Reports through `onScanProgress`; an error result when one is already running. */
   resync(): Promise<ResyncResult>;
   /** Subscribes to the progress of `addFolder` and `resync`; returns the unsubscribe function. */
   onScanProgress(listener: (progress: ScanProgress) => void): () => void;
@@ -219,6 +225,8 @@ const api: TankobonApi = {
     list: () => ipcRenderer.invoke('library:list'),
     addFile: () => ipcRenderer.invoke('library:add-file'),
     addFolder: () => ipcRenderer.invoke('library:add-folder'),
+    pickOrganizationFolder: () => ipcRenderer.invoke('library:pick-organization-folder'),
+    organize: (token) => ipcRenderer.invoke('library:organize', token),
     onScanProgress: (listener) => {
       const handler = (_event: Electron.IpcRendererEvent, progress: ScanProgress) => listener(progress);
       ipcRenderer.on('library:scan-progress', handler);

@@ -1,4 +1,5 @@
 import { BrowserWindow } from 'electron';
+import { randomUUID } from 'node:crypto';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -7,6 +8,9 @@ import { t } from '../../shared/i18n';
 import type {
   AddFileResult,
   ImageScanProgress,
+  OrganizationOutcome,
+  OrganizeResult,
+  PickOrganizationFolderResult,
   ResyncResult,
   ScanProgress,
   ScanResult,
@@ -16,6 +20,7 @@ import type { LibraryRepository } from '../db/library-repository';
 import type { SettingsRepository } from '../db/settings-repository';
 import type { DecoderClient } from '../decoder/decoder-client';
 import type { ImageStatsScanner } from '../services/image-stats-scanner';
+import { organizeEntries, planOrganization } from '../services/library-organizer';
 import { openErrorMessage } from '../services/open-error';
 import { scanIntoLibrary } from '../services/library-scanner';
 import { resyncLibrary } from '../services/library-sync';
@@ -53,6 +58,8 @@ export const LIBRARY_CHANNELS = {
   imageScanStatus: 'library:image-scan-status',
   /** Main → renderer, while the background measure of the pages runs. */
   imageScanProgress: 'library:image-scan-progress',
+  pickOrganizationFolder: 'library:pick-organization-folder',
+  organize: 'library:organize',
 } as const;
 
 /** Sends the state of the background measure to every open window (one being closed is skipped). */
@@ -62,6 +69,100 @@ export function broadcastImageScanProgress(progress: ImageScanProgress): void {
       window.webContents.send(LIBRARY_CHANNELS.imageScanProgress, progress);
     }
   }
+}
+
+/** The library organization (`AppSettings.libraryOrganization`) as the handlers use it; built once in `main.ts`. */
+export interface LibraryOrganizer {
+  /**
+   * The folders a resynchronization walks: the remembered ones, plus the organized folder when the
+   * organization is on (so a comic dropped there by hand is found, then moved into place).
+   */
+  watchedFolders(folders: string[]): string[];
+  /**
+   * Applies the organization to the comics an addition just brought in (see `planOrganization`):
+   * moves those to move now and keeps the others behind a token for `organize()`.
+   */
+  afterAdd(added: { id: string; path: string }[]): Promise<OrganizationOutcome>;
+  /** Moves the comics an earlier `afterAdd()` offered, as the user accepted. A token works once. */
+  organize(token: string): Promise<OrganizeResult>;
+}
+
+/** How many offers `createLibraryOrganizer` remembers; an older token expires. */
+const MAX_PENDING_OFFERS = 20;
+
+const NOTHING_ORGANIZED: OrganizationOutcome = { moved: 0, failed: 0, pending: null };
+
+async function isDirectory(folder: string): Promise<boolean> {
+  try {
+    return (await stat(folder)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+export function createLibraryOrganizer(
+  repo: LibraryRepository,
+  settings: SettingsRepository,
+  decoder: DecoderClient,
+  notify: NotifyDataChange,
+): LibraryOrganizer {
+  // Token → ids of the comics offered. The renderer only ever holds the token, never a path or a
+  // list it could make up.
+  const offers = new Map<string, string[]>();
+
+  const current = () => {
+    const { libraryOrganization: mode, libraryOrganizationFolder: root } = settings.getAll();
+    return { mode, root };
+  };
+
+  const move = async (root: string, ids: string[]) => {
+    const summary = await organizeEntries(repo, root, ids);
+    if (summary.moved.length > 0) {
+      notify({ scope: 'library' });
+      // Covers are cached by path: the old ones are useless, the new ones come back on demand.
+      await Promise.all(summary.moved.map((entry) => decoder.removeThumbnail(entry.from).catch(() => undefined)));
+    }
+    return { moved: summary.moved.length, failed: summary.failed };
+  };
+
+  return {
+    watchedFolders(folders) {
+      const { mode, root } = current();
+      return mode === 'off' || root === '' || folders.includes(root) ? folders : [...folders, root];
+    },
+
+    async afterAdd(added) {
+      const { mode, root } = current();
+      const plan = planOrganization(mode, root, added);
+      if (plan.now.length === 0 && plan.offer.length === 0) return NOTHING_ORGANIZED;
+      if (!(await isDirectory(root))) {
+        // An unplugged drive: nothing moves, and offering would only fail again.
+        return { moved: 0, failed: plan.now.length + plan.offer.length, pending: null };
+      }
+      const { moved, failed } = await move(root, plan.now);
+      if (plan.offer.length === 0) return { moved, failed, pending: null };
+
+      const token = randomUUID();
+      offers.set(token, plan.offer);
+      for (const oldest of offers.keys()) {
+        if (offers.size <= MAX_PENDING_OFFERS) break;
+        offers.delete(oldest);
+      }
+      return { moved, failed, pending: { token, count: plan.offer.length, folder: root } };
+    },
+
+    async organize(token) {
+      const ids = offers.get(token);
+      if (!ids) return { status: 'error', message: t('errors:library.organizationExpired') };
+      const { mode, root } = current();
+      if (mode === 'off' || root === '') return { status: 'error', message: t('errors:library.organizationOff') };
+      if (!(await isDirectory(root))) {
+        return { status: 'error', message: t('errors:library.organizationFolderUnreachable', { folder: root }) };
+      }
+      offers.delete(token);
+      return { status: 'ok', ...(await move(root, ids)) };
+    },
+  };
 }
 
 /** Everything a resynchronization needs; built once in `main.ts`. */
@@ -81,6 +182,7 @@ export function createResynchronizer(
   decoder: DecoderClient,
   notify: NotifyDataChange,
   imageScanner: ImageStatsScanner,
+  organizer: LibraryOrganizer,
 ): Resynchronizer {
   let running = false;
 
@@ -89,7 +191,10 @@ export function createResynchronizer(
       if (running) return { status: 'error', message: t('errors:library.resyncRunning') };
       running = true;
       try {
-        const summary = await resyncLibrary(repo, folders.list(), onProgress, (filePath) => decoder.inspect(filePath));
+        const summary = await resyncLibrary(repo, organizer.watchedFolders(folders.list()), onProgress, (filePath) =>
+          decoder.inspect(filePath),
+        );
+        const organization = await organizer.afterAdd(summary.addedEntries);
         const finishedAt = new Date().toISOString();
         settings.set('lastResyncAt', finishedAt);
 
@@ -108,6 +213,7 @@ export function createResynchronizer(
           failed: summary.failed,
           unreachable: summary.unreachable,
           finishedAt,
+          organization,
         };
       } catch (error) {
         return { status: 'error', message: error instanceof Error ? error.message : String(error) };
@@ -126,6 +232,7 @@ export function registerLibraryIpc(
   decoder: DecoderClient,
   notify: NotifyDataChange,
   imageScanner: ImageStatsScanner,
+  organizer: LibraryOrganizer,
 ): void {
   /** Announces the new state of entries a handler just wrote (the ones that still exist). */
   const notifyUpserted = (...ids: string[]) => {
@@ -162,8 +269,10 @@ export function registerLibraryIpc(
     }
     // New row: the library slice reloads (a targeted upsert would need the entry's id).
     notify({ scope: 'library' });
+    const id = repo.idOfPath(filePath);
+    const organization = id ? await organizer.afterAdd([{ id, path: filePath }]) : NOTHING_ORGANIZED;
     void imageScanner.kick();
-    return { status: 'added', title };
+    return { status: 'added', title, organization };
   });
 
   handle(LIBRARY_CHANNELS.addFolder, args(), async (event): Promise<ScanResult> => {
@@ -194,10 +303,36 @@ export function registerLibraryIpc(
     );
     folders.add(directory);
     notify({ scope: 'library' });
+    const organization = await organizer.afterAdd(summary.addedEntries);
     // The files are in: their pages are measured in the background, after the import.
     void imageScanner.kick();
-    return { status: 'ok', directory, ...summary };
+    const { added, skipped, failed, total } = summary;
+    return { status: 'ok', directory, added, skipped, failed, total, organization };
   });
+
+  handle(LIBRARY_CHANNELS.pickOrganizationFolder, args(), async (event): Promise<PickOrganizationFolderResult> => {
+    const options: Electron.OpenDialogOptions = {
+      title: t('dialogs:chooseOrganizationFolder'),
+      properties: ['openDirectory', 'createDirectory'],
+      defaultPath: await existingDirectory(settingsRepo.getAll().libraryOrganizationFolder),
+    };
+    const { canceled, filePaths } = await openDialogFor(event, options);
+    if (canceled || filePaths.length === 0) {
+      return { status: 'cancelled' };
+    }
+    const folder = filePaths[0];
+    settingsRepo.set('libraryOrganizationFolder', folder);
+    // Watched like the folders added from the library: a comic dropped there is found by a resynchronization.
+    folders.add(folder);
+    notify({ scope: 'settings', values: { libraryOrganizationFolder: folder } });
+    return { status: 'ok', folder };
+  });
+
+  handle(
+    LIBRARY_CHANNELS.organize,
+    args((value) => expectNonEmptyString(value, 'token', 100)),
+    (_event, token) => organizer.organize(token),
+  );
 
   handle(LIBRARY_CHANNELS.listFolders, args(), () => folders.list());
 

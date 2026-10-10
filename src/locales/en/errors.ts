@@ -28,6 +28,9 @@ export default {
   },
   library: {
     resyncRunning: 'A resynchronization is already running.',
+    organizationOff: 'The library organization is off, or has no folder.',
+    organizationFolderUnreachable: 'The organized folder can’t be reached: {{folder}}',
+    organizationExpired: 'These comics can no longer be moved from here: add them again or resynchronize.',
   },
   import: {
     notJson: 'Unreadable file: this is not valid JSON.',
